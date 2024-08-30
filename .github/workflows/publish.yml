@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - main
+      - dev
     tags:
       - '*'
   pull_request:
@@ -32,7 +33,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --release
       - run: pip install -e .[test]
       - run: pytest
