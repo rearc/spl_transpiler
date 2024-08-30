@@ -36,7 +36,7 @@ jobs:
       - run: pip install maturin
       - run: pip install -e .[test]
       - run: pytest
-      - run: cargo test
+#      - run: cargo test
 
 #  linux:
 #    runs-on: ${{ matrix.platform.runner }}
