@@ -5,6 +5,9 @@ build-backend = "maturin"
 [project]
 name = "spl_transpiler"
 requires-python = ">=3.7"
+description = "Convert Splunk SPL queries into PySpark code"
+readme = "README.md"
+license = { file = "LICENSE" }
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
