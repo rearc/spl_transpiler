@@ -1,0 +1,21 @@
+[package]
+name = "spl_transpiler"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+nom = "*"
+pyo3 = { version = "*", features = ["extension-module", "auto-initialize", "anyhow"] }
+float-derive = "*"
+#tera = "*"
+anyhow = "*"
+#serde = { version = "*", features = ["derive"] }
+log = "*"
+phf = { version = "*", features = ["macros"] }
+
+[profile.release]
+lto = "thin"
+strip = true
