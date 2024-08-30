@@ -30,16 +30,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
-      - name: Run tests
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.platform.target }}
-          command: build
-          args: --release --out dist --find-interpreter
-          sccache: 'true'
-          manylinux: musllinux_1_2
-      - run: pip install -e .[test]
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo test --release
+      - run: pip install -e .[test]
       - run: pytest
 
 #  linux:
