@@ -33,10 +33,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --release
+      - run: pip install maturin
       - run: pip install -e .[test]
       - run: pytest
+      - run: cargo test
 
 #  linux:
 #    runs-on: ${{ matrix.platform.runner }}
