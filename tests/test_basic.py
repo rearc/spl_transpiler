@@ -34,7 +34,7 @@ def test_convert_to_pyspark():
 
     spl_code = r"code IN(4*, 5*)"
     expected_pyspark_code = format_str(
-        r"spark.table('main').where((F.col('code').like('4%') | F.col('code').like('5%')))",
+        r"spark.table('main').where((F.col('code').like('4%') | F.col('code').like('5%')),)",
         mode=FileMode(),
     ).strip()
 
