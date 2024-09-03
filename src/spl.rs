@@ -399,17 +399,17 @@ fn all(input: &str) -> IResult<&str, OperatorSymbol> {
         map(operators::And::pattern, |_| {
             OperatorSymbol::And(operators::And {})
         }),
+        map(operators::LessEquals::pattern, |_| {
+            OperatorSymbol::LessEquals(operators::LessEquals {})
+        }),
         map(operators::LessThan::pattern, |_| {
             OperatorSymbol::LessThan(operators::LessThan {})
-        }),
-        map(operators::GreaterThan::pattern, |_| {
-            OperatorSymbol::GreaterThan(operators::GreaterThan {})
         }),
         map(operators::GreaterEquals::pattern, |_| {
             OperatorSymbol::GreaterEquals(operators::GreaterEquals {})
         }),
-        map(operators::LessEquals::pattern, |_| {
-            OperatorSymbol::LessEquals(operators::LessEquals {})
+        map(operators::GreaterThan::pattern, |_| {
+            OperatorSymbol::GreaterThan(operators::GreaterThan {})
         }),
         map(operators::Equals::pattern, |_| {
             OperatorSymbol::Equals(operators::Equals {})
@@ -2924,6 +2924,22 @@ mod tests {
                 ast::HeadCommand {
                     eval_expr: _gt(ast::Field("count".to_string()), ast::IntValue(10),),
                     keep_last: ast::BoolValue(false).into(),
+                    null_option: ast::BoolValue(false).into(),
+                }
+                .into()
+            ))
+        )
+    }
+
+    #[test]
+    fn test_head_count_greater_than_10_keeplast() {
+        assert_eq!(
+            head("head count>=10 keeplast=true"),
+            Ok((
+                "",
+                ast::HeadCommand {
+                    eval_expr: _gte(ast::Field("count".to_string()), ast::IntValue(10),),
+                    keep_last: ast::BoolValue(true).into(),
                     null_option: ast::BoolValue(false).into(),
                 }
                 .into()

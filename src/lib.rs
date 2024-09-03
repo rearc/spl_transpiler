@@ -43,6 +43,7 @@ fn spl_transpiler(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let ast_m = PyModule::new_bound(m.py(), "ast")?;
     ast::python::ast(&ast_m)?;
     m.add_submodule(&ast_m)?;
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
 
     Ok(())
 }

@@ -255,15 +255,20 @@ impl<T: ToString> From<T> for StrValue {
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct TimeSpan {
+    #[pyo3(get)]
     pub value: i64,
+    #[pyo3(get)]
     pub scale: String,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct SnapTime {
+    #[pyo3(get)]
     pub span: Option<TimeSpan>,
+    #[pyo3(get)]
     pub snap: String,
+    #[pyo3(get)]
     pub snap_offset: Option<TimeSpan>,
 }
 
@@ -310,27 +315,34 @@ impl<S: ToString> From<S> for IPv4CIDR {
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct FV {
+    #[pyo3(get)]
     pub field: String,
+    #[pyo3(get)]
     pub value: String,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct FB {
+    #[pyo3(get)]
     pub field: String,
+    #[pyo3(get)]
     pub value: bool,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct FC {
+    #[pyo3(get)]
     pub field: String,
+    #[pyo3(get)]
     pub value: Constant,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct CommandOptions {
+    #[pyo3(get)]
     pub options: Vec<FC>,
 }
 
@@ -440,306 +452,427 @@ impl ParsedCommandOptions {
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct AliasedField {
+    #[pyo3(get)]
     pub field: Field,
+    #[pyo3(get)]
     pub alias: String,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct Binary {
+    // #[pyo3(get)]
     pub left: Box<Expr>,
+    #[pyo3(get)]
     pub symbol: String,
+    // #[pyo3(get)]
     pub right: Box<Expr>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct Unary {
+    #[pyo3(get)]
     pub symbol: String,
+    // #[pyo3(get)]
     pub right: Box<Expr>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct Call {
+    #[pyo3(get)]
     pub name: String,
+    #[pyo3(get)]
     pub args: Vec<Expr>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct FieldIn {
+    #[pyo3(get)]
     pub field: String,
+    #[pyo3(get)]
     pub exprs: Vec<Expr>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct Alias {
+    // #[pyo3(get)]
     pub expr: Box<Expr>,
+    #[pyo3(get)]
     pub name: String,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct SearchCommand {
+    #[pyo3(get)]
     pub expr: Expr,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct EvalCommand {
+    #[pyo3(get)]
     pub fields: Vec<(Field, Expr)>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct FieldConversion {
+    #[pyo3(get)]
     pub func: String,
+    #[pyo3(get)]
     pub field: Field,
+    #[pyo3(get)]
     pub alias: Option<Field>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct ConvertCommand {
+    #[pyo3(get)]
     pub timeformat: String,
+    #[pyo3(get)]
     pub convs: Vec<FieldConversion>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct LookupOutput {
+    #[pyo3(get)]
     pub kv: String,
+    #[pyo3(get)]
     pub fields: Vec<FieldLike>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct LookupCommand {
+    #[pyo3(get)]
     pub dataset: String,
+    #[pyo3(get)]
     pub fields: Vec<FieldLike>,
+    #[pyo3(get)]
     pub output: Option<LookupOutput>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct CollectCommand {
+    #[pyo3(get)]
     pub index: String,
+    #[pyo3(get)]
     pub fields: Vec<Field>,
+    #[pyo3(get)]
     pub add_time: bool,
+    #[pyo3(get)]
     pub file: Option<String>,
+    #[pyo3(get)]
     pub host: Option<String>,
+    #[pyo3(get)]
     pub marker: Option<String>,
+    #[pyo3(get)]
     pub output_format: String,
+    #[pyo3(get)]
     pub run_in_preview: bool,
+    #[pyo3(get)]
     pub spool: bool,
+    #[pyo3(get)]
     pub source: Option<String>,
+    #[pyo3(get)]
     pub source_type: Option<String>,
+    #[pyo3(get)]
     pub test_mode: bool,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct WhereCommand {
+    #[pyo3(get)]
     pub expr: Expr,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct TableCommand {
+    #[pyo3(get)]
     pub fields: Vec<Field>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct HeadCommand {
+    #[pyo3(get)]
     pub eval_expr: Expr,
+    #[pyo3(get)]
     pub keep_last: BoolValue,
+    #[pyo3(get)]
     pub null_option: BoolValue,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct FieldsCommand {
+    #[pyo3(get)]
     pub remove_fields: bool,
+    #[pyo3(get)]
     pub fields: Vec<Field>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct SortCommand {
+    #[pyo3(get)]
     pub fields_to_sort: Vec<(Option<String>, Expr)>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct StatsCommand {
+    #[pyo3(get)]
     pub partitions: i64,
+    #[pyo3(get)]
     pub all_num: bool,
+    #[pyo3(get)]
     pub delim: String,
+    #[pyo3(get)]
     pub funcs: Vec<Expr>,
+    #[pyo3(get)]
     pub by: Vec<Field>,
+    #[pyo3(get)]
     pub dedup_split_vals: bool,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct RexCommand {
+    #[pyo3(get)]
     pub field: Option<String>,
+    #[pyo3(get)]
     pub max_match: i64,
+    #[pyo3(get)]
     pub offset_field: Option<String>,
+    #[pyo3(get)]
     pub mode: Option<String>,
+    #[pyo3(get)]
     pub regex: String,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct RenameCommand {
+    #[pyo3(get)]
     pub alias: Vec<Alias>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct RegexCommand {
+    #[pyo3(get)]
     pub item: Option<(Field, String)>,
+    #[pyo3(get)]
     pub regex: String,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct JoinCommand {
+    #[pyo3(get)]
     pub join_type: String,
+    #[pyo3(get)]
     pub use_time: bool,
+    #[pyo3(get)]
     pub earlier: bool,
+    #[pyo3(get)]
     pub overwrite: bool,
+    #[pyo3(get)]
     pub max: i64,
+    #[pyo3(get)]
     pub fields: Vec<Field>,
+    #[pyo3(get)]
     pub sub_search: Pipeline,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct ReturnCommand {
+    #[pyo3(get)]
     pub count: IntValue,
+    #[pyo3(get)]
     pub fields: Vec<FieldOrAlias>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct FillNullCommand {
+    #[pyo3(get)]
     pub value: Option<String>,
+    #[pyo3(get)]
     pub fields: Option<Vec<Field>>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct EventStatsCommand {
+    #[pyo3(get)]
     pub all_num: bool,
+    #[pyo3(get)]
     pub funcs: Vec<Expr>,
+    #[pyo3(get)]
     pub by: Vec<Field>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct StreamStatsCommand {
+    #[pyo3(get)]
     pub funcs: Vec<Expr>,
+    #[pyo3(get)]
     pub by: Vec<Field>,
+    #[pyo3(get)]
     pub current: bool,
+    #[pyo3(get)]
     pub window: i64,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct DedupCommand {
+    #[pyo3(get)]
     pub num_results: i64,
+    #[pyo3(get)]
     pub fields: Vec<Field>,
+    #[pyo3(get)]
     pub keep_events: bool,
+    #[pyo3(get)]
     pub keep_empty: bool,
+    #[pyo3(get)]
     pub consecutive: bool,
+    #[pyo3(get)]
     pub sort_by: SortCommand,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct InputLookup {
+    #[pyo3(get)]
     pub append: bool,
+    #[pyo3(get)]
     pub strict: bool,
+    #[pyo3(get)]
     pub start: i64,
+    #[pyo3(get)]
     pub max: i64,
+    #[pyo3(get)]
     pub table_name: String,
+    #[pyo3(get)]
     pub where_expr: Option<Expr>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct FormatCommand {
+    #[pyo3(get)]
     pub mv_sep: String,
+    #[pyo3(get)]
     pub max_results: i64,
+    #[pyo3(get)]
     pub row_prefix: String,
+    #[pyo3(get)]
     pub col_prefix: String,
+    #[pyo3(get)]
     pub col_sep: String,
+    #[pyo3(get)]
     pub col_end: String,
+    #[pyo3(get)]
     pub row_sep: String,
+    #[pyo3(get)]
     pub row_end: String,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct MvCombineCommand {
+    #[pyo3(get)]
     pub delim: Option<String>,
+    #[pyo3(get)]
     pub field: Field,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct MvExpandCommand {
+    #[pyo3(get)]
     pub field: Field,
+    #[pyo3(get)]
     pub limit: Option<i64>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct MakeResults {
+    #[pyo3(get)]
     pub count: i64,
+    #[pyo3(get)]
     pub annotate: bool,
+    #[pyo3(get)]
     pub server: String,
+    #[pyo3(get)]
     pub server_group: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct AddTotals {
+    #[pyo3(get)]
     pub fields: Vec<Field>,
+    #[pyo3(get)]
     pub row: bool,
+    #[pyo3(get)]
     pub col: bool,
+    #[pyo3(get)]
     pub field_name: String,
+    #[pyo3(get)]
     pub label_field: Option<String>,
+    #[pyo3(get)]
     pub label: String,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct BinCommand {
+    #[pyo3(get)]
     pub field: FieldOrAlias,
+    #[pyo3(get)]
     pub span: Option<TimeSpan>,
+    #[pyo3(get)]
     pub min_span: Option<TimeSpan>,
+    #[pyo3(get)]
     pub bins: Option<i64>,
+    #[pyo3(get)]
     pub start: Option<i64>,
+    #[pyo3(get)]
     pub end: Option<i64>,
+    #[pyo3(get)]
     pub align_time: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct MultiSearch {
+    #[pyo3(get)]
     pub pipelines: Vec<Pipeline>,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct MapCommand {
+    #[pyo3(get)]
     pub search: Pipeline,
+    #[pyo3(get)]
     pub max_searches: i64,
 }
 
@@ -747,6 +880,7 @@ pub struct MapCommand {
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct Pipeline {
+    #[pyo3(get)]
     pub commands: Vec<Command>,
 }
 

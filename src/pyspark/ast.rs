@@ -312,29 +312,30 @@ impl TemplateNode for DataFrame {
                 let columns: Result<Vec<String>> =
                     columns.iter().map(|col| col.to_spark_query()).collect();
                 Ok(format!(
-                    "{}.select({})",
+                    "{}.select({},)",
                     source.to_spark_query()?,
                     columns?.join(", ")
                 ))
             }
             DataFrame::Where { source, condition } => Ok(format!(
-                "{}.where({})",
+                "{}.where({},)",
                 source.to_spark_query()?,
                 condition.to_spark_query()?,
             )),
             DataFrame::GroupBy { source, columns } => {
-                let columns: Vec<String> = columns.iter().map(|s| format!(r#"'{}'"#, s)).collect();
+                // Extra trailing comma is intentional
+                let columns: Vec<String> = columns.iter().map(|s| format!(r#"'{}',"#, s)).collect();
                 Ok(format!(
                     "{}.groupBy({})",
                     source.to_spark_query()?,
-                    columns.join(", ")
+                    columns.join(" ")
                 ))
             }
             DataFrame::Aggregation { source, columns } => {
                 let columns: Result<Vec<String>> =
                     columns.iter().map(|col| col.to_spark_query()).collect();
                 Ok(format!(
-                    "{}.agg({})",
+                    "{}.agg({},)",
                     source.to_spark_query()?,
                     columns?.join(", ")
                 ))
@@ -344,7 +345,7 @@ impl TemplateNode for DataFrame {
                 column,
                 name,
             } => Ok(format!(
-                "{}.withColumn('{}', {})",
+                "{}.withColumn('{}', {},)",
                 source.to_spark_query()?,
                 name,
                 column.to_spark_query()?,
@@ -353,18 +354,18 @@ impl TemplateNode for DataFrame {
                 let columns: Result<Vec<String>> =
                     columns.iter().map(|col| col.to_spark_query()).collect();
                 Ok(format!(
-                    "{}.orderBy({})",
+                    "{}.orderBy({},)",
                     source.to_spark_query()?,
                     columns?.join(", ")
                 ))
             }
             DataFrame::UnionByName { source, other } => Ok(format!(
-                "{}.unionByName({}, allowMissingColumns=True)",
+                "{}.unionByName({}, allowMissingColumns=True,)",
                 source.to_spark_query()?,
                 other.to_spark_query()?,
             )),
             DataFrame::Limit { source, limit } => {
-                Ok(format!("{}.limit({})", source.to_spark_query()?, limit))
+                Ok(format!("{}.limit({},)", source.to_spark_query()?, limit))
             }
             DataFrame::Join {
                 source,
@@ -372,14 +373,14 @@ impl TemplateNode for DataFrame {
                 condition,
                 join_type,
             } => Ok(format!(
-                "{}.join({}, {}, '{}')",
+                "{}.join({}, {}, '{}',)",
                 source.to_spark_query()?,
                 other.to_spark_query()?,
                 condition.to_spark_query()?,
                 join_type
             )),
             DataFrame::Alias { source, name } => {
-                Ok(format!("{}.alias('{}')", source.to_spark_query()?, name,))
+                Ok(format!("{}.alias('{}',)", source.to_spark_query()?, name,))
             }
         }
     }
@@ -415,12 +416,28 @@ impl TryInto<DataFrame> for TransformedPipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::format_python::format_python_code;
+    use crate::pyspark::convert;
+
+    // fn generates(spl_query: &str, spark_query: &str) {
+    //     let (_, pipeline_ast) = crate::spl::pipeline(spl_query).expect("Failed to parse SPL query");
+    //     let converted = convert(pipeline_ast).expect("Failed to convert SPL query to Spark query");
+    //     let rendered = converted
+    //         .to_spark_query()
+    //         .expect("Failed to render Spark query");
+    //     let formatted_rendered = format_python_code(rendered.replace(",)", ")")).expect("Failed to format rendered Spark query");
+    //     let formatted_spark_query =
+    //         format_python_code(spark_query.replace(",)", ")")).expect("Failed to format target Spark query");
+    //     assert_eq!(formatted_rendered, formatted_spark_query);
+    // }
 
     fn generates(ast: impl TemplateNode, code: impl ToString) {
-        let generated = ast
-            .to_formatted_spark_query()
-            .expect("Failed to generate code");
-        assert_eq!(generated, code.to_string());
+        let generated = ast.to_spark_query().expect("Failed to generate code");
+        let formatted_generated = format_python_code(generated.replace(",)", ")"))
+            .expect("Failed to format rendered Spark query");
+        let formatted_code = format_python_code(code.to_string().replace(",)", ")"))
+            .expect("Failed to format target code");
+        assert_eq!(formatted_generated, formatted_code);
     }
 
     #[test]

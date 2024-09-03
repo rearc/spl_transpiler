@@ -2,6 +2,9 @@
 requires = ["maturin>=1,<2"]
 build-backend = "maturin"
 
+[tool.maturin]
+python-source = "python"
+
 [project]
 name = "spl_transpiler"
 requires-python = ">=3.7"
@@ -20,4 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest"
+]
+cli = [
+    "textual[syntax]"
 ]

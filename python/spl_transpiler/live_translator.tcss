@@ -1,0 +1,24 @@
+ASTTree {
+    width: 50%;
+    height: 100%;
+}
+
+SplCode {
+    height: 40%;
+}
+
+PysparkCode {
+    height: 60%;
+}
+
+.error {
+    color: red 20%;
+}
+
+#body {
+    height: 80%;
+}
+
+#log {
+    height: 20%;
+}

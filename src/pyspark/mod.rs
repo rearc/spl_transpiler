@@ -24,11 +24,13 @@ mod tests {
         let (_, pipeline_ast) = crate::spl::pipeline(spl_query).expect("Failed to parse SPL query");
         let converted = convert(pipeline_ast).expect("Failed to convert SPL query to Spark query");
         let rendered = converted
-            .to_formatted_spark_query()
+            .to_spark_query()
             .expect("Failed to render Spark query");
-        let formatted_spark_query =
-            format_python_code(spark_query).expect("Failed to format target Spark query");
-        assert_eq!(rendered, formatted_spark_query);
+        let formatted_rendered = format_python_code(rendered.replace(",)", ")"))
+            .expect("Failed to format rendered Spark query");
+        let formatted_spark_query = format_python_code(spark_query.replace(",)", ")"))
+            .expect("Failed to format target Spark query");
+        assert_eq!(formatted_rendered, formatted_spark_query);
     }
 
     //   test("thing") {
@@ -884,4 +886,32 @@ mod tests {
     #[test]
     #[ignore]
     fn test_49() {}
+
+    /* Custom tests */
+    #[test]
+    fn test_head_1() {
+        // Ensure that `head 5` generates .limit(5)
+        generates(r#"head 5"#, r#"spark.table('main').limit(5)"#);
+    }
+
+    #[test]
+    fn test_head_2() {
+        // Ensure that `head limit=5` generates .limit(5)
+        generates(r#"head limit=5"#, r#"spark.table('main').limit(5)"#);
+    }
+
+    #[test]
+    fn test_head_3() {
+        // Ensure that `head count<5` generates .limit(5)
+        generates(r#"head count<5"#, r#"spark.table('main').limit(5)"#);
+    }
+
+    #[test]
+    fn test_head_4() {
+        // Ensure that `head count<=5 keeplast=t` generates .limit(7)
+        generates(
+            r#"head count<=5 keeplast=true"#,
+            r#"spark.table('main').limit(7)"#,
+        );
+    }
 }

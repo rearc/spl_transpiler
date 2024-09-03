@@ -3,6 +3,14 @@ use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::command::eval_fns::eval_fn;
 use crate::pyspark::transpiler::utils::join_as_binaries;
 use anyhow::{anyhow, bail};
+use phf::phf_map;
+
+static SIMPLE_OP_MAP: phf::Map<&'static str, &'static str> = phf_map! {
+    "=" => "==",
+    "AND" => "&",
+    "OR" => "|",
+    "NOT" => "~",
+};
 
 impl TryFrom<ast::Expr> for Expr {
     type Error = anyhow::Error;
@@ -25,17 +33,10 @@ impl TryFrom<ast::Expr> for Expr {
                 ) => Ok(
                     column_like!(expr([py_lit(format!("cidr_match('{}', {})", cidr, col))])).into(),
                 ),
-                // a = b -> a == b
-                (left, "=", right) => Ok(ColumnLike::BinaryOp {
-                    left: Box::new(left.try_into()?),
-                    op: "==".to_string(),
-                    right: Box::new(right.try_into()?),
-                }
-                .into()),
                 // a [op] b -> a [op] b
                 (left, op, right) => Ok(ColumnLike::BinaryOp {
                     left: Box::new(left.try_into()?),
-                    op: op.to_string(),
+                    op: SIMPLE_OP_MAP.get(op).cloned().unwrap_or(op).to_string(),
                     right: Box::new(right.try_into()?),
                 }
                 .into()),

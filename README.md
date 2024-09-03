@@ -22,6 +22,17 @@ print(convert_spl_to_pyspark(r"""multisearch
 # )
 ```
 
+## Interactive CLI
+
+For demonstration purposes and ease of use, an interactive CLI is also provided.
+
+```bash
+pip install spl_transpiler[cli]
+python -m spl_transpiler
+```
+
+This provides an in-terminal user interface ([using `textual`](https://github.com/Textualize/textual)) where you can type an SPL query and see the converted Pyspark code in real time, alongside a visual representation of how the transpiler is understanding your query.
+
 # Why?
 
 Why transpile SPL into Spark?

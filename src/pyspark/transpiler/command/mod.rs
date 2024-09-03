@@ -9,6 +9,7 @@ mod convert_fns;
 mod eval;
 pub mod eval_fns;
 mod fields;
+mod head;
 mod map;
 mod multisearch;
 mod search;
@@ -25,7 +26,7 @@ impl PipelineTransformer for ast::Command {
             // ast::Command::CollectCommand(command) => command.transform(state),
             // ast::Command::WhereCommand(command) => command.transform(state),
             // ast::Command::TableCommand(command) => command.transform(state),
-            // ast::Command::HeadCommand(command) => command.transform(state),
+            ast::Command::HeadCommand(command) => command.transform(state),
             ast::Command::FieldsCommand(command) => command.transform(state),
             // ast::Command::SortCommand(command) => command.transform(state),
             ast::Command::StatsCommand(command) => command.transform(state),

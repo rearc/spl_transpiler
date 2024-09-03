@@ -9,6 +9,10 @@ macro_rules! impl_pyclass {
             fn new($($arg: $arg_tp),*) -> Self {
                 ast::$name ( $($arg),* )
             }
+
+            fn __repr__(&self) -> String {
+                format!("{:?}", self)
+            }
         }
     };
     ($name: ident {$($arg: ident : $arg_tp: ty),*}) => {
@@ -17,6 +21,10 @@ macro_rules! impl_pyclass {
             #[new]
             fn new($($arg: $arg_tp),*) -> Self {
                 ast::$name { $($arg),* }
+            }
+
+            fn __repr__(&self) -> String {
+                format!("{:?}", self)
             }
         }
     };
@@ -27,6 +35,12 @@ macro_rules! impl_pyclass {
             fn new($( $arg: $arg_tp ),*) -> Self {
                 ast::$name { $( $arg : (|$arg: $arg_tp| $conv)($arg) ),* }
             }
+
+            fn __repr__(&self) -> String {
+                format!("{:?}", self)
+            }
+
+            $other
         }
     };
 }
@@ -58,11 +72,11 @@ impl_pyclass!(AliasedField {
     field: ast::Field,
     alias: String
 });
-impl_pyclass!(Binary { |left: ast::Expr| Box::new(left), |symbol: String| symbol, |right: ast::Expr| Box::new(right) });
-impl_pyclass!(Unary { |symbol: String| symbol, |right: ast::Expr| Box::new(right) });
+// impl_pyclass!(Binary { |left: ast::Expr| Box::new(left), |symbol: String| symbol, |right: ast::Expr| Box::new(right) } {{}});
+// impl_pyclass!(Unary { |symbol: String| symbol, |right: ast::Expr| Box::new(right) });
 impl_pyclass!(Call { name: String, args: Vec<ast::Expr> });
 impl_pyclass!(FieldIn { field: String, exprs: Vec<ast::Expr> });
-impl_pyclass!(Alias { |expr: ast::Expr| Box::new(expr), |name: String| name });
+// impl_pyclass!(Alias { |expr: ast::Expr| Box::new(expr), |name: String| name });
 impl_pyclass!(SearchCommand { expr: ast::Expr });
 impl_pyclass!(EvalCommand { fields: Vec<(ast::Field, ast::Expr)> });
 impl_pyclass!(FieldConversion { func: String, field: ast::Field, alias: Option<ast::Field> });
@@ -111,6 +125,72 @@ impl_pyclass!(MapCommand {
     max_searches: i64
 });
 impl_pyclass!(Pipeline { commands: Vec<ast::Command> });
+
+#[pymethods]
+impl ast::Binary {
+    #[new]
+    fn new(left: ast::Expr, symbol: String, right: ast::Expr) -> Self {
+        Self {
+            left: Box::new(left),
+            symbol,
+            right: Box::new(right),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    #[getter]
+    fn left(&self) -> ast::Expr {
+        (*self.left).clone()
+    }
+
+    #[getter]
+    fn right(&self) -> ast::Expr {
+        (*self.right).clone()
+    }
+}
+
+#[pymethods]
+impl ast::Unary {
+    #[new]
+    fn new(symbol: String, right: ast::Expr) -> Self {
+        Self {
+            symbol,
+            right: Box::new(right),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    #[getter]
+    fn right(&self) -> ast::Expr {
+        (*self.right).clone()
+    }
+}
+
+#[pymethods]
+impl ast::Alias {
+    #[new]
+    fn new(expr: ast::Expr, name: String) -> Self {
+        Self {
+            expr: Box::new(expr),
+            name,
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    #[getter]
+    fn expr(&self) -> ast::Expr {
+        (*self.expr).clone()
+    }
+}
 
 pub fn ast(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ast::NullValue>()?;
