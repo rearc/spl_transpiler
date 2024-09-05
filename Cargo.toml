@@ -13,7 +13,11 @@ pyo3-built = "*"
 float-derive = "*"
 anyhow = "*"
 log = "*"
+
+inventory = "*"
 phf = { version = "*", features = ["macros"] }
+paste = "*"
+const-str = "*"
 
 [build-dependencies]
 built = { version = "*" }

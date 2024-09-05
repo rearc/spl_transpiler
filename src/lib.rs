@@ -1,10 +1,11 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-mod ast;
-mod format_python;
-mod pyspark;
-mod spl;
+pub(crate) mod ast;
+pub(crate) mod commands;
+pub(crate) mod format_python;
+pub(crate) mod pyspark;
+pub(crate) mod spl;
 
 use pyspark::{TemplateNode, TransformedPipeline};
 

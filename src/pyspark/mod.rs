@@ -1,14 +1,15 @@
 use crate::ast::ast::Pipeline;
 use anyhow::Result;
 
-mod ast;
-mod base;
-mod dealias;
-mod transpiler;
+pub(crate) mod ast;
+pub(crate) mod base;
+pub(crate) mod dealias;
+pub(crate) mod transpiler;
 
 pub use ast::TransformedPipeline;
 pub use base::TemplateNode;
 
+#[allow(dead_code)]
 pub fn convert(pipeline: Pipeline) -> Result<TransformedPipeline> {
     TransformedPipeline::try_from(pipeline)
 }
@@ -913,5 +914,13 @@ mod tests {
             r#"head count<=5 keeplast=true"#,
             r#"spark.table('main').limit(7)"#,
         );
+    }
+
+    #[test]
+    fn test_top_1() {
+        generates(
+            r#"index=main | top 5 showperc=false x"#,
+            r#"spark.table('main').groupBy('x').agg(F.count().alias('count')).orderBy(F.desc(F.col('count'))).limit(5)"#,
+        )
     }
 }

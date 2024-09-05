@@ -192,6 +192,7 @@ case class MapCommand(search: Pipeline, maxSearches: Int) extends Command
 
 case class Pipeline(commands: Seq[Command])
  */
+use anyhow::anyhow;
 use float_derive::FloatHash;
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -402,48 +403,48 @@ impl From<CommandOptions> for ParsedCommandOptions {
 */
 
 impl ParsedCommandOptions {
-    pub fn get_int_option(&self, key: &str) -> Result<Option<i64>, &'static str> {
+    pub fn get_int_option(&self, key: &str) -> Result<Option<i64>, anyhow::Error> {
         match self.inner.get(key) {
             Some(Constant::Int(IntValue(value))) => Ok(Some(*value)),
-            Some(_) => Err("not an int"),
+            Some(_) => Err(anyhow!("not an int")),
             None => Ok(None),
         }
     }
 
-    pub fn get_int(&self, key: &str, default: i64) -> Result<i64, &'static str> {
+    pub fn get_int(&self, key: &str, default: i64) -> Result<i64, anyhow::Error> {
         self.get_int_option(key).map(|v| v.unwrap_or(default))
     }
 
-    pub fn get_string_option(&self, key: &str) -> Result<Option<String>, &'static str> {
+    pub fn get_string_option(&self, key: &str) -> Result<Option<String>, anyhow::Error> {
         match self.inner.get(key) {
             Some(Constant::Field(Field(value))) => Ok(Some(value.clone())),
             Some(Constant::Str(StrValue(value))) => Ok(Some(value.clone())),
-            Some(_) => Err("not a string"),
+            Some(_) => Err(anyhow!("not a string")),
             None => Ok(None),
         }
     }
 
-    pub fn get_string(&self, key: &str, default: impl ToString) -> Result<String, &'static str> {
+    pub fn get_string(&self, key: &str, default: impl ToString) -> Result<String, anyhow::Error> {
         self.get_string_option(key)
             .map(|v| v.unwrap_or(default.to_string()))
     }
 
-    pub fn get_span_option(&self, key: &str) -> Result<Option<SplSpan>, &'static str> {
+    pub fn get_span_option(&self, key: &str) -> Result<Option<SplSpan>, anyhow::Error> {
         match self.inner.get(key) {
             Some(Constant::SplSpan(span)) => Ok(Some(span.clone())),
-            Some(_) => Err("not a span"),
+            Some(_) => Err(anyhow!("not a span")),
             None => Ok(None),
         }
     }
 
-    pub fn get_boolean(&self, key: &str, default: bool) -> Result<bool, &'static str> {
+    pub fn get_boolean(&self, key: &str, default: bool) -> Result<bool, anyhow::Error> {
         match self.inner.get(key) {
             Some(Constant::Bool(BoolValue(value))) => Ok(*value),
             Some(Constant::Field(Field(v))) if v == "true" => Ok(true),
             Some(Constant::Field(Field(v))) if v == "t" => Ok(true),
             Some(Constant::Field(Field(v))) if v == "false" => Ok(false),
             Some(Constant::Field(Field(v))) if v == "f" => Ok(false),
-            Some(_) => Err("not a bool"),
+            Some(_) => Err(anyhow!("not a bool")),
             None => Ok(default),
         }
     }
@@ -600,6 +601,31 @@ pub struct WhereCommand {
 pub struct TableCommand {
     #[pyo3(get)]
     pub fields: Vec<Field>,
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct TopCommand {
+    #[pyo3(get)]
+    pub fields: Vec<Field>,
+    #[pyo3(get)]
+    pub n: u64,
+    #[pyo3(get)]
+    pub by: Option<Vec<Field>>,
+    #[pyo3(get)]
+    pub count_field: String,
+    // #[pyo3(get)]
+    // pub limit: u64,
+    #[pyo3(get)]
+    pub other_str: String,
+    #[pyo3(get)]
+    pub percent_field: String,
+    #[pyo3(get)]
+    pub show_count: bool,
+    #[pyo3(get)]
+    pub show_percent: bool,
+    #[pyo3(get)]
+    pub use_other: bool,
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -1131,37 +1157,38 @@ impl Into<FieldOrAlias> for Alias {
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub enum Command {
-    SearchCommand(SearchCommand),
-    EvalCommand(EvalCommand),
-    FieldConversion(FieldConversion),
-    ConvertCommand(ConvertCommand),
-    LookupCommand(LookupCommand),
-    CollectCommand(CollectCommand),
-    WhereCommand(WhereCommand),
-    TableCommand(TableCommand),
-    HeadCommand(HeadCommand),
-    FieldsCommand(FieldsCommand),
-    SortCommand(SortCommand),
-    StatsCommand(StatsCommand),
-    RexCommand(RexCommand),
-    RenameCommand(RenameCommand),
-    RegexCommand(RegexCommand),
-    JoinCommand(JoinCommand),
-    ReturnCommand(ReturnCommand),
-    FillNullCommand(FillNullCommand),
-    EventStatsCommand(EventStatsCommand),
-    StreamStatsCommand(StreamStatsCommand),
-    DedupCommand(DedupCommand),
-    InputLookup(InputLookup),
-    FormatCommand(FormatCommand),
-    MvCombineCommand(MvCombineCommand),
-    MvExpandCommand(MvExpandCommand),
-    MakeResults(MakeResults),
     AddTotals(AddTotals),
     BinCommand(BinCommand),
-    MultiSearch(MultiSearch),
+    CollectCommand(CollectCommand),
+    ConvertCommand(ConvertCommand),
+    DedupCommand(DedupCommand),
+    EvalCommand(EvalCommand),
+    EventStatsCommand(EventStatsCommand),
+    FieldConversion(FieldConversion),
+    FieldsCommand(FieldsCommand),
+    FillNullCommand(FillNullCommand),
+    FormatCommand(FormatCommand),
+    HeadCommand(HeadCommand),
+    InputLookup(InputLookup),
+    JoinCommand(JoinCommand),
+    LookupCommand(LookupCommand),
+    MakeResults(MakeResults),
     MapCommand(MapCommand),
+    MultiSearch(MultiSearch),
+    MvCombineCommand(MvCombineCommand),
+    MvExpandCommand(MvExpandCommand),
     Pipeline(Pipeline),
+    RegexCommand(RegexCommand),
+    RenameCommand(RenameCommand),
+    ReturnCommand(ReturnCommand),
+    RexCommand(RexCommand),
+    SearchCommand(SearchCommand),
+    SortCommand(SortCommand),
+    StatsCommand(StatsCommand),
+    StreamStatsCommand(StreamStatsCommand),
+    TableCommand(TableCommand),
+    TopCommand(TopCommand),
+    WhereCommand(WhereCommand),
 }
 
 impl Into<Command> for SearchCommand {
@@ -1202,6 +1229,11 @@ impl Into<Command> for WhereCommand {
 impl Into<Command> for TableCommand {
     fn into(self) -> Command {
         Command::TableCommand(self)
+    }
+}
+impl Into<Command> for TopCommand {
+    fn into(self) -> Command {
+        Command::TopCommand(self)
     }
 }
 impl Into<Command> for HeadCommand {

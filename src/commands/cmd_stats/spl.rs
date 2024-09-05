@@ -1,0 +1,72 @@
+use crate::ast::ast;
+use crate::ast::ast::ParsedCommandOptions;
+use crate::commands::spl::{SplCommand, SplCommandOptions};
+use crate::spl::{bool_, field_list, stats_call, ws};
+use nom::bytes::complete::{tag, tag_no_case};
+use nom::combinator::{map, opt};
+use nom::sequence::{pair, preceded, tuple};
+use nom::{IResult, Parser};
+//
+//   def stats[_: P]: P[StatsCommand] = ("stats" ~ commandOptions ~ statsCall ~
+//     (W("by") ~ fieldList).?.map(fields => fields.getOrElse(Seq())) ~
+//     ("dedup_splitvals" ~ "=" ~ bool).?.map(v => v.exists(_.value)))
+//     .map {
+//       case (options, exprs, fields, dedup) =>
+//         StatsCommand(
+//           partitions = options.getInt("partitions", 1),
+//           allNum = options.getBoolean("allnum"),
+//           delim = options.getString("delim", default = " "),
+//           funcs = exprs,
+//           by = fields,
+//           dedupSplitVals = dedup
+//         )
+//     }
+
+#[derive(Debug, Default)]
+pub struct StatsParser {}
+pub struct StatsCommandOptions {
+    partitions: i64,
+    all_num: bool,
+    delim: String,
+}
+
+impl SplCommandOptions for StatsCommandOptions {}
+
+impl TryFrom<ParsedCommandOptions> for StatsCommandOptions {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
+        Ok(Self {
+            partitions: value.get_int("partitions", 1)?,
+            all_num: value.get_boolean("allnum", false)?,
+            delim: value.get_string("delim", " ")?,
+        })
+    }
+}
+
+impl SplCommand<ast::StatsCommand> for StatsParser {
+    type RootCommand = crate::commands::StatsCommand;
+    type Options = StatsCommandOptions;
+
+    fn parse_body(input: &str) -> IResult<&str, ast::StatsCommand> {
+        map(
+            tuple((
+                Self::Options::match_options,
+                stats_call,
+                opt(preceded(ws(tag_no_case("by")), field_list)),
+                opt(preceded(
+                    pair(ws(tag_no_case("dedup_splitvals")), ws(tag("="))),
+                    bool_,
+                )),
+            )),
+            |(options, exprs, fields, dedup)| ast::StatsCommand {
+                partitions: options.partitions,
+                all_num: options.all_num,
+                delim: options.delim,
+                funcs: exprs,
+                by: fields.unwrap_or(vec![]),
+                dedup_split_vals: dedup.map(|b| b.0).unwrap_or(false),
+            },
+        )(input)
+    }
+}

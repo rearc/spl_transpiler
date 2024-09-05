@@ -178,6 +178,7 @@ impl TryInto<ColumnLike> for Expr {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone, Hash)]
 pub enum DataFrame {
     Source {
@@ -228,6 +229,7 @@ pub enum DataFrame {
     },
 }
 
+#[allow(dead_code)]
 impl DataFrame {
     pub fn source(name: impl ToString) -> DataFrame {
         DataFrame::Source {
@@ -388,7 +390,7 @@ impl TemplateNode for DataFrame {
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 pub struct TransformedPipeline {
-    pub(crate) dataframes: Vec<DataFrame>,
+    pub dataframes: Vec<DataFrame>,
 }
 
 impl TemplateNode for TransformedPipeline {
@@ -417,7 +419,6 @@ impl TryInto<DataFrame> for TransformedPipeline {
 mod tests {
     use super::*;
     use crate::format_python::format_python_code;
-    use crate::pyspark::convert;
 
     // fn generates(spl_query: &str, spark_query: &str) {
     //     let (_, pipeline_ast) = crate::spl::pipeline(spl_query).expect("Failed to parse SPL query");

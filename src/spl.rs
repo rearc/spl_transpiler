@@ -1,11 +1,19 @@
 use crate::ast::ast::ParsedCommandOptions;
 use crate::ast::operators::OperatorSymbolTrait;
 use crate::ast::{ast, operators, operators::OperatorSymbol};
+use crate::commands::spl::SplCommand;
+use crate::commands::{
+    AddTotalsParser, BinParser, CollectParser, ConvertParser, DedupParser, EvalParser,
+    EventStatsParser, FieldsParser, FillNullParser, FormatParser, HeadParser, InputLookupParser,
+    JoinParser, LookupParser, MakeResultsParser, MapParser, MultiSearchParser, MvCombineParser,
+    MvExpandParser, RegexParser, RenameParser, ReturnParser, RexParser, SearchParser, SortParser,
+    StatsParser, StreamStatsParser, TableParser, TopParser, WhereParser,
+};
 use nom::bytes::complete::{tag_no_case, take_while};
 use nom::character::complete::{alphanumeric1, anychar, multispace0, multispace1};
-use nom::combinator::{all_consuming, map_parser, verify};
+use nom::combinator::{all_consuming, into, map_parser, verify};
 use nom::error::ParseError;
-use nom::multi::{fold_many_m_n, many0, many_m_n, separated_list0, separated_list1};
+use nom::multi::{many0, many_m_n, separated_list0, separated_list1};
 use nom::sequence::{delimited, preceded, separated_pair};
 use nom::{
     branch::alt,
@@ -47,15 +55,15 @@ where
     )
 }
 
-trait CommandArgs: TryFrom<ParsedCommandOptions, Error = &'static str> {
+pub trait CommandArgs: TryFrom<ParsedCommandOptions, Error = anyhow::Error> {
     const NAME: &'static str;
 }
 
-fn parsed_command_options<C: CommandArgs>(input: &str) -> IResult<&str, C> {
+pub fn parsed_command_options<C: CommandArgs>(input: &str) -> IResult<&str, C> {
     unwrapped(map(command_options, |opts| C::try_from(opts.into()))).parse(input)
 }
 
-fn command_with_options<C: CommandArgs>(input: &str) -> IResult<&str, C> {
+pub fn command_with_options<C: CommandArgs>(input: &str) -> IResult<&str, C> {
     preceded(ws(tag_no_case(C::NAME)), parsed_command_options::<C>)(input)
 }
 
@@ -109,14 +117,14 @@ unit_normalizer!(weeks, "weeks", "week", "w7", "w0", "w");
 unit_normalizer!(months, "months", "month", "mon");
 
 //   def timeUnit[_: P]: P[String] = months|days|hours|minutes|weeks|seconds
-fn time_unit(input: &str) -> IResult<&str, &str> {
+pub fn time_unit(input: &str) -> IResult<&str, &str> {
     alt((months, days, hours, minutes, weeks, seconds))(input)
 }
 
 //   def timeSpan[_: P]: P[TimeSpan] = int ~~ timeUnit map {
 //     case (IntValue(v), interval) => TimeSpan(v, interval)
 //   }
-fn time_span(input: &str) -> IResult<&str, ast::TimeSpan> {
+pub fn time_span(input: &str) -> IResult<&str, ast::TimeSpan> {
     map(pair(int, time_unit), |(num, unit)| ast::TimeSpan {
         value: num.0,
         scale: unit.to_string(),
@@ -128,7 +136,7 @@ fn time_span(input: &str) -> IResult<&str, ast::TimeSpan> {
 //     case (None, interval) => TimeSpan(1, interval)
 //     case a: Any => throw new IllegalArgumentException(s"timeSpan $a")
 //   }
-fn time_span_one(input: &str) -> IResult<&str, ast::TimeSpan> {
+pub fn time_span_one(input: &str) -> IResult<&str, ast::TimeSpan> {
     map(pair(opt(tag("-")), time_unit), |(sign, unit)| {
         ast::TimeSpan {
             value: if sign.is_some() { -1 } else { 1 },
@@ -139,7 +147,7 @@ fn time_span_one(input: &str) -> IResult<&str, ast::TimeSpan> {
 
 //   def relativeTime[_: P]: P[SnapTime] = (
 //       (timeSpan|timeSpanOne).? ~~ "@" ~~ timeUnit ~~ timeSpan.?).map(SnapTime.tupled)
-fn relative_time(input: &str) -> IResult<&str, ast::SnapTime> {
+pub fn relative_time(input: &str) -> IResult<&str, ast::SnapTime> {
     map(
         tuple((
             opt(alt((time_span, time_span_one))),
@@ -156,12 +164,12 @@ fn relative_time(input: &str) -> IResult<&str, ast::SnapTime> {
 }
 
 //   def token[_: P]: P[String] = ("_"|"*"|letter|digit).repX(1).!
-fn token(input: &str) -> IResult<&str, &str> {
+pub fn token(input: &str) -> IResult<&str, &str> {
     recognize(many1(alt((tag("_"), tag("*"), alphanumeric1))))(input)
 }
 
 // Boolean parser
-fn bool_(input: &str) -> IResult<&str, ast::BoolValue> {
+pub fn bool_(input: &str) -> IResult<&str, ast::BoolValue> {
     map(
         alt((
             map(tag("true"), |_| true),
@@ -175,7 +183,7 @@ fn bool_(input: &str) -> IResult<&str, ast::BoolValue> {
 }
 
 //   def doubleQuoted[_: P]: P[String] = P( "\"" ~ (CharsWhile(!"\"".contains(_)) | "\\" ~~ AnyChar | !"\"").rep.! ~ "\"" )
-fn double_quoted(input: &str) -> IResult<&str, &str> {
+pub fn double_quoted(input: &str) -> IResult<&str, &str> {
     delimited(
         tag("\""),
         ws(recognize(many0(alt((
@@ -188,7 +196,7 @@ fn double_quoted(input: &str) -> IResult<&str, &str> {
 
 //   def wildcard[_: P]: P[Wildcard] = (
 //       doubleQuoted.filter(_.contains("*")) | token.filter(_.contains("*"))) map Wildcard
-fn wildcard(input: &str) -> IResult<&str, ast::Wildcard> {
+pub fn wildcard(input: &str) -> IResult<&str, ast::Wildcard> {
     map(
         verify(alt((double_quoted, token)), |v: &str| v.contains("*")),
         |v| ast::Wildcard(v.into()),
@@ -197,7 +205,7 @@ fn wildcard(input: &str) -> IResult<&str, ast::Wildcard> {
 
 //   def doubleQuotedAlt[_: P]: P[String] = P(
 //     "\"" ~ (CharsWhile(!"\"\\".contains(_: Char)) | "\\\"").rep.! ~ "\"")
-fn double_quoted_alt(input: &str) -> IResult<&str, &str> {
+pub fn double_quoted_alt(input: &str) -> IResult<&str, &str> {
     delimited(
         tag(r#"""#),
         ws(recognize(many0(alt((
@@ -210,34 +218,34 @@ fn double_quoted_alt(input: &str) -> IResult<&str, &str> {
 }
 
 //   def strValue[_: P]: P[StrValue] = doubleQuoted map StrValue
-fn str_value(input: &str) -> IResult<&str, ast::StrValue> {
+pub fn str_value(input: &str) -> IResult<&str, ast::StrValue> {
     map(double_quoted, ast::StrValue::from)(input)
 }
 
-fn _token_not_t_f(input: &str) -> IResult<&str, &str> {
+pub fn _token_not_t_f(input: &str) -> IResult<&str, &str> {
     verify(token, |v: &str| v != "t" && v != "f")(input)
 }
 
 //   def field[_: P]: P[Field] = token.filter(!Seq("t", "f").contains(_)) map Field
-fn field(input: &str) -> IResult<&str, ast::Field> {
+pub fn field(input: &str) -> IResult<&str, ast::Field> {
     map(_token_not_t_f, |v: &str| ast::Field(v.into()))(input)
 }
 
 //   def variable[_: P]: P[Variable] =
 //     "$" ~~ token.filter(!Seq("t", "f").contains(_)) ~~ "$" map Variable
-fn variable(input: &str) -> IResult<&str, ast::Variable> {
+pub fn variable(input: &str) -> IResult<&str, ast::Variable> {
     map(delimited(tag("$"), _token_not_t_f, tag("$")), |name| {
         ast::Variable(name.into())
     })(input)
 }
 
 //   def byte[_: P]: P[String] = digit.rep(min = 1, max = 3).!
-fn byte(input: &str) -> IResult<&str, &str> {
+pub fn byte(input: &str) -> IResult<&str, &str> {
     recognize(verify(digit1, |s: &str| s.len() <= 3))(input)
 }
 
 //   def cidr[_: P]: P[IPv4CIDR] = (byte.rep(sep = ".", exactly = 4) ~ "/" ~ byte).! map IPv4CIDR
-fn cidr(input: &str) -> IResult<&str, ast::IPv4CIDR> {
+pub fn cidr(input: &str) -> IResult<&str, ast::IPv4CIDR> {
     map(
         recognize(tuple((
             byte,
@@ -258,7 +266,7 @@ fn cidr(input: &str) -> IResult<&str, ast::IPv4CIDR> {
 //   private[spl] def int[_: P]: P[IntValue] = ("+" | "-").?.! ~~ digit.rep(1).! map {
 //     case (sign, i) => IntValue(if (sign.equals("-")) -1 * i.toInt else i.toInt)
 //   }
-fn int(input: &str) -> IResult<&str, ast::IntValue> {
+pub fn int(input: &str) -> IResult<&str, ast::IntValue> {
     map(
         pair(
             opt(alt((tag("+"), tag("-")))),
@@ -280,7 +288,7 @@ fn int(input: &str) -> IResult<&str, ast::IntValue> {
 //         if (sign.equals("-")) -1 * (i + "." + j).toDouble else (i + "." + j).toDouble
 //       )
 //   }
-fn double(input: &str) -> IResult<&str, ast::DoubleValue> {
+pub fn double(input: &str) -> IResult<&str, ast::DoubleValue> {
     map(
         pair(
             opt(alt((tag("+"), tag("-")))),
@@ -296,7 +304,7 @@ fn double(input: &str) -> IResult<&str, ast::DoubleValue> {
 
 //   def constant[_: P]: P[Constant] = cidr | wildcard | strValue | variable |
 //       relativeTime | timeSpan | double | int | field | bool
-fn constant(input: &str) -> IResult<&str, ast::Constant> {
+pub fn constant(input: &str) -> IResult<&str, ast::Constant> {
     alt((
         map(cidr, ast::Constant::IPv4CIDR),
         map(wildcard, ast::Constant::Wildcard),
@@ -315,7 +323,7 @@ fn constant(input: &str) -> IResult<&str, ast::Constant> {
 
 //   def fieldAndValue[_: P]: P[FV] = (
 //       token ~ "=" ~ (doubleQuoted|token)) map { case (k, v) => FV(k, v) }
-fn field_and_value(input: &str) -> IResult<&str, ast::FV> {
+pub fn field_and_value(input: &str) -> IResult<&str, ast::FV> {
     map(
         separated_pair(token, ws(tag("=")), alt((double_quoted, token))),
         |(k, v)| ast::FV {
@@ -326,7 +334,7 @@ fn field_and_value(input: &str) -> IResult<&str, ast::FV> {
 }
 
 //   def fieldAndConstant[_: P]: P[FC] = (token ~ "=" ~ constant) map { case (k, v) => FC(k, v) }
-fn field_and_constant(input: &str) -> IResult<&str, ast::FC> {
+pub fn field_and_constant(input: &str) -> IResult<&str, ast::FC> {
     map(separated_pair(token, ws(tag("=")), constant), |(k, v)| {
         ast::FC {
             field: k.into(),
@@ -345,7 +353,7 @@ fn field_and_constant(input: &str) -> IResult<&str, ast::FC> {
 //         // scalastyle:on throwerror
 //     }
 //   }}
-fn quoted_search(input: &str) -> IResult<&str, ast::Pipeline> {
+pub fn quoted_search(input: &str) -> IResult<&str, ast::Pipeline> {
     preceded(
         pair(ws(tag_no_case("search")), ws(tag("="))),
         map_parser(double_quoted_alt, |s: &str| {
@@ -367,31 +375,33 @@ fn quoted_search(input: &str) -> IResult<&str, ast::Pipeline> {
 }
 
 //   def commandOptions[_: P]: P[CommandOptions] = fieldAndConstant.rep map CommandOptions
-fn command_options(input: &str) -> IResult<&str, ast::CommandOptions> {
+pub fn command_options(input: &str) -> IResult<&str, ast::CommandOptions> {
     map(many0(ws(field_and_constant)), |options| {
         ast::CommandOptions { options }
     })(input)
 }
 
 //   def fieldList[_: P]: P[Seq[Field]] = field.rep(sep = ",")
-fn field_list(input: &str) -> IResult<&str, Vec<ast::Field>> {
+pub fn field_list(input: &str) -> IResult<&str, Vec<ast::Field>> {
     separated_list0(tag(","), ws(field))(input)
 }
 
+#[allow(dead_code)]
 //   def filename[_: P]: P[String] = term
-fn filename(input: &str) -> IResult<&str, &str> {
+pub fn filename(input: &str) -> IResult<&str, &str> {
     term(input)
 }
 
+#[allow(dead_code)]
 //   def term[_: P]: P[String] = CharsWhile(!" ".contains(_)).!
-fn term(input: &str) -> IResult<&str, &str> {
+pub fn term(input: &str) -> IResult<&str, &str> {
     recognize(take_while(|c: char| c != ' '))(input)
 }
 
 //   private def ALL[_: P]: P[OperatorSymbol] = (Or.P | And.P | LessThan.P | GreaterThan.P
 //     | GreaterEquals.P | LessEquals.P | Equals.P | NotEquals.P | InList.P | Add.P | Subtract.P
 //     | Multiply.P | Divide.P | Concatenate.P)
-fn all(input: &str) -> IResult<&str, OperatorSymbol> {
+pub fn all(input: &str) -> IResult<&str, OperatorSymbol> {
     alt((
         map(operators::Or::pattern, |_| {
             OperatorSymbol::Or(operators::Or {})
@@ -460,7 +470,7 @@ fn all(input: &str) -> IResult<&str, OperatorSymbol> {
 //         } else Binary(left, sym,
 //           climb(next, rights.tail, sym.precedence + 1))
 //     }
-fn climb(left: ast::Expr, rights: Vec<(OperatorSymbol, ast::Expr)>, prec: i32) -> ast::Expr {
+pub fn climb(left: ast::Expr, rights: Vec<(OperatorSymbol, ast::Expr)>, prec: i32) -> ast::Expr {
     if rights.is_empty() {
         left
     } else {
@@ -509,7 +519,7 @@ fn climb(left: ast::Expr, rights: Vec<(OperatorSymbol, ast::Expr)>, prec: i32) -
 
 //   def fieldIn[_: P]: P[FieldIn] =
 //     token ~ "IN" ~ "(" ~ constant.rep(sep = ",".?) ~ ")" map FieldIn.tupled
-fn field_in(input: &str) -> IResult<&str, ast::FieldIn> {
+pub fn field_in(input: &str) -> IResult<&str, ast::FieldIn> {
     map(
         separated_pair(
             token,
@@ -531,7 +541,7 @@ fn field_in(input: &str) -> IResult<&str, ast::FieldIn> {
 }
 
 //   def call[_: P]: P[Call] = (token ~~ "(" ~~ expr.rep(sep = ",") ~~ ")").map(Call.tupled)
-fn call(input: &str) -> IResult<&str, ast::Call> {
+pub fn call(input: &str) -> IResult<&str, ast::Call> {
     map(
         pair(
             token,
@@ -547,7 +557,7 @@ fn call(input: &str) -> IResult<&str, ast::Call> {
 //   def termCall[_: P]: P[Call] = (W("TERM") ~ "(" ~ CharsWhile(!")".contains(_)).! ~ ")").map(
 //     term => Call("TERM", Seq(Field(term)))
 //   )
-fn term_call(input: &str) -> IResult<&str, ast::Call> {
+pub fn term_call(input: &str) -> IResult<&str, ast::Call> {
     map(
         preceded(
             tag_no_case("TERM"),
@@ -563,7 +573,7 @@ fn term_call(input: &str) -> IResult<&str, ast::Call> {
 }
 
 //   def argu[_: P]: P[Expr] = termCall | call | constant
-fn argu(input: &str) -> IResult<&str, ast::Expr> {
+pub fn argu(input: &str) -> IResult<&str, ast::Expr> {
     alt((
         map(term_call, |v| ast::Expr::Call(v)),
         map(call, |v| ast::Expr::Call(v)),
@@ -572,12 +582,12 @@ fn argu(input: &str) -> IResult<&str, ast::Expr> {
 }
 
 //   def parens[_: P]: P[Expr] = "(" ~ expr ~ ")"
-fn parens(input: &str) -> IResult<&str, ast::Expr> {
+pub fn parens(input: &str) -> IResult<&str, ast::Expr> {
     delimited(ws(tag("(")), expr, ws(tag(")")))(input)
 }
 
 //   def primary[_: P]: P[Expr] = unaryOf(expr) | fieldIn | parens | argu
-fn primary(input: &str) -> IResult<&str, ast::Expr> {
+pub fn primary(input: &str) -> IResult<&str, ast::Expr> {
     alt((
         map(
             preceded(pair(operators::UnaryNot::pattern, multispace1), expr),
@@ -595,202 +605,18 @@ fn primary(input: &str) -> IResult<&str, ast::Expr> {
 }
 
 //   def expr[_: P]: P[Expr] = binaryOf(primary, ALL)
-fn expr(input: &str) -> IResult<&str, ast::Expr> {
+pub fn expr(input: &str) -> IResult<&str, ast::Expr> {
     map(
         pair(primary, many0(pair(ws(all), primary))),
         |(expr, tuples)| climb(expr, tuples, 100),
     )(input)
 }
 
-//   def impliedSearch[_: P]: P[SearchCommand] =
-//     "search".? ~ expr.rep(max = 100) map(_.reduce((a, b) => Binary(a, And, b))) map SearchCommand
-fn implied_search(input: &str) -> IResult<&str, ast::SearchCommand> {
-    map(
-        verify(
-            preceded(
-                opt(ws(tag_no_case("search"))),
-                fold_many_m_n(
-                    1, // <-- differs from original code, but I don't see how 0 makes sense
-                    100,
-                    ws(expr),
-                    || None,
-                    |a, b| match a {
-                        None => Some(b),
-                        Some(a) => Some(ast::Expr::Binary(ast::Binary {
-                            left: Box::new(a),
-                            symbol: operators::And::SYMBOL.into(),
-                            right: Box::new(b),
-                        })),
-                    },
-                ),
-            ),
-            |v| v.is_some(),
-        ),
-        |v| ast::SearchCommand { expr: v.unwrap() },
-    )(input)
-}
-
-//
-//   def eval[_: P]: P[EvalCommand] = "eval" ~ (field ~ "=" ~ expr).rep(sep = ",") map EvalCommand
-fn eval(input: &str) -> IResult<&str, ast::EvalCommand> {
-    map(
-        preceded(
-            ws(tag_no_case("eval")),
-            separated_list0(
-                ws(tag(",")),
-                separated_pair(ws(field), ws(tag("=")), ws(expr)),
-            ),
-        ),
-        |assignments| ast::EvalCommand {
-            fields: assignments,
-        },
-    )(input)
-}
-//
-//   // | convert dur2sec(*delay)
-//   // convert (timeformat=<string>)? ( (auto|dur2sec|mstime|memk|none|
-//   // num|rmunit|rmcomma|ctime|mktime) "(" <field>? ")" (as <field>)?)+
-//   def convert[_: P]: P[ConvertCommand] = ("convert" ~
-//     commandOptions ~ (token ~~ "(" ~ field ~ ")" ~
-//     (W("AS") ~ field).?).map(FieldConversion.tupled).rep) map {
-//       case (options, fcs) =>
-//         ConvertCommand(
-//           options.getString("timeformat", "%m/%d/%Y %H:%M:%S"),
-//           fcs
-//         )
-//     }
-struct ConvertCommandArgs {
-    timeformat: String,
-}
-impl CommandArgs for ConvertCommandArgs {
-    const NAME: &'static str = "convert";
-}
-impl TryFrom<ParsedCommandOptions> for ConvertCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(ConvertCommandArgs {
-            timeformat: value.get_string("timeformat", "%m/%d/%Y %H:%M:%S")?,
-        })
-    }
-}
-
-fn convert(input: &str) -> IResult<&str, ast::ConvertCommand> {
-    map(
-        pair(
-            command_with_options::<ConvertCommandArgs>,
-            many0(map(
-                ws(tuple((
-                    token,
-                    delimited(tag("("), ws(field), tag(")")),
-                    ws(opt(preceded(ws(tag_no_case("AS")), field))),
-                ))),
-                |(token, field, as_field)| ast::FieldConversion {
-                    func: token.into(),
-                    field,
-                    alias: as_field,
-                },
-            )),
-        ),
-        |(ConvertCommandArgs { timeformat }, convs)| ast::ConvertCommand { timeformat, convs },
-    )(input)
-}
-//
-//   def collect[_: P]: P[CollectCommand] = "collect" ~ commandOptions ~ fieldList map {
-//     case (cmdOptions, fields) => CollectCommand(
-//       index = cmdOptions.getStringOption("index") match {
-//         case Some(index) => index
-//         case None => throw new Exception("index is mandatory in collect command !")
-//       },
-//       fields = fields,
-//       addTime = cmdOptions.getBoolean("addtime", default = true),
-//       file = cmdOptions.getString("file", default = null),
-//       host = cmdOptions.getString("host", default = null),
-//       marker = cmdOptions.getString("marker", default = null),
-//       outputFormat = cmdOptions.getString("output_format", default = "raw"),
-//       runInPreview = cmdOptions.getBoolean("run_in_preview"),
-//       spool = cmdOptions.getBoolean("spool", default = true),
-//       source = cmdOptions.getString("source", default = null),
-//       sourceType = cmdOptions.getString("sourcetype", default = null),
-//       testMode = cmdOptions.getBoolean("testmode")
-//     )
-//   }
-struct CollectCommandArgs {
-    index: String,
-    add_time: bool,
-    file: Option<String>,
-    host: Option<String>,
-    marker: Option<String>,
-    output_format: String,
-    run_in_preview: bool,
-    spool: bool,
-    source: Option<String>,
-    source_type: Option<String>,
-    test_mode: bool,
-}
-impl CommandArgs for CollectCommandArgs {
-    const NAME: &'static str = "collect";
-}
-impl TryFrom<ParsedCommandOptions> for CollectCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(CollectCommandArgs {
-            index: value
-                .get_string_option("index")?
-                .ok_or("No index provided")?,
-            add_time: value.get_boolean("addtime", true)?,
-            file: value.get_string_option("file")?,
-            host: value.get_string_option("host")?,
-            marker: value.get_string_option("marker")?,
-            output_format: value.get_string("output_format", "raw")?,
-            run_in_preview: value.get_boolean("run_in_preview", false)?,
-            spool: value.get_boolean("spool", true)?,
-            source: value.get_string_option("source")?,
-            source_type: value.get_string_option("sourcetype")?,
-            test_mode: value.get_boolean("testmode", false)?,
-        })
-    }
-}
-fn collect(input: &str) -> IResult<&str, ast::CollectCommand> {
-    map(
-        pair(command_with_options::<CollectCommandArgs>, field_list),
-        |(
-            CollectCommandArgs {
-                index,
-                add_time,
-                file,
-                host,
-                marker,
-                output_format,
-                run_in_preview,
-                spool,
-                source,
-                source_type,
-                test_mode,
-            },
-            fields,
-        )| ast::CollectCommand {
-            index,
-            add_time,
-            file,
-            host,
-            marker,
-            output_format,
-            run_in_preview,
-            spool,
-            source,
-            source_type,
-            test_mode,
-            fields,
-        },
-    )(input)
-}
 //
 //   // lookup <lookup-dataset> (<lookup-field> [AS <event-field>] )...
 //   // [ (OUTPUT | OUTPUTNEW) ( <lookup-destfield> [AS <event-destfield>] )...]
 //   def aliasedField[_: P]: P[Alias] = field ~ W("AS") ~ (token|doubleQuoted) map Alias.tupled
-fn aliased_field(input: &str) -> IResult<&str, ast::Alias> {
+pub fn aliased_field(input: &str) -> IResult<&str, ast::Alias> {
     map(
         separated_pair(field, ws(tag_no_case("AS")), alt((token, double_quoted))),
         |(field, alias)| ast::Alias {
@@ -806,7 +632,7 @@ fn aliased_field(input: &str) -> IResult<&str, ast::Alias> {
 //     case Field(v) => v.toLowerCase(Locale.ROOT) != "output"
 //     case _ => false
 //   }.rep(1)
-fn field_rep(input: &str) -> IResult<&str, Vec<ast::FieldLike>> {
+pub fn field_rep(input: &str) -> IResult<&str, Vec<ast::FieldLike>> {
     separated_list1(
         multispace1,
         alt((
@@ -822,137 +648,8 @@ fn field_rep(input: &str) -> IResult<&str, Vec<ast::FieldLike>> {
     )(input)
 }
 
-//
-//   def lookupOutput[_: P]: P[LookupOutput] =
-//     (W("OUTPUT")|W("OUTPUTNEW")).! ~ fieldRep map LookupOutput.tupled
-fn lookup_output(input: &str) -> IResult<&str, ast::LookupOutput> {
-    map(
-        separated_pair(
-            alt((tag_no_case("OUTPUT"), tag_no_case("OUTPUTNEW"))),
-            multispace1,
-            field_rep,
-        ),
-        |(kv, fields)| ast::LookupOutput {
-            kv: kv.into(),
-            fields,
-        },
-    )(input)
-}
-
-//
-//   def lookup[_: P]: P[LookupCommand] =
-//     "lookup" ~ token ~ fieldRep ~ lookupOutput.? map LookupCommand.tupled
-fn lookup(input: &str) -> IResult<&str, ast::LookupCommand> {
-    preceded(
-        ws(tag_no_case("lookup")),
-        map(
-            tuple((ws(token), ws(field_rep), ws(opt(lookup_output)))),
-            |(token, fields, output)| ast::LookupCommand {
-                dataset: token.to_string(),
-                fields,
-                output,
-            },
-        ),
-    )(input)
-}
-
-//
-//   /**
-//    * TODO Add condition
-//    * TODO: refactor to use command options
-//    */
-//   def head[_: P]: P[HeadCommand] = ("head" ~ ((int | "limit=" ~ int) | expr)
-//     ~ ("keeplast=" ~ bool).?
-//     ~ ("null=" ~ bool).?).map(item => {
-//     HeadCommand(item._1, item._2.getOrElse(Bool(false)), item._3.getOrElse(Bool(false)))
-//   })
-fn head(input: &str) -> IResult<&str, ast::HeadCommand> {
-    preceded(
-        ws(tag_no_case("head")),
-        map(
-            tuple((
-                ws(alt((
-                    map(alt((int, preceded(ws(tag_no_case("limit=")), int))), |v| {
-                        v.into()
-                    }),
-                    expr,
-                ))),
-                ws(opt(preceded(ws(tag_no_case("keeplast=")), bool_))),
-                ws(opt(preceded(ws(tag_no_case("null=")), bool_))),
-            )),
-            |(limit_or_expr, keep_last_opt, null_opt)| ast::HeadCommand {
-                eval_expr: limit_or_expr.into(),
-                keep_last: keep_last_opt.unwrap_or(false.into()),
-                null_option: null_opt.unwrap_or(false.into()),
-            },
-        ),
-    )(input)
-}
-
-//
-//   /*
-//    * Function is missing wildcard fields (except when discarding fields ie. fields - myField, ...)
-//    */
-//   def fields[_: P]: P[FieldsCommand] =
-//     "fields" ~ ("+" | "-").!.? ~ field.rep(min = 1, sep = ",") map {
-//       case (op, fields) =>
-//         if (op.getOrElse("+").equals("-")) {
-//           FieldsCommand(removeFields = true, fields)
-//         } else {
-//           FieldsCommand(removeFields = false, fields)
-//         }
-//     }
-fn fields(input: &str) -> IResult<&str, ast::FieldsCommand> {
-    preceded(
-        ws(tag_no_case("fields")),
-        map(
-            tuple((
-                opt(ws(alt((tag("+"), tag("-"))))),
-                separated_list1(ws(tag(",")), field),
-            )),
-            |(remove_fields_opt, fields)| ast::FieldsCommand {
-                remove_fields: remove_fields_opt.unwrap_or("+") == "-",
-                fields,
-            },
-        ),
-    )(input)
-}
-
-//
-//   def sort[_: P]: P[SortCommand] =
-//     "sort" ~ (("+"|"-").!.? ~~ expr).rep(min = 1, sep = ",") map SortCommand
-fn sort(input: &str) -> IResult<&str, ast::SortCommand> {
-    preceded(
-        ws(tag_no_case("sort")),
-        map(
-            separated_list1(
-                ws(tag(",")),
-                pair(opt(map(alt((tag("+"), tag("-"))), String::from)), expr),
-            ),
-            |fields_to_sort| ast::SortCommand { fields_to_sort },
-        ),
-    )(input)
-}
-
-//   // where <predicate-expression>
-//   def where[_: P]: P[WhereCommand] = "where" ~ expr map WhereCommand
-fn where_(input: &str) -> IResult<&str, ast::WhereCommand> {
-    preceded(
-        ws(tag_no_case("where")),
-        map(expr, |v| ast::WhereCommand { expr: v }),
-    )(input)
-}
-
-//   def table[_: P]: P[TableCommand] = "table" ~ field.rep(1) map TableCommand
-fn table(input: &str) -> IResult<&str, ast::TableCommand> {
-    preceded(
-        ws(tag_no_case("table")),
-        map(many1(ws(field)), |fields| ast::TableCommand { fields }),
-    )(input)
-}
-
 //   def aliasedCall[_: P]: P[Alias] = call ~ W("as") ~ token map Alias.tupled
-fn aliased_call(input: &str) -> IResult<&str, ast::Alias> {
+pub fn aliased_call(input: &str) -> IResult<&str, ast::Alias> {
     map(
         separated_pair(call, ws(tag_no_case("as")), token),
         |(expr, name)| ast::Alias {
@@ -964,7 +661,7 @@ fn aliased_call(input: &str) -> IResult<&str, ast::Alias> {
 
 //   def statsCall[_: P]: P[Seq[Expr with Product with Serializable]] = (aliasedCall | call |
 //     token.filter(!_.toLowerCase(Locale.ROOT).equals("by")).map(Call(_))).rep(1, ",".?)
-fn stats_call(input: &str) -> IResult<&str, Vec<ast::Expr>> {
+pub fn stats_call(input: &str) -> IResult<&str, Vec<ast::Expr>> {
     separated_list1(
         alt((ws(tag(",")), multispace1)),
         alt((
@@ -981,772 +678,6 @@ fn stats_call(input: &str) -> IResult<&str, Vec<ast::Expr>> {
                 },
             ),
         )),
-    )(input)
-}
-
-//
-//   def stats[_: P]: P[StatsCommand] = ("stats" ~ commandOptions ~ statsCall ~
-//     (W("by") ~ fieldList).?.map(fields => fields.getOrElse(Seq())) ~
-//     ("dedup_splitvals" ~ "=" ~ bool).?.map(v => v.exists(_.value)))
-//     .map {
-//       case (options, exprs, fields, dedup) =>
-//         StatsCommand(
-//           partitions = options.getInt("partitions", 1),
-//           allNum = options.getBoolean("allnum"),
-//           delim = options.getString("delim", default = " "),
-//           funcs = exprs,
-//           by = fields,
-//           dedupSplitVals = dedup
-//         )
-//     }
-struct StatsCommandArgs {
-    partitions: i64,
-    all_num: bool,
-    delim: String,
-}
-impl CommandArgs for StatsCommandArgs {
-    const NAME: &'static str = "stats";
-}
-impl TryFrom<ParsedCommandOptions> for StatsCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(StatsCommandArgs {
-            partitions: value.get_int("partitions", 1)?,
-            all_num: value.get_boolean("allnum", false)?,
-            delim: value.get_string("delim", " ")?,
-        })
-    }
-}
-
-fn stats(input: &str) -> IResult<&str, ast::StatsCommand> {
-    map(
-        tuple((
-            command_with_options::<StatsCommandArgs>,
-            stats_call,
-            opt(preceded(ws(tag_no_case("by")), field_list)),
-            opt(preceded(
-                pair(ws(tag_no_case("dedup_splitvals")), ws(tag("="))),
-                bool_,
-            )),
-        )),
-        |(options, exprs, fields, dedup)| ast::StatsCommand {
-            partitions: options.partitions,
-            all_num: options.all_num,
-            delim: options.delim,
-            funcs: exprs,
-            by: fields.unwrap_or(vec![]),
-            dedup_split_vals: dedup.map(|b| b.0).unwrap_or(false),
-        },
-    )(input)
-}
-
-//
-//   // https://docs.splunk.com/Documentation/Splunk/8.2.2/SearchReference/Rex
-//   def rex[_: P]: P[RexCommand] = ("rex" ~ commandOptions ~ doubleQuoted) map {
-//     case (kv, regex) =>
-//       RexCommand(
-//         field = kv.getStringOption("field"),
-//         maxMatch = kv.getInt("max_match", 1),
-//         offsetField = kv.getStringOption("offset_field"),
-//         mode = kv.getStringOption("mode"),
-//         regex = regex)
-//   }
-struct RexCommandArgs {
-    field: Option<String>,
-    max_match: i64,
-    offset_field: Option<String>,
-    mode: Option<String>,
-}
-impl CommandArgs for RexCommandArgs {
-    const NAME: &'static str = "rex";
-}
-impl TryFrom<ParsedCommandOptions> for RexCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(RexCommandArgs {
-            field: value.get_string_option("field")?,
-            max_match: value.get_int("max_match", 1)?,
-            offset_field: value.get_string_option("offset_field")?,
-            mode: value.get_string_option("mode")?,
-        })
-    }
-}
-
-fn rex(input: &str) -> IResult<&str, ast::RexCommand> {
-    map(
-        pair(command_with_options::<RexCommandArgs>, double_quoted),
-        |(options, regex)| ast::RexCommand {
-            field: options.field,
-            max_match: options.max_match,
-            offset_field: options.offset_field,
-            mode: options.mode,
-            regex: regex.to_string(),
-        },
-    )(input)
-}
-
-//
-//   def rename[_: P]: P[RenameCommand] =
-//     "rename" ~ aliasedField.rep(min = 1, sep = ",") map RenameCommand
-fn rename(input: &str) -> IResult<&str, ast::RenameCommand> {
-    preceded(
-        ws(tag_no_case("rename")),
-        map(separated_list1(ws(tag(",")), aliased_field), |alias| {
-            ast::RenameCommand { alias }
-        }),
-    )(input)
-}
-
-//   def _regex[_: P]: P[RegexCommand] =
-//     "regex" ~ (field ~ ("="|"!=").!).? ~ doubleQuoted map RegexCommand.tupled
-fn regex_(input: &str) -> IResult<&str, ast::RegexCommand> {
-    preceded(
-        ws(tag_no_case("regex")),
-        map(
-            pair(
-                opt(pair(
-                    ws(field),
-                    map(ws(alt((tag("="), tag("!=")))), |v| v.into()),
-                )),
-                double_quoted,
-            ),
-            |(item, regex)| ast::RegexCommand {
-                item,
-                regex: regex.to_string(),
-            },
-        ),
-    )(input)
-}
-
-//   def join[_: P]: P[JoinCommand] =
-//     ("join" ~ commandOptions ~ field.rep(min = 1, sep = ",") ~ subSearch) map {
-//       case (options, fields, pipeline) => JoinCommand(
-//         joinType = options.getString("type", "inner"),
-//         useTime = options.getBoolean("usetime"),
-//         earlier = options.getBoolean("earlier", default = true),
-//         overwrite = options.getBoolean("overwrite"),
-//         max = options.getInt("max", 1),
-//         fields = fields,
-//         subSearch = pipeline)
-//     }
-struct JoinCommandArgs {
-    join_type: String,
-    use_time: bool,
-    earlier: bool,
-    overwrite: bool,
-    max: i64,
-}
-impl CommandArgs for JoinCommandArgs {
-    const NAME: &'static str = "join";
-}
-impl TryFrom<ParsedCommandOptions> for JoinCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(JoinCommandArgs {
-            join_type: value.get_string("type", "inner")?,
-            use_time: value.get_boolean("usetime", false)?,
-            earlier: value.get_boolean("earlier", true)?,
-            overwrite: value.get_boolean("overwrite", false)?,
-            max: value.get_int("max", 1)?,
-        })
-    }
-}
-
-fn join(input: &str) -> IResult<&str, ast::JoinCommand> {
-    map(
-        tuple((
-            command_with_options::<JoinCommandArgs>,
-            separated_list1(ws(tag(",")), field),
-            sub_search,
-        )),
-        |(options, fields, pipeline)| ast::JoinCommand {
-            join_type: options.join_type,
-            use_time: options.use_time,
-            earlier: options.earlier,
-            overwrite: options.overwrite,
-            max: options.max,
-            fields,
-            sub_search: pipeline,
-        },
-    )(input)
-}
-
-//
-//   def _return[_: P]: P[ReturnCommand] = "return" ~ int.? ~ (
-//     fieldAndValue.rep(1) | ("$" ~~ field).rep(1) | field.rep(1)) map {
-//     case (maybeValue, exprs) =>
-//       ReturnCommand(maybeValue.getOrElse(IntValue(1)), exprs map {
-//         case fv: FV => Alias(Field(fv.value), fv.field).asInstanceOf[FieldOrAlias]
-//         case field: Field => field.asInstanceOf[FieldOrAlias]
-//         case a: Any => throw new IllegalArgumentException(s"field $a")
-//       })
-//   }
-fn return_(input: &str) -> IResult<&str, ast::ReturnCommand> {
-    preceded(
-        ws(tag_no_case("return")),
-        map(
-            tuple((
-                ws(opt(int)),
-                alt((
-                    many1(map(ws(field_and_value), |v| {
-                        ast::Alias {
-                            expr: Box::new(ast::Field::from(v.value).into()),
-                            name: v.field,
-                        }
-                        .into()
-                    })),
-                    many1(map(ws(preceded(tag("$"), field)), |v| v.into())),
-                    many1(map(ws(field), |v| v.into())),
-                )),
-            )),
-            |(maybe_count, fields)| ast::ReturnCommand {
-                count: maybe_count.unwrap_or(1.into()),
-                fields,
-            },
-        ),
-    )(input)
-}
-
-//
-//   def fillNull[_: P]: P[FillNullCommand] = ("fillnull" ~ ("value=" ~~ (doubleQuoted|token)).?
-//     ~ field.rep(1).?) map FillNullCommand.tupled
-fn fill_null(input: &str) -> IResult<&str, ast::FillNullCommand> {
-    preceded(
-        ws(tag_no_case("fillnull")),
-        map(
-            tuple((
-                opt(preceded(tag("value="), alt((double_quoted, token)))),
-                opt(many1(map(ws(field), |v| v.into()))),
-            )),
-            |(maybe_value, fields)| ast::FillNullCommand {
-                value: maybe_value.map(|v| v.to_string()),
-                fields,
-            },
-        ),
-    )(input)
-}
-
-//
-//   def eventStats[_: P]: P[EventStatsCommand] = ("eventstats" ~ commandOptions ~ statsCall
-//     ~ (W("by") ~ fieldList).?.map(fields => fields.getOrElse(Seq()))).map {
-//     case (options, exprs, fields) =>
-//       EventStatsCommand(
-//         allNum = options.getBoolean("allnum"),
-//         funcs = exprs,
-//         by = fields
-//       )
-//   }
-struct EventStatsCommandArgs {
-    all_num: bool,
-}
-impl CommandArgs for EventStatsCommandArgs {
-    const NAME: &'static str = "eventstats";
-}
-impl TryFrom<ParsedCommandOptions> for EventStatsCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(EventStatsCommandArgs {
-            all_num: value.get_boolean("allnum", false)?,
-        })
-    }
-}
-fn event_stats(input: &str) -> IResult<&str, ast::EventStatsCommand> {
-    map(
-        tuple((
-            command_with_options::<EventStatsCommandArgs>,
-            ws(stats_call),
-            opt(preceded(ws(tag_no_case("by")), field_list)),
-        )),
-        |(options, funcs, by)| ast::EventStatsCommand {
-            all_num: options.all_num,
-            funcs,
-            by: by.unwrap_or(vec![]),
-        },
-    )(input)
-}
-
-//
-//   def streamStats[_: P]: P[StreamStatsCommand] = ("streamstats" ~ commandOptions ~ statsCall
-//     ~ (W("by") ~ fieldList).?.map(fields => fields.getOrElse(Seq()))).map {
-//     case (options, funcs, by) =>
-//       StreamStatsCommand(
-//         funcs,
-//         by,
-//         options.getBoolean("current", default = true),
-//         options.getInt("window")
-//       )
-//   }
-struct StreamStatsCommandArgs {
-    current: bool,
-    window: i64,
-}
-impl CommandArgs for StreamStatsCommandArgs {
-    const NAME: &'static str = "streamstats";
-}
-impl TryFrom<ParsedCommandOptions> for StreamStatsCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(StreamStatsCommandArgs {
-            current: value.get_boolean("current", true)?,
-            window: value.get_int("window", 0)?,
-        })
-    }
-}
-fn stream_stats(input: &str) -> IResult<&str, ast::StreamStatsCommand> {
-    map(
-        tuple((
-            command_with_options::<StreamStatsCommandArgs>,
-            ws(stats_call),
-            opt(preceded(ws(tag_no_case("by")), field_list)),
-        )),
-        |(options, funcs, by)| ast::StreamStatsCommand {
-            funcs,
-            by: by.unwrap_or(vec![]),
-            current: options.current,
-            window: options.window,
-        },
-    )(input)
-}
-
-//
-//   /*
-//    * Specific field repetition which exclude the term sortby
-//    * to avoid any conflict with the sortby command during the parsing
-//    */
-//   def dedupFieldRep[_: P]: P[Seq[Field]] = field.filter {
-//     case Field(myVal) => !myVal.toLowerCase(Locale.ROOT).equals("sortby")
-//   }.rep(1)
-fn dedup_field_rep(input: &str) -> IResult<&str, Vec<ast::Field>> {
-    many1(ws(verify(field, |f| f.0.to_ascii_lowercase() != "sortby")))(input)
-}
-
-//
-//   def dedup[_: P]: P[DedupCommand] = (
-//     "dedup" ~ int.? ~ commandOptions ~ dedupFieldRep
-//       ~ ("sortby" ~ (("+"|"-").!.? ~~ field).rep(1)).?) map {
-//     case (limit, kv, fields, sortByQuery) =>
-//       val sortByCommand = sortByQuery match {
-//         case Some(query) => SortCommand(query)
-//         case _ => SortCommand(Seq((Some("+"), Field("_no"))))
-//       }
-//       DedupCommand(
-//         numResults = limit.getOrElse(IntValue(1)).value,
-//         fields = fields,
-//         keepEvents = kv.getBoolean("keepevents"),
-//         keepEmpty = kv.getBoolean("keepEmpty"),
-//         consecutive = kv.getBoolean("consecutive"),
-//         sortByCommand
-//       )
-//   }
-struct DedupCommandArgs {
-    keep_events: bool,
-    keep_empty: bool,
-    consecutive: bool,
-}
-impl CommandArgs for DedupCommandArgs {
-    const NAME: &'static str = "dedup";
-}
-impl TryFrom<ParsedCommandOptions> for DedupCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(DedupCommandArgs {
-            keep_events: value.get_boolean("keepevents", false)?,
-            keep_empty: value.get_boolean("keepempty", false)?,
-            consecutive: value.get_boolean("consecutive", false)?,
-        })
-    }
-}
-fn dedup(input: &str) -> IResult<&str, ast::DedupCommand> {
-    preceded(
-        ws(tag_no_case(DedupCommandArgs::NAME)),
-        map(
-            tuple((
-                opt(int),
-                parsed_command_options::<DedupCommandArgs>,
-                dedup_field_rep,
-                opt(preceded(
-                    ws(tag_no_case("sortby")),
-                    map(
-                        many1(ws(pair(
-                            opt(map(alt((tag("+"), tag("-"))), Into::into)),
-                            map(field, Into::into),
-                        ))),
-                        |fields_to_sort| ast::SortCommand { fields_to_sort },
-                    ),
-                )),
-            )),
-            |(limit, options, fields, sort_by)| ast::DedupCommand {
-                // num_results: 0,
-                // fields: vec![],
-                // keep_events: false,
-                // keep_empty: false,
-                // consecutive: false,
-                // sort_by: SortCommand {},
-                num_results: limit.map(|v| v.0).unwrap_or(1),
-                fields,
-                keep_events: options.keep_events,
-                keep_empty: options.keep_empty,
-                consecutive: options.consecutive,
-                sort_by: sort_by.unwrap_or(ast::SortCommand {
-                    fields_to_sort: vec![(Some("+".into()), ast::Field::from("_no").into())],
-                }),
-            },
-        ),
-    )(input)
-}
-
-//
-//   def inputLookup[_: P]: P[InputLookup] =
-//     ("inputlookup" ~ commandOptions ~ token ~ ("where" ~ expr).?) map {
-//       case (options, tableName, whereOption) =>
-//         InputLookup(
-//           options.getBoolean("append"),
-//           options.getBoolean("strict"),
-//           options.getInt("start"),
-//           options.getInt("max", 1000000000),
-//           tableName,
-//           whereOption)
-//     }
-struct InputLookupCommandArgs {
-    append: bool,
-    strict: bool,
-    start: i64,
-    max: i64,
-}
-impl CommandArgs for InputLookupCommandArgs {
-    const NAME: &'static str = "inputlookup";
-}
-impl TryFrom<ParsedCommandOptions> for InputLookupCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(InputLookupCommandArgs {
-            append: value.get_boolean("append", false)?,
-            strict: value.get_boolean("strict", false)?,
-            start: value.get_int("start", 0)?,
-            max: value.get_int("max", 1000000000)?,
-        })
-    }
-}
-fn input_lookup(input: &str) -> IResult<&str, ast::InputLookup> {
-    map(
-        tuple((
-            command_with_options::<InputLookupCommandArgs>,
-            ws(token),
-            ws(opt(preceded(ws(tag_no_case("where")), expr))),
-        )),
-        |(options, table_name, where_options)| ast::InputLookup {
-            append: options.append,
-            strict: options.strict,
-            start: options.start,
-            max: options.max,
-            table_name: table_name.into(),
-            where_expr: where_options,
-        },
-    )(input)
-}
-
-//
-//   def format[_: P]: P[FormatCommand] = ("format" ~ commandOptions ~ doubleQuoted.rep(6).?) map {
-//     case (kv, options) =>
-//       val arguments = options match {
-//         case Some(args) => args
-//         case _ => Seq("(", "(", "AND", ")", "OR", ")")
-//       }
-//       FormatCommand(
-//         mvSep = kv.getString("mvsep", "OR"),
-//         maxResults = kv.getInt("maxresults"),
-//         rowPrefix = arguments.head,
-//         colPrefix = arguments(1),
-//         colSep = arguments(2),
-//         colEnd = arguments(3),
-//         rowSep = arguments(4),
-//         rowEnd = arguments(5)
-//       )
-//   }
-struct FormatCommandArgs {
-    mv_sep: String,
-    max_results: i64,
-}
-impl CommandArgs for FormatCommandArgs {
-    const NAME: &'static str = "format";
-}
-impl TryFrom<ParsedCommandOptions> for FormatCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(FormatCommandArgs {
-            mv_sep: value.get_string("mvsep", "OR")?,
-            max_results: value.get_int("maxresults", 0)?,
-        })
-    }
-}
-fn format(input: &str) -> IResult<&str, ast::FormatCommand> {
-    map(
-        pair(
-            command_with_options::<FormatCommandArgs>,
-            opt(tuple((
-                ws(double_quoted),
-                ws(double_quoted),
-                ws(double_quoted),
-                ws(double_quoted),
-                ws(double_quoted),
-                ws(double_quoted),
-            ))),
-        ),
-        |(options, delimiters)| {
-            let delimiters = delimiters.unwrap_or(("(", "(", "AND", ")", "OR", ")"));
-            ast::FormatCommand {
-                mv_sep: options.mv_sep,
-                max_results: options.max_results,
-                row_prefix: delimiters.0.into(),
-                col_prefix: delimiters.1.into(),
-                col_sep: delimiters.2.into(),
-                col_end: delimiters.3.into(),
-                row_sep: delimiters.4.into(),
-                row_end: delimiters.5.into(),
-            }
-        },
-    )(input)
-}
-
-//
-//   def mvcombine[_: P]: P[MvCombineCommand] = ("mvcombine" ~ ("delim" ~ "=" ~ doubleQuoted).?
-//     ~ field) map MvCombineCommand.tupled
-fn mvcombine(input: &str) -> IResult<&str, ast::MvCombineCommand> {
-    map(
-        preceded(
-            ws(tag_no_case("mvcombine")),
-            pair(
-                opt(preceded(
-                    pair(ws(tag_no_case("delim")), ws(tag("="))),
-                    ws(double_quoted),
-                )),
-                field,
-            ),
-        ),
-        |(delim_opt, field)| ast::MvCombineCommand {
-            delim: delim_opt.map(Into::into),
-            field: field.into(),
-        },
-    )(input)
-}
-
-//
-//   def mvexpand[_: P]: P[MvExpandCommand] = ("mvexpand" ~ field ~ ("limit" ~ "=" ~ int).?) map {
-//     case (field, None) => MvExpandCommand(field, None)
-//     case (field, Some(limit)) => MvExpandCommand(field, Some(limit.value))
-//   }
-fn mvexpand(input: &str) -> IResult<&str, ast::MvExpandCommand> {
-    map(
-        preceded(
-            ws(tag_no_case("mvexpand")),
-            pair(
-                ws(field),
-                opt(preceded(
-                    pair(ws(tag_no_case("limit")), ws(tag("="))),
-                    ws(int),
-                )),
-            ),
-        ),
-        |(field, limit_opt)| ast::MvExpandCommand {
-            field,
-            limit: limit_opt.map(|v| v.0),
-        },
-    )(input)
-}
-
-//
-//   // bin [<bin-options>...] <field> [AS <newfield>]
-//   def bin[_: P]: P[BinCommand] = "bin" ~ commandOptions ~ (aliasedField | field) map {
-//     case (options, field) => BinCommand(field,
-//       span = options.getSpanOption("span"),
-//       minSpan = options.getSpanOption("minspan"),
-//       bins = options.getIntOption("bins"),
-//       start = options.getIntOption("start"),
-//       end = options.getIntOption("end"),
-//       alignTime = options.getStringOption("aligntime")
-//     )
-//   }
-struct BinCommandArgs {
-    span: Option<ast::TimeSpan>,
-    min_span: Option<ast::TimeSpan>,
-    bins: Option<i64>,
-    start: Option<i64>,
-    end: Option<i64>,
-    align_time: Option<String>,
-}
-impl CommandArgs for BinCommandArgs {
-    const NAME: &'static str = "bin";
-}
-impl TryFrom<ParsedCommandOptions> for BinCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(BinCommandArgs {
-            span: value.get_span_option("span")?.map(|span| match span {
-                ast::SplSpan::TimeSpan(s) => s,
-            }),
-            min_span: value.get_span_option("minspan")?.map(|span| match span {
-                ast::SplSpan::TimeSpan(s) => s,
-            }),
-            bins: value.get_int_option("bins")?,
-            start: value.get_int_option("start")?,
-            end: value.get_int_option("end")?,
-            align_time: value.get_string_option("aligntime")?,
-        })
-    }
-}
-fn bin(input: &str) -> IResult<&str, ast::BinCommand> {
-    map(
-        pair(
-            command_with_options::<BinCommandArgs>,
-            alt((map(aliased_field, Into::into), map(field, Into::into))),
-        ),
-        |(options, field)| ast::BinCommand {
-            field,
-            span: options.span,
-            min_span: options.min_span,
-            bins: options.bins,
-            start: options.start,
-            end: options.end,
-            align_time: options.align_time,
-        },
-    )(input)
-}
-
-//
-//   def makeResults[_: P]: P[MakeResults] = ("makeresults" ~ commandOptions) map {
-//     options =>
-//       MakeResults(
-//         count = options.getInt("count", 1),
-//         annotate = options.getBoolean("annotate"),
-//         server = options.getString("splunk_server", "local"),
-//         serverGroup = options.getString("splunk_server_group", null)
-//       )
-//   }
-struct MakeResultsCommandArgs {
-    count: i64,
-    annotate: bool,
-    server: String,
-    server_group: Option<String>,
-}
-impl CommandArgs for MakeResultsCommandArgs {
-    const NAME: &'static str = "makeresults";
-}
-impl TryFrom<ParsedCommandOptions> for MakeResultsCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(MakeResultsCommandArgs {
-            count: value.get_int("count", 1)?,
-            annotate: value.get_boolean("annotate", false)?,
-            server: value.get_string("splunk_server", "local")?,
-            server_group: value.get_string_option("splunk_server_group")?,
-        })
-    }
-}
-fn make_results(input: &str) -> IResult<&str, ast::MakeResults> {
-    map(command_with_options::<MakeResultsCommandArgs>, |options| {
-        ast::MakeResults {
-            count: options.count,
-            annotate: options.annotate,
-            server: options.server,
-            server_group: options.server_group,
-        }
-    })(input)
-}
-
-//
-//   def cAddtotals[_: P]: P[AddTotals] = "addtotals" ~ commandOptions ~ field.rep(1).? map {
-//     case (options: CommandOptions, fields: Option[Seq[Field]]) =>
-//       AddTotals(
-//         fields.getOrElse(Seq.empty[Field]),
-//         row = options.getBoolean("row", default = true),
-//         col = options.getBoolean("col"),
-//         fieldName = options.getString("fieldname", "Total"),
-//         labelField = options.getString("labelfield", null),
-//         label = options.getString("label", "Total")
-//       )
-//   }
-struct AddTotalsCommandArgs {
-    row: bool,
-    col: bool,
-    field_name: String,
-    label_field: Option<String>,
-    label: String,
-}
-impl CommandArgs for AddTotalsCommandArgs {
-    const NAME: &'static str = "addtotals";
-}
-impl TryFrom<ParsedCommandOptions> for AddTotalsCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(AddTotalsCommandArgs {
-            row: value.get_boolean("row", true)?,
-            col: value.get_boolean("col", false)?,
-            field_name: value.get_string("fieldname", "Total")?,
-            label_field: value.get_string_option("labelfield")?,
-            label: value.get_string("label", "Total")?,
-        })
-    }
-}
-fn c_addtotals(input: &str) -> IResult<&str, ast::AddTotals> {
-    map(
-        pair(
-            command_with_options::<AddTotalsCommandArgs>,
-            many0(ws(field)),
-        ),
-        |(options, fields)| ast::AddTotals {
-            fields,
-            row: options.row,
-            col: options.col,
-            field_name: options.field_name,
-            label_field: options.label_field,
-            label: options.label,
-        },
-    )(input)
-}
-
-//
-//   def _map[_: P]: P[MapCommand] = "map" ~ quotedSearch ~ commandOptions map {
-//     case (subPipe, options) => MapCommand(
-//       subPipe,
-//       options.getInt("maxsearches", 10)
-//     )
-//   }
-struct MapCommandArgs {
-    max_searches: i64,
-}
-impl CommandArgs for MapCommandArgs {
-    const NAME: &'static str = "map";
-}
-impl TryFrom<ParsedCommandOptions> for MapCommandArgs {
-    type Error = &'static str;
-
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
-        Ok(MapCommandArgs {
-            max_searches: value.get_int("maxsearches", 10)?,
-        })
-    }
-}
-fn map_(input: &str) -> IResult<&str, ast::MapCommand> {
-    map(
-        preceded(
-            ws(tag_no_case(MapCommandArgs::NAME)),
-            pair(quoted_search, parsed_command_options::<MapCommandArgs>),
-        ),
-        |(subpipe, options)| ast::MapCommand {
-            search: subpipe,
-            max_searches: options.max_searches,
-        },
     )(input)
 }
 
@@ -1780,47 +711,48 @@ fn map_(input: &str) -> IResult<&str, ast::MapCommand> {
 //     | multiSearch
 //     | _map
 //     | impliedSearch)
-fn command(input: &str) -> IResult<&str, ast::Command> {
+pub fn command(input: &str) -> IResult<&str, ast::Command> {
     alt((
         // `alt` has a hard count limit, so we just break it up into sub-alts
         alt((
-            map(stats, Into::into),
-            map(table, Into::into),
-            map(where_, Into::into),
-            map(lookup, Into::into),
-            map(collect, Into::into),
-            map(convert, Into::into),
-            map(eval, Into::into),
-            map(head, Into::into),
-            map(fields, Into::into),
-            map(sort, Into::into),
-            map(rex, Into::into),
-            map(rename, Into::into),
-            map(regex_, Into::into),
-            map(join, Into::into),
-            map(return_, Into::into),
-            map(fill_null, Into::into),
-            map(event_stats, Into::into),
-            map(stream_stats, Into::into),
-            map(dedup, Into::into),
-            map(input_lookup, Into::into),
-            map(format, Into::into),
+            into(StatsParser::parse),
+            into(TableParser::parse),
+            into(WhereParser::parse),
+            into(InputLookupParser::parse),
+            into(CollectParser::parse),
+            into(ConvertParser::parse),
+            into(EvalParser::parse),
+            into(HeadParser::parse),
+            into(FieldsParser::parse),
+            into(SortParser::parse),
+            into(RexParser::parse),
+            into(RenameParser::parse),
+            into(RegexParser::parse),
+            into(JoinParser::parse),
+            into(ReturnParser::parse),
+            into(FillNullParser::parse),
+            into(EventStatsParser::parse),
+            into(StreamStatsParser::parse),
+            into(DedupParser::parse),
+            into(LookupParser::parse),
+            into(FormatParser::parse),
         )),
         alt((
-            map(mvcombine, Into::into),
-            map(mvexpand, Into::into),
-            map(bin, Into::into),
-            map(make_results, Into::into),
-            map(c_addtotals, Into::into),
-            map(multi_search, Into::into),
-            map(map_, Into::into),
-            map(implied_search, Into::into),
+            into(MvCombineParser::parse),
+            into(MvExpandParser::parse),
+            into(BinParser::parse),
+            into(MakeResultsParser::parse),
+            into(AddTotalsParser::parse),
+            into(MultiSearchParser::parse),
+            into(MapParser::parse),
+            into(TopParser::parse),
+            into(SearchParser::parse),
         )),
     ))(input)
 }
 //
 //   def subSearch[_: P]: P[Pipeline] = "[" ~ (command rep(sep = "|")) ~ "]" map Pipeline
-fn sub_search(input: &str) -> IResult<&str, ast::Pipeline> {
+pub fn sub_search(input: &str) -> IResult<&str, ast::Pipeline> {
     map(
         delimited(
             ws(tag("[")),
@@ -1831,21 +763,10 @@ fn sub_search(input: &str) -> IResult<&str, ast::Pipeline> {
     )(input)
 }
 
-//   def multiSearch[_: P]: P[MultiSearch] = "multisearch" ~ subSearch.rep(2) map MultiSearch
-fn multi_search(input: &str) -> IResult<&str, ast::MultiSearch> {
-    map(
-        preceded(
-            ws(tag("multisearch")),
-            many_m_n(2, usize::MAX, ws(sub_search)),
-        ),
-        |pipelines| ast::MultiSearch { pipelines },
-    )(input)
-}
-
 //   def pipeline[_: P]: P[Pipeline] = (command rep(sep = "|")) ~ End map Pipeline
-pub(crate) fn pipeline(input: &str) -> IResult<&str, ast::Pipeline> {
+pub fn pipeline(input: &str) -> IResult<&str, ast::Pipeline> {
     map(
-        all_consuming(ws(separated_list0(tag("|"), command))),
+        all_consuming(ws(separated_list0(ws(tag("|")), command))),
         |commands| ast::Pipeline { commands },
     )(input)
 }
@@ -2126,7 +1047,7 @@ mod tests {
     #[test]
     fn test_search() {
         assert_eq!(
-            implied_search("search index=dummy host=$host_var$"),
+            SearchParser::parse("search index=dummy host=$host_var$"),
             Ok((
                 "",
                 ast::SearchCommand {
@@ -2649,7 +1570,7 @@ mod tests {
     #[test]
     fn test_implied_search_1() {
         assert_eq!(
-            implied_search("a=b b=c (c=f OR d=t)"),
+            SearchParser::parse("a=b b=c (c=f OR d=t)"),
             Ok((
                 "",
                 ast::SearchCommand {
@@ -2678,7 +1599,7 @@ mod tests {
     #[test]
     fn test_implied_search_in_1() {
         assert_eq!(
-            implied_search("code IN(4*, 5*)"),
+            SearchParser::parse("code IN(4*, 5*)"),
             Ok((
                 "",
                 ast::SearchCommand {
@@ -2720,7 +1641,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            implied_search("var_5 IN (str_2, str_3)"),
+            SearchParser::parse("var_5 IN (str_2, str_3)"),
             Ok((
                 "",
                 ast::SearchCommand {
@@ -2754,7 +1675,7 @@ mod tests {
     #[test]
     fn test_implied_search_not_in_1() {
         assert_eq!(
-            implied_search("NOT code IN(4*, 5*)"),
+            SearchParser::parse("NOT code IN(4*, 5*)"),
             Ok((
                 "",
                 ast::SearchCommand {
@@ -2798,7 +1719,7 @@ mod tests {
     #[test]
     fn test_implied_search_complex_1() {
         assert_eq!(
-            implied_search("code IN(10, 29, 43) host!=\"localhost\" xqp>5"),
+            SearchParser::parse("code IN(10, 29, 43) host!=\"localhost\" xqp>5"),
             Ok((
                 "",
                 ast::SearchCommand {
@@ -2837,7 +1758,7 @@ mod tests {
     #[test]
     fn test_head_limit_1() {
         assert_eq!(
-            head("head 20"),
+            HeadParser::parse("head 20"),
             Ok((
                 "",
                 ast::HeadCommand {
@@ -2862,7 +1783,7 @@ mod tests {
     #[test]
     fn test_head_limit_2() {
         assert_eq!(
-            head("head limit=400"),
+            HeadParser::parse("head limit=400"),
             Ok((
                 "",
                 ast::HeadCommand {
@@ -2888,7 +1809,7 @@ mod tests {
     #[test]
     fn test_head_limit_3() {
         assert_eq!(
-            head("head limit=400 keeplast=true null=false"),
+            HeadParser::parse("head limit=400 keeplast=true null=false"),
             Ok((
                 "",
                 ast::HeadCommand {
@@ -2918,7 +1839,7 @@ mod tests {
     #[test]
     fn test_head_count_greater_than_10() {
         assert_eq!(
-            head("head count>10"),
+            HeadParser::parse("head count>10"),
             Ok((
                 "",
                 ast::HeadCommand {
@@ -2934,7 +1855,7 @@ mod tests {
     #[test]
     fn test_head_count_greater_than_10_keeplast() {
         assert_eq!(
-            head("head count>=10 keeplast=true"),
+            HeadParser::parse("head count>=10 keeplast=true"),
             Ok((
                 "",
                 ast::HeadCommand {
@@ -2963,7 +1884,7 @@ mod tests {
     #[test]
     fn test_fields_1() {
         assert_eq!(
-            fields("fields column_a, column_b, column_c"),
+            FieldsParser::parse("fields column_a, column_b, column_c"),
             Ok((
                 "",
                 ast::FieldsCommand {
@@ -2994,7 +1915,7 @@ mod tests {
     #[test]
     fn test_fields_2() {
         assert_eq!(
-            fields("fields + column_a, column_b"),
+            FieldsParser::parse("fields + column_a, column_b"),
             Ok((
                 "",
                 ast::FieldsCommand {
@@ -3024,7 +1945,7 @@ mod tests {
     #[test]
     fn test_fields_3() {
         assert_eq!(
-            fields("fields - column_a, column_b"),
+            FieldsParser::parse("fields - column_a, column_b"),
             Ok((
                 "",
                 ast::FieldsCommand {
@@ -3054,7 +1975,7 @@ mod tests {
     #[test]
     fn test_sort_1() {
         assert_eq!(
-            sort("sort A, -B, +num(C)"),
+            SortParser::parse("sort A, -B, +num(C)"),
             Ok((
                 "",
                 ast::SortCommand {
@@ -3152,7 +2073,7 @@ mod tests {
     #[test]
     fn test_sort_2() {
         assert_eq!(
-            sort("sort A"),
+            SortParser::parse("sort A"),
             Ok((
                 "",
                 ast::SortCommand {
@@ -3172,7 +2093,7 @@ mod tests {
     #[test]
     fn test_eval_1() {
         assert_eq!(
-            eval("eval mitre_category=\"Discovery\""),
+            EvalParser::parse("eval mitre_category=\"Discovery\""),
             Ok((
                 "",
                 ast::EvalCommand {
@@ -3195,7 +2116,7 @@ mod tests {
     #[test]
     fn test_eval_2() {
         assert_eq!(
-            eval("eval email_lower=lower(email)"),
+            EvalParser::parse("eval email_lower=lower(email)"),
             Ok((
                 "",
                 ast::EvalCommand {
@@ -3247,7 +2168,7 @@ mod tests {
     #[test]
     fn test_eval_3() {
         assert_eq!(
-            eval("eval replaced=replace(email, \"@.+\", \"\")"),
+            EvalParser::parse("eval replaced=replace(email, \"@.+\", \"\")"),
             Ok((
                 "",
                 ast::EvalCommand {
@@ -3276,7 +2197,7 @@ mod tests {
     #[test]
     fn test_eval_4() {
         assert_eq!(
-            eval("eval hash_sha256= lower(hash_sha256), b=c"),
+            EvalParser::parse("eval hash_sha256= lower(hash_sha256), b=c"),
             Ok((
                 "",
                 ast::EvalCommand {
@@ -3302,7 +2223,7 @@ mod tests {
     #[test]
     fn test_convert_1() {
         assert_eq!(
-            convert("convert ctime(indextime)"),
+            ConvertParser::parse("convert ctime(indextime)"),
             Ok((
                 "",
                 ast::ConvertCommand {
@@ -3474,20 +2395,24 @@ mod tests {
     //   }
     #[test]
     fn test_pipeline_lookup_5() {
+        let _lookup_cmd = ast::LookupCommand {
+            dataset: "process_create_whitelist".to_string(),
+            fields: vec![ast::Field::from("a").into(), ast::Field::from("b").into()],
+            output: Some(ast::LookupOutput {
+                kv: "output".to_string(),
+                fields: vec![ast::Field::from("reason").into()],
+            }),
+        };
+        assert_eq!(
+            LookupParser::parse("lookup process_create_whitelist a b output reason"),
+            Ok(("", _lookup_cmd.clone()))
+        );
         assert_eq!(
             pipeline("lookup process_create_whitelist a b output reason"),
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::LookupCommand {
-                        dataset: "process_create_whitelist".to_string(),
-                        fields: vec![ast::Field::from("a").into(), ast::Field::from("b").into()],
-                        output: Some(ast::LookupOutput {
-                            kv: "output".to_string(),
-                            fields: vec![ast::Field::from("reason").into()]
-                        })
-                    }
-                    .into()],
+                    commands: vec![_lookup_cmd.clone().into()],
                 }
                 .into()
             ))
@@ -3818,7 +2743,7 @@ mod tests {
     #[test]
     fn test_rename_1() {
         assert_eq!(
-            rename(r#"rename _ip AS IPAddress"#),
+            RenameParser::parse(r#"rename _ip AS IPAddress"#),
             Ok((
                 "",
                 ast::RenameCommand {
@@ -3850,7 +2775,7 @@ mod tests {
     #[test]
     fn test_rename_2() {
         assert_eq!(
-            rename(r#"rename _ip AS IPAddress, _host AS host, _port AS port"#),
+            RenameParser::parse(r#"rename _ip AS IPAddress, _host AS host, _port AS port"#),
             Ok((
                 "",
                 ast::RenameCommand {
@@ -3879,7 +2804,7 @@ mod tests {
     #[test]
     fn test_rename_3() {
         assert_eq!(
-            rename(r#"rename foo* AS bar*"#),
+            RenameParser::parse(r#"rename foo* AS bar*"#),
             Ok((
                 "",
                 ast::RenameCommand {
@@ -3903,7 +2828,7 @@ mod tests {
     #[test]
     fn test_rename_4() {
         assert_eq!(
-            rename(r#"rename count AS "Count of Events""#),
+            RenameParser::parse(r#"rename count AS "Count of Events""#),
             Ok((
                 "",
                 ast::RenameCommand {
@@ -3932,7 +2857,7 @@ mod tests {
     #[test]
     fn test_join_1() {
         assert_eq!(
-            join(r#"join product_id [search vendors]"#),
+            JoinParser::parse(r#"join product_id [search vendors]"#),
             Ok((
                 "",
                 ast::JoinCommand {
@@ -3978,7 +2903,7 @@ mod tests {
     #[test]
     fn test_join_2() {
         assert_eq!(
-            join(
+            JoinParser::parse(
                 r#"join type=left usetime=true earlier=false overwrite=false product_id, host, name [search vendors]"#
             ),
             Ok((
@@ -4031,7 +2956,7 @@ mod tests {
     #[test]
     fn test_join_3() {
         assert_eq!(
-            join(r#"join product_id [search vendors | rename pid AS product_id]"#),
+            JoinParser::parse(r#"join product_id [search vendors | rename pid AS product_id]"#),
             Ok((
                 "",
                 ast::JoinCommand {
@@ -4069,7 +2994,7 @@ mod tests {
     #[test]
     fn test_regex_1() {
         assert_eq!(
-            regex_(r#"regex _raw="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
+            RegexParser::parse(r#"regex _raw="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
             Ok((
                 "",
                 ast::RegexCommand {
@@ -4090,7 +3015,7 @@ mod tests {
     #[test]
     fn test_regex_2() {
         assert_eq!(
-            regex_(r#"regex _raw!="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
+            RegexParser::parse(r#"regex _raw!="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
             Ok((
                 "",
                 ast::RegexCommand {
@@ -4111,7 +3036,7 @@ mod tests {
     #[test]
     fn test_regex_3() {
         assert_eq!(
-            regex_(r#"regex "(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
+            RegexParser::parse(r#"regex "(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
             Ok((
                 "",
                 ast::RegexCommand {
@@ -4136,7 +3061,7 @@ mod tests {
     #[test]
     fn test_return_1() {
         assert_eq!(
-            return_(r#"return 10 $test $env"#),
+            ReturnParser::parse(r#"return 10 $test $env"#),
             Ok((
                 "",
                 ast::ReturnCommand {
@@ -4166,7 +3091,7 @@ mod tests {
     #[test]
     fn test_return_2() {
         assert_eq!(
-            return_(r#"return 10 ip src host port"#),
+            ReturnParser::parse(r#"return 10 ip src host port"#),
             Ok((
                 "",
                 ast::ReturnCommand {
@@ -4196,7 +3121,7 @@ mod tests {
     #[test]
     fn test_return_3() {
         assert_eq!(
-            return_(r#"return 10 ip=src host=port"#),
+            ReturnParser::parse(r#"return 10 ip=src host=port"#),
             Ok((
                 "",
                 ast::ReturnCommand {
@@ -4218,7 +3143,7 @@ mod tests {
     #[test]
     fn test_fill_null_1() {
         assert_eq!(
-            fill_null(r#"fillnull"#),
+            FillNullParser::parse(r#"fillnull"#),
             Ok((
                 "",
                 ast::FillNullCommand {
@@ -4237,7 +3162,7 @@ mod tests {
     #[test]
     fn test_fill_null_2() {
         assert_eq!(
-            fill_null(r#"fillnull value="NA""#),
+            FillNullParser::parse(r#"fillnull value="NA""#),
             Ok((
                 "",
                 ast::FillNullCommand {
@@ -4261,7 +3186,7 @@ mod tests {
     #[test]
     fn test_fill_null_3() {
         assert_eq!(
-            fill_null(r#"fillnull value="NULL" host port"#),
+            FillNullParser::parse(r#"fillnull value="NULL" host port"#),
             Ok((
                 "",
                 ast::FillNullCommand {
@@ -4297,7 +3222,9 @@ mod tests {
     #[test]
     fn test_dedup_1() {
         assert_eq!(
-            dedup(r#"dedup 10 keepevents=true keepempty=false consecutive=true host ip port"#),
+            DedupParser::parse(
+                r#"dedup 10 keepevents=true keepempty=false consecutive=true host ip port"#
+            ),
             Ok((
                 "",
                 ast::DedupCommand {
@@ -4342,7 +3269,7 @@ mod tests {
     #[test]
     fn test_dedup_2() {
         assert_eq!(
-            dedup(r#"dedup 10 keepevents=true host ip port sortby +host -ip"#),
+            DedupParser::parse(r#"dedup 10 keepevents=true host ip port sortby +host -ip"#),
             Ok((
                 "",
                 ast::DedupCommand {
@@ -4386,7 +3313,7 @@ mod tests {
     #[test]
     fn test_input_lookup_1() {
         assert_eq!(
-            input_lookup(r#"inputlookup append=t strict=f myTable where test_id=11"#),
+            InputLookupParser::parse(r#"inputlookup append=t strict=f myTable where test_id=11"#),
             Ok((
                 "",
                 ast::InputLookup {
@@ -4416,7 +3343,7 @@ mod tests {
     #[test]
     fn test_input_lookup_2() {
         assert_eq!(
-            input_lookup(r#"inputlookup myTable"#),
+            InputLookupParser::parse(r#"inputlookup myTable"#),
             Ok((
                 "",
                 ast::InputLookup {
@@ -4448,7 +3375,7 @@ mod tests {
     #[test]
     fn test_format_1() {
         assert_eq!(
-            format(r#"format maxresults=10"#),
+            FormatParser::parse(r#"format maxresults=10"#),
             Ok((
                 "",
                 ast::FormatCommand {
@@ -4482,7 +3409,7 @@ mod tests {
     #[test]
     fn test_format_2() {
         assert_eq!(
-            format(r#"format mvsep="||" "[" "[" "&&" "]" "||" "]""#),
+            FormatParser::parse(r#"format mvsep="||" "[" "[" "&&" "]" "||" "]""#),
             Ok((
                 "",
                 ast::FormatCommand {
@@ -4510,7 +3437,7 @@ mod tests {
     #[test]
     fn test_mvcombine_1() {
         assert_eq!(
-            mvcombine(r#"mvcombine host"#),
+            MvCombineParser::parse(r#"mvcombine host"#),
             Ok((
                 "",
                 ast::MvCombineCommand {
@@ -4532,7 +3459,7 @@ mod tests {
     #[test]
     fn test_mvcombine_2() {
         assert_eq!(
-            mvcombine(r#"mvcombine delim="," host"#),
+            MvCombineParser::parse(r#"mvcombine delim="," host"#),
             Ok((
                 "",
                 ast::MvCombineCommand {
@@ -4794,7 +3721,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            map_(r#"map search="search index=\"dummy\"""#),
+            MapParser::parse(r#"map search="search index=\"dummy\"""#),
             Ok((
                 "",
                 ast::MapCommand {
@@ -4809,7 +3736,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            map_(r#"map search="search index=dummy""#),
+            MapParser::parse(r#"map search="search index=dummy""#),
             Ok((
                 "",
                 ast::MapCommand {
@@ -4867,7 +3794,7 @@ mod tests {
         assert!(quoted_search(r#"search="search index=dummy host=$host_var$ | eval this=\"that\" | dedup 10 keepevents=true keepempty=false consecutive=true host ip port""#).is_ok());
         assert_eq!(
             command(s),
-            map_(s).map(|(remaining, result)| (remaining, result.into()))
+            MapParser::parse(s).map(|(remaining, result)| (remaining, result.into()))
         );
         assert_eq!(
             command(s),
