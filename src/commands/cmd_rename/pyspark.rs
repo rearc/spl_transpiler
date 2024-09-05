@@ -1,9 +1,9 @@
-use crate::ast::ast;
+use crate::commands::cmd_rename::spl::RenameCommand;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 
-impl PipelineTransformer for ast::RenameCommand {
+impl PipelineTransformer for RenameCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let df = state.df;
 
         unimplemented!();
 

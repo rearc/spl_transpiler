@@ -1,5 +1,5 @@
-use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{Field, ParsedCommandOptions, Pipeline};
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{field, sub_search, ws};
 use nom::bytes::complete::tag;
@@ -7,7 +7,7 @@ use nom::combinator::map;
 use nom::multi::separated_list1;
 use nom::sequence::tuple;
 use nom::{IResult, Parser};
-
+use pyo3::prelude::*;
 //   def join[_: P]: P[JoinCommand] =
 //     ("join" ~ commandOptions ~ field.rep(min = 1, sep = ",") ~ subSearch) map {
 //       case (options, fields, pipeline) => JoinCommand(
@@ -19,6 +19,34 @@ use nom::{IResult, Parser};
 //         fields = fields,
 //         subSearch = pipeline)
 //     }
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct JoinCommand {
+    #[pyo3(get)]
+    pub join_type: String,
+    #[pyo3(get)]
+    pub use_time: bool,
+    #[pyo3(get)]
+    pub earlier: bool,
+    #[pyo3(get)]
+    pub overwrite: bool,
+    #[pyo3(get)]
+    pub max: i64,
+    #[pyo3(get)]
+    pub fields: Vec<Field>,
+    #[pyo3(get)]
+    pub sub_search: Pipeline,
+}
+impl_pyclass!(JoinCommand {
+    join_type: String,
+    use_time: bool,
+    earlier: bool,
+    overwrite: bool,
+    max: i64,
+    fields: Vec<Field>,
+    sub_search: Pipeline
+});
 
 #[derive(Debug, Default)]
 pub struct JoinParser {}
@@ -46,18 +74,18 @@ impl TryFrom<ParsedCommandOptions> for JoinCommandOptions {
     }
 }
 
-impl SplCommand<ast::JoinCommand> for JoinParser {
-    type RootCommand = crate::commands::JoinCommand;
+impl SplCommand<JoinCommand> for JoinParser {
+    type RootCommand = crate::commands::JoinCommandRoot;
     type Options = JoinCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::JoinCommand> {
+    fn parse_body(input: &str) -> IResult<&str, JoinCommand> {
         map(
             tuple((
                 Self::Options::match_options,
                 separated_list1(ws(tag(",")), field),
                 sub_search,
             )),
-            |(options, fields, pipeline)| ast::JoinCommand {
+            |(options, fields, pipeline)| JoinCommand {
                 join_type: options.join_type,
                 use_time: options.use_time,
                 earlier: options.earlier,

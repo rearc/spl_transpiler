@@ -108,7 +108,7 @@ macro_rules! column_like {
 pub(crate) use column_like; // <-- the trick
 
 impl TemplateNode for ColumnLike {
-    fn to_spark_query(&self) -> anyhow::Result<String> {
+    fn to_spark_query(&self) -> Result<String> {
         match self {
             ColumnLike::Named { name } => Ok(format!("F.col('{}')", name)),
             ColumnLike::Literal { code } => Ok(format!("F.lit({})", code)),

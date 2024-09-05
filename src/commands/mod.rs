@@ -152,7 +152,7 @@ pub mod spl;
 
 use const_str::replace;
 use paste::paste;
-use pyo3::pyclass;
+use pyo3::prelude::*;
 
 pub trait CommandBase {
     const NAME: &'static str;
@@ -166,7 +166,7 @@ macro_rules! make_command {
                 _,
                 [<cmd_ $name>],
                 [<$name:camel Parser>],
-                [<$name:camel Command>],
+                [<$name:camel CommandRoot>],
                 replace!(stringify!($name), "_", ""),
                 None,
                 $attrs
@@ -179,7 +179,7 @@ macro_rules! make_command {
                 _,
                 [<cmd_ $name>],
                 [<$name:camel Parser>],
-                [<$name:camel Command>],
+                [<$name:camel CommandRoot>],
                 replace!(stringify!($name), "_", ""),
                 Some(replace!(stringify!($alias), "_", "")),
                 $attrs
@@ -187,8 +187,7 @@ macro_rules! make_command {
         }
     };
     (_, $module_name:ident, $parser_name:ident, $command_name:ident, $name:expr, $alias:expr, { $($attr_name:ident : $attr_type:ty),* }) => {
-        mod $module_name;
-        pub use $module_name::spl::$parser_name;
+        pub mod $module_name;
 
         #[derive(Debug, Clone, PartialEq, Hash)]
         #[pyclass(frozen, eq, hash)]

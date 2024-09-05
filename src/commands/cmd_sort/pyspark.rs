@@ -1,9 +1,9 @@
-use crate::ast::ast;
+use crate::commands::cmd_sort::spl::SortCommand;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 
-impl PipelineTransformer for ast::SortCommand {
+impl PipelineTransformer for SortCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let df = state.df;
 
         unimplemented!();
 

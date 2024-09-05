@@ -11,11 +11,11 @@ pub struct PipelineTransformState {
 }
 
 pub trait PipelineTransformer {
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState>;
+    fn transform(&self, state: PipelineTransformState) -> Result<PipelineTransformState>;
 }
 
 impl PipelineTransformer for ast::Command {
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform(&self, state: PipelineTransformState) -> Result<PipelineTransformState> {
         match self {
             ast::Command::SearchCommand(command) => command.transform(state),
             ast::Command::EvalCommand(command) => command.transform(state),

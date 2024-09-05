@@ -1,19 +1,42 @@
 use crate::ast::ast::ParsedCommandOptions;
 use crate::ast::operators::OperatorSymbolTrait;
 use crate::ast::{ast, operators, operators::OperatorSymbol};
+use crate::commands::cmd_add_totals::spl::AddTotalsParser;
+use crate::commands::cmd_bin::spl::BinParser;
+use crate::commands::cmd_collect::spl::CollectParser;
+use crate::commands::cmd_convert::spl::ConvertParser;
+use crate::commands::cmd_dedup::spl::DedupParser;
+use crate::commands::cmd_eval::spl::EvalParser;
+use crate::commands::cmd_event_stats::spl::EventStatsParser;
+use crate::commands::cmd_fields::spl::FieldsParser;
+use crate::commands::cmd_fill_null::spl::FillNullParser;
+use crate::commands::cmd_format::spl::FormatParser;
+use crate::commands::cmd_head::spl::HeadParser;
+use crate::commands::cmd_input_lookup::spl::InputLookupParser;
+use crate::commands::cmd_join::spl::JoinParser;
+use crate::commands::cmd_lookup::spl::LookupParser;
+use crate::commands::cmd_make_results::spl::MakeResultsParser;
+use crate::commands::cmd_map::spl::MapParser;
+use crate::commands::cmd_multi_search::spl::MultiSearchParser;
+use crate::commands::cmd_mv_combine::spl::MvCombineParser;
+use crate::commands::cmd_mv_expand::spl::MvExpandParser;
+use crate::commands::cmd_regex::spl::RegexParser;
+use crate::commands::cmd_rename::spl::RenameParser;
+use crate::commands::cmd_return::spl::ReturnParser;
+use crate::commands::cmd_rex::spl::RexParser;
+use crate::commands::cmd_search::spl::SearchParser;
+use crate::commands::cmd_sort::spl::SortParser;
+use crate::commands::cmd_stats::spl::StatsParser;
+use crate::commands::cmd_stream_stats::spl::StreamStatsParser;
+use crate::commands::cmd_table::spl::TableParser;
+use crate::commands::cmd_top::spl::TopParser;
+use crate::commands::cmd_where::spl::WhereParser;
 use crate::commands::spl::SplCommand;
-use crate::commands::{
-    AddTotalsParser, BinParser, CollectParser, ConvertParser, DedupParser, EvalParser,
-    EventStatsParser, FieldsParser, FillNullParser, FormatParser, HeadParser, InputLookupParser,
-    JoinParser, LookupParser, MakeResultsParser, MapParser, MultiSearchParser, MvCombineParser,
-    MvExpandParser, RegexParser, RenameParser, ReturnParser, RexParser, SearchParser, SortParser,
-    StatsParser, StreamStatsParser, TableParser, TopParser, WhereParser,
-};
 use nom::bytes::complete::{tag_no_case, take_while};
 use nom::character::complete::{alphanumeric1, anychar, multispace0, multispace1};
 use nom::combinator::{all_consuming, into, map_parser, verify};
 use nom::error::ParseError;
-use nom::multi::{many0, many_m_n, separated_list0, separated_list1};
+use nom::multi::{many0, separated_list0, separated_list1};
 use nom::sequence::{delimited, preceded, separated_pair};
 use nom::{
     branch::alt,
@@ -34,16 +57,6 @@ where
     delimited(multispace0, inner, multispace0)
 }
 
-// https://github.com/rust-bakery/nom/blob/main/doc/nom_recipes.md#wrapper-combinators-that-eat-whitespace-before-and-after-a-parser
-// pub fn ws1<'a, O, E: ParseError<&'a str>, F>(
-//     inner: F,
-// ) -> impl Parser<&'a str, O, E>
-// where
-//     F: Parser<&'a str, O, E>,
-// {
-//     delimited(multispace1, inner, multispace1)
-// }
-
 pub fn unwrapped<'a, O, InnerE, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, O, E>
 where
     F: Parser<&'a str, Result<O, InnerE>, E>,
@@ -53,18 +66,6 @@ where
         verify(inner, |res| res.is_ok()),
         |res| res.unwrap(), // This is safe at this point since we checked is_ok
     )
-}
-
-pub trait CommandArgs: TryFrom<ParsedCommandOptions, Error = anyhow::Error> {
-    const NAME: &'static str;
-}
-
-pub fn parsed_command_options<C: CommandArgs>(input: &str) -> IResult<&str, C> {
-    unwrapped(map(command_options, |opts| C::try_from(opts.into()))).parse(input)
-}
-
-pub fn command_with_options<C: CommandArgs>(input: &str) -> IResult<&str, C> {
-    preceded(ws(tag_no_case(C::NAME)), parsed_command_options::<C>)(input)
 }
 
 macro_rules! unit_normalizer_alt_list {
@@ -774,6 +775,32 @@ pub fn pipeline(input: &str) -> IResult<&str, ast::Pipeline> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::cmd_add_totals::spl::AddTotals;
+    use crate::commands::cmd_bin::spl::BinCommand;
+    use crate::commands::cmd_collect::spl::CollectCommand;
+    use crate::commands::cmd_convert::spl::{ConvertCommand, ConvertParser, FieldConversion};
+    use crate::commands::cmd_dedup::spl::{DedupCommand, DedupParser};
+    use crate::commands::cmd_eval::spl::{EvalCommand, EvalParser};
+    use crate::commands::cmd_event_stats::spl::EventStatsCommand;
+    use crate::commands::cmd_fields::spl::{FieldsCommand, FieldsParser};
+    use crate::commands::cmd_fill_null::spl::{FillNullCommand, FillNullParser};
+    use crate::commands::cmd_format::spl::{FormatCommand, FormatParser};
+    use crate::commands::cmd_head::spl::{HeadCommand, HeadParser};
+    use crate::commands::cmd_input_lookup::spl::{InputLookup, InputLookupParser};
+    use crate::commands::cmd_join::spl::{JoinCommand, JoinParser};
+    use crate::commands::cmd_lookup::spl::{LookupCommand, LookupOutput, LookupParser};
+    use crate::commands::cmd_make_results::spl::MakeResults;
+    use crate::commands::cmd_map::spl::{MapCommand, MapParser};
+    use crate::commands::cmd_mv_combine::spl::{MvCombineCommand, MvCombineParser};
+    use crate::commands::cmd_regex::spl::{RegexCommand, RegexParser};
+    use crate::commands::cmd_rename::spl::{RenameCommand, RenameParser};
+    use crate::commands::cmd_return::spl::{ReturnCommand, ReturnParser};
+    use crate::commands::cmd_rex::spl::RexCommand;
+    use crate::commands::cmd_search::spl::{SearchCommand, SearchParser};
+    use crate::commands::cmd_sort::spl::{SortCommand, SortParser};
+    use crate::commands::cmd_stats::spl::StatsCommand;
+    use crate::commands::cmd_table::spl::TableCommand;
+    use crate::commands::cmd_where::spl::WhereCommand;
 
     fn _field_equals(field: &str, value: ast::Constant) -> ast::Expr {
         ast::Expr::Binary(ast::Binary {
@@ -1050,7 +1077,7 @@ mod tests {
             SearchParser::parse("search index=dummy host=$host_var$"),
             Ok((
                 "",
-                ast::SearchCommand {
+                SearchCommand {
                     expr: _and(
                         _eq(ast::Field::from("index"), ast::Field::from("dummy")),
                         _eq(ast::Field::from("host"), ast::Variable::from("host_var"))
@@ -1573,7 +1600,7 @@ mod tests {
             SearchParser::parse("a=b b=c (c=f OR d=t)"),
             Ok((
                 "",
-                ast::SearchCommand {
+                SearchCommand {
                     expr: _and(
                         _and(
                             _field_equals("a", ast::Field("b".to_string()).into()),
@@ -1602,7 +1629,7 @@ mod tests {
             SearchParser::parse("code IN(4*, 5*)"),
             Ok((
                 "",
-                ast::SearchCommand {
+                SearchCommand {
                     expr: ast::FieldIn {
                         field: "code".into(),
                         exprs: vec![
@@ -1644,7 +1671,7 @@ mod tests {
             SearchParser::parse("var_5 IN (str_2, str_3)"),
             Ok((
                 "",
-                ast::SearchCommand {
+                SearchCommand {
                     expr: ast::FieldIn {
                         field: "var_5".into(),
                         exprs: vec![
@@ -1678,7 +1705,7 @@ mod tests {
             SearchParser::parse("NOT code IN(4*, 5*)"),
             Ok((
                 "",
-                ast::SearchCommand {
+                SearchCommand {
                     expr: _not(ast::FieldIn {
                         field: "code".into(),
                         exprs: vec![
@@ -1722,7 +1749,7 @@ mod tests {
             SearchParser::parse("code IN(10, 29, 43) host!=\"localhost\" xqp>5"),
             Ok((
                 "",
-                ast::SearchCommand {
+                SearchCommand {
                     expr: _and(
                         _and(
                             ast::FieldIn {
@@ -1761,7 +1788,7 @@ mod tests {
             HeadParser::parse("head 20"),
             Ok((
                 "",
-                ast::HeadCommand {
+                HeadCommand {
                     eval_expr: ast::IntValue(20).into(),
                     keep_last: ast::BoolValue(false).into(),
                     null_option: ast::BoolValue(false).into(),
@@ -1786,7 +1813,7 @@ mod tests {
             HeadParser::parse("head limit=400"),
             Ok((
                 "",
-                ast::HeadCommand {
+                HeadCommand {
                     eval_expr: ast::IntValue(400).into(),
                     keep_last: ast::BoolValue(false).into(),
                     null_option: ast::BoolValue(false).into(),
@@ -1812,7 +1839,7 @@ mod tests {
             HeadParser::parse("head limit=400 keeplast=true null=false"),
             Ok((
                 "",
-                ast::HeadCommand {
+                HeadCommand {
                     eval_expr: ast::IntValue(400).into(),
                     keep_last: ast::BoolValue(true).into(),
                     null_option: ast::BoolValue(false).into(),
@@ -1842,7 +1869,7 @@ mod tests {
             HeadParser::parse("head count>10"),
             Ok((
                 "",
-                ast::HeadCommand {
+                HeadCommand {
                     eval_expr: _gt(ast::Field("count".to_string()), ast::IntValue(10),),
                     keep_last: ast::BoolValue(false).into(),
                     null_option: ast::BoolValue(false).into(),
@@ -1858,7 +1885,7 @@ mod tests {
             HeadParser::parse("head count>=10 keeplast=true"),
             Ok((
                 "",
-                ast::HeadCommand {
+                HeadCommand {
                     eval_expr: _gte(ast::Field("count".to_string()), ast::IntValue(10),),
                     keep_last: ast::BoolValue(true).into(),
                     null_option: ast::BoolValue(false).into(),
@@ -1887,7 +1914,7 @@ mod tests {
             FieldsParser::parse("fields column_a, column_b, column_c"),
             Ok((
                 "",
-                ast::FieldsCommand {
+                FieldsCommand {
                     remove_fields: false,
                     fields: vec![
                         ast::Field("column_a".to_string()),
@@ -1918,7 +1945,7 @@ mod tests {
             FieldsParser::parse("fields + column_a, column_b"),
             Ok((
                 "",
-                ast::FieldsCommand {
+                FieldsCommand {
                     remove_fields: false,
                     fields: vec![
                         ast::Field("column_a".to_string()),
@@ -1948,7 +1975,7 @@ mod tests {
             FieldsParser::parse("fields - column_a, column_b"),
             Ok((
                 "",
-                ast::FieldsCommand {
+                FieldsCommand {
                     remove_fields: true,
                     fields: vec![
                         ast::Field("column_a".to_string()),
@@ -1978,7 +2005,7 @@ mod tests {
             SortParser::parse("sort A, -B, +num(C)"),
             Ok((
                 "",
-                ast::SortCommand {
+                SortCommand {
                     fields_to_sort: vec![
                         (None, ast::Field::from("A").into()),
                         (Some("-".into()), ast::Field::from("B").into()),
@@ -2005,7 +2032,7 @@ mod tests {
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::SearchCommand {
+                    commands: vec![SearchCommand {
                         expr: _call!(TERM(ast::Field::from("XXXXX*\\\\XXXXX*"))).into(),
                     }
                     .into()],
@@ -2041,7 +2068,7 @@ mod tests {
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::SearchCommand {
+                    commands: vec![SearchCommand {
                         expr: _call!(values(_call!(eval(_call!(mvappend(
                             _binop::<operators::Concatenate>(
                                 ast::StrValue::from("a: "),
@@ -2076,7 +2103,7 @@ mod tests {
             SortParser::parse("sort A"),
             Ok((
                 "",
-                ast::SortCommand {
+                SortCommand {
                     fields_to_sort: vec![(None, ast::Field::from("A").into())],
                 }
                 .into()
@@ -2096,7 +2123,7 @@ mod tests {
             EvalParser::parse("eval mitre_category=\"Discovery\""),
             Ok((
                 "",
-                ast::EvalCommand {
+                EvalCommand {
                     fields: vec![(
                         ast::Field::from("mitre_category"),
                         ast::StrValue::from("Discovery").into()
@@ -2119,7 +2146,7 @@ mod tests {
             EvalParser::parse("eval email_lower=lower(email)"),
             Ok((
                 "",
-                ast::EvalCommand {
+                EvalCommand {
                     fields: vec![(
                         ast::Field::from("email_lower"),
                         _call!(lower(ast::Field::from("email"))).into(),
@@ -2171,7 +2198,7 @@ mod tests {
             EvalParser::parse("eval replaced=replace(email, \"@.+\", \"\")"),
             Ok((
                 "",
-                ast::EvalCommand {
+                EvalCommand {
                     fields: vec![(
                         ast::Field::from("replaced"),
                         _call!(replace(
@@ -2200,7 +2227,7 @@ mod tests {
             EvalParser::parse("eval hash_sha256= lower(hash_sha256), b=c"),
             Ok((
                 "",
-                ast::EvalCommand {
+                EvalCommand {
                     fields: vec![
                         (
                             ast::Field::from("hash_sha256"),
@@ -2226,9 +2253,9 @@ mod tests {
             ConvertParser::parse("convert ctime(indextime)"),
             Ok((
                 "",
-                ast::ConvertCommand {
+                ConvertCommand {
                     timeformat: "%m/%d/%Y %H:%M:%S".to_string(),
-                    convs: vec![ast::FieldConversion {
+                    convs: vec![FieldConversion {
                         func: "ctime".into(),
                         field: ast::Field::from("indextime"),
                         alias: None,
@@ -2270,7 +2297,7 @@ mod tests {
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::CollectCommand {
+                    commands: vec![CollectCommand {
                         index: "threathunting".to_string(),
                         fields: vec![
                             ast::Field("x".into()),
@@ -2340,18 +2367,18 @@ mod tests {
                 "",
                 ast::Pipeline {
                     commands: vec![
-                        ast::SearchCommand {
+                        SearchCommand {
                             expr: _and(
                                 _eq(ast::Field::from("index"), ast::Field::from("foo")),
                                 _eq(ast::Field::from("bar"), ast::Field::from("baz"))
                             )
                         }
                         .into(),
-                        ast::EvalCommand {
+                        EvalCommand {
                             fields: vec![(ast::Field::from("foo"), ast::Field::from("bar").into())]
                         }
                         .into(),
-                        ast::CollectCommand {
+                        CollectCommand {
                             index: "newer".to_string(),
                             fields: vec![],
                             add_time: true,
@@ -2395,10 +2422,10 @@ mod tests {
     //   }
     #[test]
     fn test_pipeline_lookup_5() {
-        let _lookup_cmd = ast::LookupCommand {
+        let _lookup_cmd = LookupCommand {
             dataset: "process_create_whitelist".to_string(),
             fields: vec![ast::Field::from("a").into(), ast::Field::from("b").into()],
-            output: Some(ast::LookupOutput {
+            output: Some(LookupOutput {
                 kv: "output".to_string(),
                 fields: vec![ast::Field::from("reason").into()],
             }),
@@ -2438,7 +2465,7 @@ mod tests {
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::WhereCommand {
+                    commands: vec![WhereCommand {
                         expr: _call!(isnull(ast::Field::from("reason"))).into()
                     }
                     .into()],
@@ -2465,7 +2492,7 @@ mod tests {
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::TableCommand {
+                    commands: vec![TableCommand {
                         fields: vec![
                             ast::Field::from("foo"),
                             ast::Field::from("bar"),
@@ -2537,7 +2564,7 @@ mod tests {
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::StatsCommand {
+                    commands: vec![StatsCommand {
                         partitions: 1,
                         all_num: false,
                         delim: " ".to_string(),
@@ -2585,7 +2612,7 @@ mod tests {
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::StatsCommand {
+                    commands: vec![StatsCommand {
                         partitions: 1,
                         all_num: false,
                         delim: " ".to_string(),
@@ -2636,7 +2663,7 @@ mod tests {
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::StatsCommand {
+                    commands: vec![StatsCommand {
                         partitions: 10,
                         all_num: false,
                         delim: ":".to_string(),
@@ -2683,7 +2710,7 @@ mod tests {
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::RexCommand {
+                    commands: vec![RexCommand {
                         field: Some("savedsearch_id".to_string()),
                         max_match: 10,
                         offset_field: None,
@@ -2716,7 +2743,7 @@ mod tests {
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::RexCommand {
+                    commands: vec![RexCommand {
                         field: None,
                         max_match: 1,
                         offset_field: None,
@@ -2746,7 +2773,7 @@ mod tests {
             RenameParser::parse(r#"rename _ip AS IPAddress"#),
             Ok((
                 "",
-                ast::RenameCommand {
+                RenameCommand {
                     alias: vec![_alias("IPAddress", ast::Field::from("_ip")).into()],
                 }
                 .into()
@@ -2778,7 +2805,7 @@ mod tests {
             RenameParser::parse(r#"rename _ip AS IPAddress, _host AS host, _port AS port"#),
             Ok((
                 "",
-                ast::RenameCommand {
+                RenameCommand {
                     alias: vec![
                         _alias("IPAddress", ast::Field::from("_ip")).into(),
                         _alias("host", ast::Field::from("_host")).into(),
@@ -2807,7 +2834,7 @@ mod tests {
             RenameParser::parse(r#"rename foo* AS bar*"#),
             Ok((
                 "",
-                ast::RenameCommand {
+                RenameCommand {
                     alias: vec![_alias("bar*", ast::Field::from("foo*")).into()],
                 }
                 .into()
@@ -2831,7 +2858,7 @@ mod tests {
             RenameParser::parse(r#"rename count AS "Count of Events""#),
             Ok((
                 "",
-                ast::RenameCommand {
+                RenameCommand {
                     alias: vec![_alias("Count of Events", ast::Field::from("count")).into()],
                 }
                 .into()
@@ -2860,7 +2887,7 @@ mod tests {
             JoinParser::parse(r#"join product_id [search vendors]"#),
             Ok((
                 "",
-                ast::JoinCommand {
+                JoinCommand {
                     join_type: "inner".to_string(),
                     use_time: false,
                     earlier: true,
@@ -2868,7 +2895,7 @@ mod tests {
                     max: 1,
                     fields: vec![ast::Field::from("product_id")],
                     sub_search: ast::Pipeline {
-                        commands: vec![ast::SearchCommand {
+                        commands: vec![SearchCommand {
                             expr: ast::Field::from("vendors").into()
                         }
                         .into()],
@@ -2908,7 +2935,7 @@ mod tests {
             ),
             Ok((
                 "",
-                ast::JoinCommand {
+                JoinCommand {
                     join_type: "left".to_string(),
                     use_time: true,
                     earlier: false,
@@ -2920,7 +2947,7 @@ mod tests {
                         ast::Field::from("name")
                     ],
                     sub_search: ast::Pipeline {
-                        commands: vec![ast::SearchCommand {
+                        commands: vec![SearchCommand {
                             expr: ast::Field::from("vendors").into()
                         }
                         .into()],
@@ -2959,7 +2986,7 @@ mod tests {
             JoinParser::parse(r#"join product_id [search vendors | rename pid AS product_id]"#),
             Ok((
                 "",
-                ast::JoinCommand {
+                JoinCommand {
                     join_type: "inner".to_string(),
                     use_time: false,
                     earlier: true,
@@ -2968,11 +2995,11 @@ mod tests {
                     fields: vec![ast::Field::from("product_id")],
                     sub_search: ast::Pipeline {
                         commands: vec![
-                            ast::SearchCommand {
+                            SearchCommand {
                                 expr: ast::Field::from("vendors").into()
                             }
                             .into(),
-                            ast::RenameCommand {
+                            RenameCommand {
                                 alias: vec![_alias("product_id", ast::Field::from("pid")).into()],
                             }
                             .into()
@@ -2997,7 +3024,7 @@ mod tests {
             RegexParser::parse(r#"regex _raw="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
             Ok((
                 "",
-                ast::RegexCommand {
+                RegexCommand {
                     item: Some((ast::Field::from("_raw"), "=".into())),
                     regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
                 }
@@ -3018,7 +3045,7 @@ mod tests {
             RegexParser::parse(r#"regex _raw!="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
             Ok((
                 "",
-                ast::RegexCommand {
+                RegexCommand {
                     item: Some((ast::Field::from("_raw"), "!=".into())),
                     regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
                 }
@@ -3039,7 +3066,7 @@ mod tests {
             RegexParser::parse(r#"regex "(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
             Ok((
                 "",
-                ast::RegexCommand {
+                RegexCommand {
                     item: None,
                     regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
                 }
@@ -3064,7 +3091,7 @@ mod tests {
             ReturnParser::parse(r#"return 10 $test $env"#),
             Ok((
                 "",
-                ast::ReturnCommand {
+                ReturnCommand {
                     count: ast::IntValue(10),
                     fields: vec![
                         ast::Field::from("test").into(),
@@ -3094,7 +3121,7 @@ mod tests {
             ReturnParser::parse(r#"return 10 ip src host port"#),
             Ok((
                 "",
-                ast::ReturnCommand {
+                ReturnCommand {
                     count: ast::IntValue(10),
                     fields: vec![
                         ast::Field::from("ip").into(),
@@ -3124,7 +3151,7 @@ mod tests {
             ReturnParser::parse(r#"return 10 ip=src host=port"#),
             Ok((
                 "",
-                ast::ReturnCommand {
+                ReturnCommand {
                     count: ast::IntValue(10),
                     fields: vec![
                         _alias("ip", ast::Field::from("src")).into(),
@@ -3146,7 +3173,7 @@ mod tests {
             FillNullParser::parse(r#"fillnull"#),
             Ok((
                 "",
-                ast::FillNullCommand {
+                FillNullCommand {
                     value: None,
                     fields: None,
                 }
@@ -3165,7 +3192,7 @@ mod tests {
             FillNullParser::parse(r#"fillnull value="NA""#),
             Ok((
                 "",
-                ast::FillNullCommand {
+                FillNullCommand {
                     value: Some("NA".into()),
                     fields: None,
                 }
@@ -3189,7 +3216,7 @@ mod tests {
             FillNullParser::parse(r#"fillnull value="NULL" host port"#),
             Ok((
                 "",
-                ast::FillNullCommand {
+                FillNullCommand {
                     value: Some("NULL".into()),
                     fields: Some(
                         vec![
@@ -3227,7 +3254,7 @@ mod tests {
             ),
             Ok((
                 "",
-                ast::DedupCommand {
+                DedupCommand {
                     num_results: 10,
                     fields: vec![
                         ast::Field::from("host").into(),
@@ -3237,7 +3264,7 @@ mod tests {
                     keep_events: true,
                     keep_empty: false,
                     consecutive: true,
-                    sort_by: ast::SortCommand {
+                    sort_by: SortCommand {
                         fields_to_sort: vec![(Some("+".into()), ast::Field::from("_no").into())],
                     },
                 }
@@ -3272,7 +3299,7 @@ mod tests {
             DedupParser::parse(r#"dedup 10 keepevents=true host ip port sortby +host -ip"#),
             Ok((
                 "",
-                ast::DedupCommand {
+                DedupCommand {
                     num_results: 10,
                     fields: vec![
                         ast::Field::from("host").into(),
@@ -3282,7 +3309,7 @@ mod tests {
                     keep_events: true,
                     keep_empty: false,
                     consecutive: false,
-                    sort_by: ast::SortCommand {
+                    sort_by: SortCommand {
                         fields_to_sort: vec![
                             (Some("+".into()), ast::Field::from("host").into()),
                             (Some("-".into()), ast::Field::from("ip").into()),
@@ -3316,7 +3343,7 @@ mod tests {
             InputLookupParser::parse(r#"inputlookup append=t strict=f myTable where test_id=11"#),
             Ok((
                 "",
-                ast::InputLookup {
+                InputLookup {
                     append: true,
                     strict: false,
                     start: 0,
@@ -3346,7 +3373,7 @@ mod tests {
             InputLookupParser::parse(r#"inputlookup myTable"#),
             Ok((
                 "",
-                ast::InputLookup {
+                InputLookup {
                     append: false,
                     strict: false,
                     start: 0,
@@ -3378,7 +3405,7 @@ mod tests {
             FormatParser::parse(r#"format maxresults=10"#),
             Ok((
                 "",
-                ast::FormatCommand {
+                FormatCommand {
                     mv_sep: "OR".into(),
                     max_results: 10,
                     row_prefix: "(".into(),
@@ -3412,7 +3439,7 @@ mod tests {
             FormatParser::parse(r#"format mvsep="||" "[" "[" "&&" "]" "||" "]""#),
             Ok((
                 "",
-                ast::FormatCommand {
+                FormatCommand {
                     mv_sep: "||".into(),
                     max_results: 0,
                     row_prefix: "[".into(),
@@ -3440,7 +3467,7 @@ mod tests {
             MvCombineParser::parse(r#"mvcombine host"#),
             Ok((
                 "",
-                ast::MvCombineCommand {
+                MvCombineCommand {
                     delim: None,
                     field: ast::Field::from("host"),
                 }
@@ -3462,7 +3489,7 @@ mod tests {
             MvCombineParser::parse(r#"mvcombine delim="," host"#),
             Ok((
                 "",
-                ast::MvCombineCommand {
+                MvCombineCommand {
                     delim: Some(",".into()),
                     field: ast::Field::from("host"),
                 }
@@ -3490,7 +3517,7 @@ mod tests {
             ),
             Ok((
                 "",
-                ast::BinCommand {
+                BinCommand {
                     field: _alias("bar", ast::Field::from("foo")).into(),
                     span: Some(ast::TimeSpan {
                         value: 30,
@@ -3524,7 +3551,7 @@ mod tests {
             command(r#"makeresults"#),
             Ok((
                 "",
-                ast::MakeResults {
+                MakeResults {
                     count: 1,
                     annotate: false,
                     server: "local".into(),
@@ -3549,7 +3576,7 @@ mod tests {
             command(r#"makeresults count=10 annotate=t splunk_server_group=group0"#),
             Ok((
                 "",
-                ast::MakeResults {
+                MakeResults {
                     count: 10,
                     annotate: true,
                     server: "local".into(),
@@ -3577,7 +3604,7 @@ mod tests {
             command(r#"addtotals row=t col=f fieldname=num_total num_1 num_2"#),
             Ok((
                 "",
-                ast::AddTotals {
+                AddTotals {
                     fields: vec![ast::Field::from("num_1"), ast::Field::from("num_2")].into(),
                     row: true,
                     col: false,
@@ -3606,7 +3633,7 @@ mod tests {
             command(r#"eventstats min(n) by gender"#),
             Ok((
                 "",
-                ast::EventStatsCommand {
+                EventStatsCommand {
                     all_num: false,
                     funcs: vec![_call!(min(ast::Field::from("n"))).into()],
                     by: vec![ast::Field::from("gender").into()],
@@ -3646,9 +3673,9 @@ mod tests {
             command(r#"map search="search index=dummy host=$host_var$" maxsearches=20"#),
             Ok((
                 "",
-                ast::MapCommand {
+                MapCommand {
                     search: ast::Pipeline {
-                        commands: vec![ast::SearchCommand {
+                        commands: vec![SearchCommand {
                             expr: _and(
                                 _eq(ast::Field::from("index"), ast::Field::from("dummy"),),
                                 _eq(ast::Field::from("host"), ast::Variable::from("host_var"),)
@@ -3713,7 +3740,7 @@ mod tests {
             Ok((
                 "",
                 ast::Pipeline {
-                    commands: vec![ast::SearchCommand {
+                    commands: vec![SearchCommand {
                         expr: _eq(ast::Field::from("index"), ast::StrValue::from("dummy"))
                     }
                     .into()],
@@ -3724,9 +3751,9 @@ mod tests {
             MapParser::parse(r#"map search="search index=\"dummy\"""#),
             Ok((
                 "",
-                ast::MapCommand {
+                MapCommand {
                     search: ast::Pipeline {
-                        commands: vec![ast::SearchCommand {
+                        commands: vec![SearchCommand {
                             expr: _eq(ast::Field::from("index"), ast::StrValue::from("dummy"))
                         }
                         .into()],
@@ -3739,9 +3766,9 @@ mod tests {
             MapParser::parse(r#"map search="search index=dummy""#),
             Ok((
                 "",
-                ast::MapCommand {
+                MapCommand {
                     search: ast::Pipeline {
-                        commands: vec![ast::SearchCommand {
+                        commands: vec![SearchCommand {
                             expr: _eq(ast::Field::from("index"), ast::Field::from("dummy"))
                         }
                         .into()],
@@ -3757,18 +3784,18 @@ mod tests {
         let s = r#"map search="search index=dummy host=$host_var$ | eval this=\"that\" | dedup 10 keepevents=true keepempty=false consecutive=true host ip port""#;
         let _pipeline = ast::Pipeline {
             commands: vec![
-                ast::SearchCommand {
+                SearchCommand {
                     expr: _and(
                         _eq(ast::Field::from("index"), ast::Field::from("dummy")),
                         _eq(ast::Field::from("host"), ast::Variable::from("host_var")),
                     ),
                 }
                 .into(),
-                ast::EvalCommand {
+                EvalCommand {
                     fields: vec![(ast::Field::from("this"), ast::StrValue::from("that").into())],
                 }
                 .into(),
-                ast::DedupCommand {
+                DedupCommand {
                     num_results: 10,
                     fields: vec![
                         ast::Field::from("host"),
@@ -3778,7 +3805,7 @@ mod tests {
                     keep_events: true,
                     keep_empty: false,
                     consecutive: true,
-                    sort_by: ast::SortCommand {
+                    sort_by: SortCommand {
                         fields_to_sort: vec![(Some("+".into()), ast::Field::from("_no").into())],
                     },
                 }
@@ -3800,7 +3827,7 @@ mod tests {
             command(s),
             Ok((
                 "",
-                ast::MapCommand {
+                MapCommand {
                     search: _pipeline,
                     max_searches: 10,
                 }

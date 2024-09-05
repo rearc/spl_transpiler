@@ -1,9 +1,8 @@
-use crate::ast::ast;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::utils::join_as_binaries;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 
-impl PipelineTransformer for ast::AddTotals {
+impl PipelineTransformer for super::spl::AddTotals {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
         let cast_columns: Vec<ColumnLike> = self
             .fields

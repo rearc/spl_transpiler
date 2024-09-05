@@ -9,7 +9,7 @@ use nom::sequence::{preceded, tuple};
 use nom::{IResult, Parser};
 
 pub trait SplCommandOptions: TryFrom<ParsedCommandOptions, Error = anyhow::Error> {
-    fn match_options(input: &str) -> nom::IResult<&str, Self> {
+    fn match_options(input: &str) -> IResult<&str, Self> {
         unwrapped(map(command_options, |opts| Self::try_from(opts.into()))).parse(input)
     }
 }
@@ -34,7 +34,7 @@ pub trait SplCommand<T> {
         preceded(Self::match_name, Self::parse_body)(input)
     }
 
-    fn match_name_raw(input: &str) -> nom::IResult<&str, ()> {
+    fn match_name_raw(input: &str) -> IResult<&str, ()> {
         match Self::RootCommand::ALIAS.clone() {
             Some(alias) => map(
                 alt((tag_no_case(Self::RootCommand::NAME), tag_no_case(alias))),
@@ -44,7 +44,7 @@ pub trait SplCommand<T> {
         }
     }
 
-    fn match_name(input: &str) -> nom::IResult<&str, ()> {
+    fn match_name(input: &str) -> IResult<&str, ()> {
         map(
             tuple((Self::match_name_raw, alt((multispace1, eof)))),
             |_| (),

@@ -1,9 +1,9 @@
-use crate::ast::ast;
 use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use nom::combinator::map;
 use nom::{IResult, Parser};
-
+use pyo3::prelude::*;
 //
 //   def makeResults[_: P]: P[MakeResults] = ("makeresults" ~ commandOptions) map {
 //     options =>
@@ -14,6 +14,20 @@ use nom::{IResult, Parser};
 //         serverGroup = options.getString("splunk_server_group", null)
 //       )
 //   }
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct MakeResults {
+    #[pyo3(get)]
+    pub count: i64,
+    #[pyo3(get)]
+    pub annotate: bool,
+    #[pyo3(get)]
+    pub server: String,
+    #[pyo3(get)]
+    pub server_group: Option<String>,
+}
+impl_pyclass!(MakeResults { count: i64, annotate: bool, server: String, server_group: Option<String> });
 
 #[derive(Debug, Default)]
 pub struct MakeResultsParser {}
@@ -39,12 +53,12 @@ impl TryFrom<ParsedCommandOptions> for MakeResultsCommandOptions {
     }
 }
 
-impl SplCommand<ast::MakeResults> for MakeResultsParser {
-    type RootCommand = crate::commands::MakeResultsCommand;
+impl SplCommand<MakeResults> for MakeResultsParser {
+    type RootCommand = crate::commands::MakeResultsCommandRoot;
     type Options = MakeResultsCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::MakeResults> {
-        map(Self::Options::match_options, |options| ast::MakeResults {
+    fn parse_body(input: &str) -> IResult<&str, MakeResults> {
+        map(Self::Options::match_options, |options| MakeResults {
             count: options.count,
             annotate: options.annotate,
             server: options.server,

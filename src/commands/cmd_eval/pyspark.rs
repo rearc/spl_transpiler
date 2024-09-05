@@ -1,9 +1,10 @@
+use super::spl::*;
 use crate::ast::ast;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use anyhow::bail;
 
-impl ast::EvalCommand {
+impl EvalCommand {
     fn _eval_expr(&self, expr: ast::Expr) -> anyhow::Result<ColumnLike> {
         let expr: Expr = expr.try_into()?;
         match expr {
@@ -13,7 +14,7 @@ impl ast::EvalCommand {
     }
 }
 
-impl PipelineTransformer for ast::EvalCommand {
+impl PipelineTransformer for EvalCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
         for (ast::Field(name), value) in self.fields.iter().cloned() {

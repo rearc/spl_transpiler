@@ -1,8 +1,9 @@
 use crate::ast::ast;
+use crate::commands::cmd_head::spl::HeadCommand;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use anyhow::bail;
 
-impl PipelineTransformer for ast::HeadCommand {
+impl PipelineTransformer for HeadCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
 

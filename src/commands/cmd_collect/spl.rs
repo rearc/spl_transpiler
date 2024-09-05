@@ -1,12 +1,12 @@
-use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{Field, ParsedCommandOptions};
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::field_list;
 use anyhow::anyhow;
 use nom::combinator::map;
 use nom::sequence::pair;
 use nom::{IResult, Parser};
-
+use pyo3::prelude::*;
 //
 //   def collect[_: P]: P[CollectCommand] = "collect" ~ commandOptions ~ fieldList map {
 //     case (cmdOptions, fields) => CollectCommand(
@@ -27,6 +27,49 @@ use nom::{IResult, Parser};
 //       testMode = cmdOptions.getBoolean("testmode")
 //     )
 //   }
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct CollectCommand {
+    #[pyo3(get)]
+    pub index: String,
+    #[pyo3(get)]
+    pub fields: Vec<Field>,
+    #[pyo3(get)]
+    pub add_time: bool,
+    #[pyo3(get)]
+    pub file: Option<String>,
+    #[pyo3(get)]
+    pub host: Option<String>,
+    #[pyo3(get)]
+    pub marker: Option<String>,
+    #[pyo3(get)]
+    pub output_format: String,
+    #[pyo3(get)]
+    pub run_in_preview: bool,
+    #[pyo3(get)]
+    pub spool: bool,
+    #[pyo3(get)]
+    pub source: Option<String>,
+    #[pyo3(get)]
+    pub source_type: Option<String>,
+    #[pyo3(get)]
+    pub test_mode: bool,
+}
+impl_pyclass!(CollectCommand {
+    index: String,
+    fields: Vec<Field>,
+    add_time: bool,
+    file: Option<String>,
+    host: Option<String>,
+    marker: Option<String>,
+    output_format: String,
+    run_in_preview: bool,
+    spool: bool,
+    source: Option<String>,
+    source_type: Option<String>,
+    test_mode: bool
+});
 
 #[derive(Debug, Default)]
 pub struct CollectParser {}
@@ -68,11 +111,11 @@ impl TryFrom<ParsedCommandOptions> for CollectCommandOptions {
     }
 }
 
-impl SplCommand<ast::CollectCommand> for CollectParser {
-    type RootCommand = crate::commands::CollectCommand;
+impl SplCommand<CollectCommand> for CollectParser {
+    type RootCommand = crate::commands::CollectCommandRoot;
     type Options = CollectCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::CollectCommand> {
+    fn parse_body(input: &str) -> IResult<&str, CollectCommand> {
         map(
             pair(Self::Options::match_options, field_list),
             |(
@@ -90,7 +133,7 @@ impl SplCommand<ast::CollectCommand> for CollectParser {
                     test_mode,
                 },
                 fields,
-            )| ast::CollectCommand {
+            )| CollectCommand {
                 index,
                 add_time,
                 file,

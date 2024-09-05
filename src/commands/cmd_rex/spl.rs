@@ -1,11 +1,11 @@
-use crate::ast::ast;
 use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::double_quoted;
 use nom::combinator::map;
 use nom::sequence::pair;
 use nom::{IResult, Parser};
-
+use pyo3::prelude::*;
 //
 //   // https://docs.splunk.com/Documentation/Splunk/8.2.2/SearchReference/Rex
 //   def rex[_: P]: P[RexCommand] = ("rex" ~ commandOptions ~ doubleQuoted) map {
@@ -17,6 +17,28 @@ use nom::{IResult, Parser};
 //         mode = kv.getStringOption("mode"),
 //         regex = regex)
 //   }
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct RexCommand {
+    #[pyo3(get)]
+    pub field: Option<String>,
+    #[pyo3(get)]
+    pub max_match: i64,
+    #[pyo3(get)]
+    pub offset_field: Option<String>,
+    #[pyo3(get)]
+    pub mode: Option<String>,
+    #[pyo3(get)]
+    pub regex: String,
+}
+impl_pyclass!(RexCommand {
+    field: Option<String>,
+    max_match: i64,
+    offset_field: Option<String>,
+    mode: Option<String>,
+    regex: String
+});
 
 #[derive(Debug, Default)]
 pub struct RexParser {}
@@ -42,14 +64,14 @@ impl TryFrom<ParsedCommandOptions> for RexCommandOptions {
     }
 }
 
-impl SplCommand<ast::RexCommand> for RexParser {
-    type RootCommand = crate::commands::RexCommand;
+impl SplCommand<RexCommand> for RexParser {
+    type RootCommand = crate::commands::RexCommandRoot;
     type Options = RexCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::RexCommand> {
+    fn parse_body(input: &str) -> IResult<&str, RexCommand> {
         map(
             pair(Self::Options::match_options, double_quoted),
-            |(options, regex)| ast::RexCommand {
+            |(options, regex)| RexCommand {
                 field: options.field,
                 max_match: options.max_match,
                 offset_field: options.offset_field,

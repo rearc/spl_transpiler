@@ -1,3 +1,4 @@
+use super::spl::*;
 use crate::ast::ast;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
@@ -70,7 +71,7 @@ fn _stats_func(func: &ast::Expr, mut df: DataFrame) -> anyhow::Result<(DataFrame
     Ok((df, expr))
 }
 
-impl PipelineTransformer for ast::StatsCommand {
+impl PipelineTransformer for StatsCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
         let mut aggs: Vec<ColumnLike> = vec![];

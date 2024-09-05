@@ -1,12 +1,12 @@
-use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{Field, ParsedCommandOptions};
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{field, ws};
 use nom::combinator::map;
 use nom::multi::many0;
 use nom::sequence::pair;
 use nom::{IResult, Parser};
-
+use pyo3::prelude::*;
 //
 //   def cAddtotals[_: P]: P[AddTotals] = "addtotals" ~ commandOptions ~ field.rep(1).? map {
 //     case (options: CommandOptions, fields: Option[Seq[Field]]) =>
@@ -19,6 +19,31 @@ use nom::{IResult, Parser};
 //         label = options.getString("label", "Total")
 //       )
 //   }
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct AddTotals {
+    #[pyo3(get)]
+    pub fields: Vec<Field>,
+    #[pyo3(get)]
+    pub row: bool,
+    #[pyo3(get)]
+    pub col: bool,
+    #[pyo3(get)]
+    pub field_name: String,
+    #[pyo3(get)]
+    pub label_field: Option<String>,
+    #[pyo3(get)]
+    pub label: String,
+}
+impl_pyclass!(AddTotals {
+    fields: Vec<Field>,
+    row: bool,
+    col: bool,
+    field_name: String,
+    label_field: Option<String>,
+    label: String
+});
 
 #[derive(Debug, Default)]
 pub struct AddTotalsParser {}
@@ -46,14 +71,14 @@ impl TryFrom<ParsedCommandOptions> for AddTotalsCommandOptions {
     }
 }
 
-impl SplCommand<ast::AddTotals> for AddTotalsParser {
-    type RootCommand = crate::commands::AddTotalsCommand;
+impl SplCommand<AddTotals> for AddTotalsParser {
+    type RootCommand = crate::commands::AddTotalsCommandRoot;
     type Options = AddTotalsCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::AddTotals> {
+    fn parse_body(input: &str) -> IResult<&str, AddTotals> {
         map(
             pair(Self::Options::match_options, many0(ws(field))),
-            |(options, fields)| ast::AddTotals {
+            |(options, fields)| AddTotals {
                 fields,
                 row: options.row,
                 col: options.col,

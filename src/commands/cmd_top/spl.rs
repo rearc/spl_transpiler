@@ -1,11 +1,48 @@
-use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{Field, ParsedCommandOptions};
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{field_list, int, ws};
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::{map, opt};
 use nom::sequence::{preceded, tuple};
 use nom::IResult;
+use pyo3::prelude::*;
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct TopCommand {
+    #[pyo3(get)]
+    pub fields: Vec<Field>,
+    #[pyo3(get)]
+    pub n: u64,
+    #[pyo3(get)]
+    pub by: Option<Vec<Field>>,
+    #[pyo3(get)]
+    pub count_field: String,
+    // #[pyo3(get)]
+    // pub limit: u64,
+    #[pyo3(get)]
+    pub other_str: String,
+    #[pyo3(get)]
+    pub percent_field: String,
+    #[pyo3(get)]
+    pub show_count: bool,
+    #[pyo3(get)]
+    pub show_percent: bool,
+    #[pyo3(get)]
+    pub use_other: bool,
+}
+impl_pyclass!(TopCommand {
+    fields: Vec<Field>,
+    n: u64,
+    by: Option<Vec<Field>>,
+    count_field: String,
+    other_str: String,
+    percent_field: String,
+    show_count: bool,
+    show_percent: bool,
+    use_other: bool
+});
 
 #[derive(Debug, Default)]
 pub struct TopParser {}
@@ -68,11 +105,11 @@ impl TryFrom<ParsedCommandOptions> for TopCommandOptions {
     }
 }
 
-impl SplCommand<ast::TopCommand> for TopParser {
-    type RootCommand = crate::commands::TopCommand;
+impl SplCommand<TopCommand> for TopParser {
+    type RootCommand = crate::commands::TopCommandRoot;
     type Options = TopCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::TopCommand> {
+    fn parse_body(input: &str) -> IResult<&str, TopCommand> {
         map(
             tuple((
                 ws(opt(int)),
@@ -80,7 +117,7 @@ impl SplCommand<ast::TopCommand> for TopParser {
                 ws(field_list),
                 ws(opt(preceded(ws(tag_no_case("BY")), field_list))),
             )),
-            |(n, opts, fields, by_fields)| ast::TopCommand {
+            |(n, opts, fields, by_fields)| TopCommand {
                 fields,
                 n: n.map(|i| i.0 as u64).unwrap_or(opts.limit),
                 by: by_fields,

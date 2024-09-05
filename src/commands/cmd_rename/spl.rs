@@ -1,15 +1,25 @@
-use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{Alias, ParsedCommandOptions};
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{aliased_field, ws};
 use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::multi::separated_list1;
 use nom::{IResult, Parser};
-
+use pyo3::prelude::*;
 //
 //   def rename[_: P]: P[RenameCommand] =
 //     "rename" ~ aliasedField.rep(min = 1, sep = ",") map RenameCommand
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct RenameCommand {
+    #[pyo3(get)]
+    pub alias: Vec<Alias>,
+}
+impl_pyclass!(RenameCommand {
+    alias: Vec<Alias>
+});
 
 #[derive(Debug, Default)]
 pub struct RenameParser {}
@@ -20,18 +30,18 @@ impl SplCommandOptions for RenameCommandOptions {}
 impl TryFrom<ParsedCommandOptions> for RenameCommandOptions {
     type Error = anyhow::Error;
 
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
+    fn try_from(_value: ParsedCommandOptions) -> Result<Self, Self::Error> {
         Ok(Self {})
     }
 }
 
-impl SplCommand<ast::RenameCommand> for RenameParser {
-    type RootCommand = crate::commands::RenameCommand;
+impl SplCommand<RenameCommand> for RenameParser {
+    type RootCommand = crate::commands::RenameCommandRoot;
     type Options = RenameCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::RenameCommand> {
+    fn parse_body(input: &str) -> IResult<&str, RenameCommand> {
         map(separated_list1(ws(tag(",")), aliased_field), |alias| {
-            ast::RenameCommand { alias }
+            RenameCommand { alias }
         })(input)
     }
 }

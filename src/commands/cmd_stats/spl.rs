@@ -1,11 +1,13 @@
 use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{Expr, Field, ParsedCommandOptions};
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{bool_, field_list, stats_call, ws};
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
 use nom::sequence::{pair, preceded, tuple};
 use nom::{IResult, Parser};
+use pyo3::prelude::*;
 //
 //   def stats[_: P]: P[StatsCommand] = ("stats" ~ commandOptions ~ statsCall ~
 //     (W("by") ~ fieldList).?.map(fields => fields.getOrElse(Seq())) ~
@@ -21,6 +23,24 @@ use nom::{IResult, Parser};
 //           dedupSplitVals = dedup
 //         )
 //     }
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct StatsCommand {
+    #[pyo3(get)]
+    pub partitions: i64,
+    #[pyo3(get)]
+    pub all_num: bool,
+    #[pyo3(get)]
+    pub delim: String,
+    #[pyo3(get)]
+    pub funcs: Vec<Expr>,
+    #[pyo3(get)]
+    pub by: Vec<Field>,
+    #[pyo3(get)]
+    pub dedup_split_vals: bool,
+}
+impl_pyclass!(StatsCommand { partitions: i64, all_num: bool, delim: String, funcs: Vec<Expr>, by: Vec<ast::Field>, dedup_split_vals: bool });
 
 #[derive(Debug, Default)]
 pub struct StatsParser {}
@@ -44,11 +64,11 @@ impl TryFrom<ParsedCommandOptions> for StatsCommandOptions {
     }
 }
 
-impl SplCommand<ast::StatsCommand> for StatsParser {
-    type RootCommand = crate::commands::StatsCommand;
+impl SplCommand<StatsCommand> for StatsParser {
+    type RootCommand = crate::commands::StatsCommandRoot;
     type Options = StatsCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::StatsCommand> {
+    fn parse_body(input: &str) -> IResult<&str, StatsCommand> {
         map(
             tuple((
                 Self::Options::match_options,
@@ -59,7 +79,7 @@ impl SplCommand<ast::StatsCommand> for StatsParser {
                     bool_,
                 )),
             )),
-            |(options, exprs, fields, dedup)| ast::StatsCommand {
+            |(options, exprs, fields, dedup)| StatsCommand {
                 partitions: options.partitions,
                 all_num: options.all_num,
                 delim: options.delim,

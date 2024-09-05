@@ -1,13 +1,13 @@
-use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{Field, ParsedCommandOptions};
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::commands::ConvertCommand;
 use crate::spl::{field, token, ws};
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
 use nom::multi::many0;
 use nom::sequence::{delimited, pair, preceded, tuple};
 use nom::IResult;
+use pyo3::prelude::*;
 //
 //   // | convert dur2sec(*delay)
 //   // convert (timeformat=<string>)? ( (auto|dur2sec|mstime|memk|none|
@@ -21,6 +21,28 @@ use nom::IResult;
 //           fcs
 //         )
 //     }
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct FieldConversion {
+    #[pyo3(get)]
+    pub func: String,
+    #[pyo3(get)]
+    pub field: Field,
+    #[pyo3(get)]
+    pub alias: Option<Field>,
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct ConvertCommand {
+    #[pyo3(get)]
+    pub timeformat: String,
+    #[pyo3(get)]
+    pub convs: Vec<FieldConversion>,
+}
+impl_pyclass!(FieldConversion { func: String, field: Field, alias: Option<Field> });
+impl_pyclass!(ConvertCommand { timeformat: String, convs: Vec<FieldConversion> });
 
 #[derive(Debug, Default)]
 pub struct ConvertParser {}
@@ -40,11 +62,11 @@ impl TryFrom<ParsedCommandOptions> for ConvertCommandOptions {
     }
 }
 
-impl SplCommand<ast::ConvertCommand> for ConvertParser {
-    type RootCommand = ConvertCommand;
+impl SplCommand<ConvertCommand> for ConvertParser {
+    type RootCommand = crate::commands::ConvertCommandRoot;
     type Options = ConvertCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::ConvertCommand> {
+    fn parse_body(input: &str) -> IResult<&str, ConvertCommand> {
         map(
             pair(
                 Self::Options::match_options,
@@ -54,17 +76,14 @@ impl SplCommand<ast::ConvertCommand> for ConvertParser {
                         delimited(tag("("), ws(field), tag(")")),
                         ws(opt(preceded(ws(tag_no_case("AS")), field))),
                     ))),
-                    |(token, field, as_field)| ast::FieldConversion {
+                    |(token, field, as_field)| FieldConversion {
                         func: token.into(),
                         field,
                         alias: as_field,
                     },
                 )),
             ),
-            |(ConvertCommandOptions { timeformat }, convs)| ast::ConvertCommand {
-                timeformat,
-                convs,
-            },
+            |(ConvertCommandOptions { timeformat }, convs)| ConvertCommand { timeformat, convs },
         )(input)
     }
 }

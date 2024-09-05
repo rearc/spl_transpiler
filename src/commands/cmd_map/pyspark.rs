@@ -1,7 +1,7 @@
-use crate::ast::ast;
+use crate::commands::cmd_map::spl::MapCommand;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 
-impl PipelineTransformer for ast::MapCommand {
+impl PipelineTransformer for MapCommand {
     fn transform(&self, _state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
         unimplemented!("Need some way to figure out what non-index search terms (left- and right-hand sides) exist in the subquery")
         //     generates("map search=\"search index=fake_for_join id=$id$\"",

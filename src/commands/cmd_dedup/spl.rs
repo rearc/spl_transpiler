@@ -1,5 +1,7 @@
 use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{Field, ParsedCommandOptions};
+use crate::ast::python::impl_pyclass;
+use crate::commands::cmd_sort::spl::SortCommand;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{field, int, ws};
 use nom::branch::alt;
@@ -8,6 +10,32 @@ use nom::combinator::{map, opt, verify};
 use nom::multi::many1;
 use nom::sequence::{pair, preceded, tuple};
 use nom::{IResult, Parser};
+use pyo3::prelude::*;
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct DedupCommand {
+    #[pyo3(get)]
+    pub num_results: i64,
+    #[pyo3(get)]
+    pub fields: Vec<Field>,
+    #[pyo3(get)]
+    pub keep_events: bool,
+    #[pyo3(get)]
+    pub keep_empty: bool,
+    #[pyo3(get)]
+    pub consecutive: bool,
+    #[pyo3(get)]
+    pub sort_by: SortCommand,
+}
+impl_pyclass!(DedupCommand {
+    num_results: i64,
+    fields: Vec<Field>,
+    keep_events: bool,
+    keep_empty: bool,
+    consecutive: bool,
+    sort_by: SortCommand
+});
 
 //
 //   /*
@@ -17,7 +45,7 @@ use nom::{IResult, Parser};
 //   def dedupFieldRep[_: P]: P[Seq[Field]] = field.filter {
 //     case Field(myVal) => !myVal.toLowerCase(Locale.ROOT).equals("sortby")
 //   }.rep(1)
-fn dedup_field_rep(input: &str) -> IResult<&str, Vec<ast::Field>> {
+fn dedup_field_rep(input: &str) -> IResult<&str, Vec<Field>> {
     many1(ws(verify(field, |f| f.0.to_ascii_lowercase() != "sortby")))(input)
 }
 
@@ -62,11 +90,11 @@ impl TryFrom<ParsedCommandOptions> for DedupCommandOptions {
     }
 }
 
-impl SplCommand<ast::DedupCommand> for DedupParser {
-    type RootCommand = crate::commands::DedupCommand;
+impl SplCommand<DedupCommand> for DedupParser {
+    type RootCommand = crate::commands::DedupCommandRoot;
     type Options = DedupCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::DedupCommand> {
+    fn parse_body(input: &str) -> IResult<&str, DedupCommand> {
         map(
             tuple((
                 opt(int),
@@ -79,11 +107,11 @@ impl SplCommand<ast::DedupCommand> for DedupParser {
                             opt(map(alt((tag("+"), tag("-"))), Into::into)),
                             map(field, Into::into),
                         ))),
-                        |fields_to_sort| ast::SortCommand { fields_to_sort },
+                        |fields_to_sort| SortCommand { fields_to_sort },
                     ),
                 )),
             )),
-            |(limit, options, fields, sort_by)| ast::DedupCommand {
+            |(limit, options, fields, sort_by)| DedupCommand {
                 // num_results: 0,
                 // fields: vec![],
                 // keep_events: false,
@@ -95,7 +123,7 @@ impl SplCommand<ast::DedupCommand> for DedupParser {
                 keep_events: options.keep_events,
                 keep_empty: options.keep_empty,
                 consecutive: options.consecutive,
-                sort_by: sort_by.unwrap_or(ast::SortCommand {
+                sort_by: sort_by.unwrap_or(SortCommand {
                     fields_to_sort: vec![(Some("+".into()), ast::Field::from("_no").into())],
                 }),
             },

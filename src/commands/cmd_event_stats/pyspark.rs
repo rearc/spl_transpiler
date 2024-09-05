@@ -1,9 +1,9 @@
-use crate::ast::ast;
+use crate::commands::cmd_event_stats::spl::EventStatsCommand;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 
-impl PipelineTransformer for ast::EventStatsCommand {
+impl PipelineTransformer for EventStatsCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let df = state.df;
 
         unimplemented!();
 

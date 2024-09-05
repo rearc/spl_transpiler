@@ -1,12 +1,13 @@
 use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{FieldOrAlias, ParsedCommandOptions, TimeSpan};
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{aliased_field, field};
 use nom::branch::alt;
 use nom::combinator::{into, map};
 use nom::sequence::pair;
 use nom::{IResult, Parser};
-
+use pyo3::prelude::*;
 //
 //   // bin [<bin-options>...] <field> [AS <newfield>]
 //   def bin[_: P]: P[BinCommand] = "bin" ~ commandOptions ~ (aliasedField | field) map {
@@ -20,11 +21,31 @@ use nom::{IResult, Parser};
 //     )
 //   }
 
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct BinCommand {
+    #[pyo3(get)]
+    pub field: FieldOrAlias,
+    #[pyo3(get)]
+    pub span: Option<TimeSpan>,
+    #[pyo3(get)]
+    pub min_span: Option<TimeSpan>,
+    #[pyo3(get)]
+    pub bins: Option<i64>,
+    #[pyo3(get)]
+    pub start: Option<i64>,
+    #[pyo3(get)]
+    pub end: Option<i64>,
+    #[pyo3(get)]
+    pub align_time: Option<String>,
+}
+impl_pyclass!(BinCommand { field: FieldOrAlias, span: Option<TimeSpan>, min_span: Option<TimeSpan>, bins: Option<i64>, start: Option<i64>, end: Option<i64>, align_time: Option<String> });
+
 #[derive(Debug, Default)]
 pub struct BinParser {}
 pub struct BinCommandOptions {
-    span: Option<ast::TimeSpan>,
-    min_span: Option<ast::TimeSpan>,
+    span: Option<TimeSpan>,
+    min_span: Option<TimeSpan>,
     bins: Option<i64>,
     start: Option<i64>,
     end: Option<i64>,
@@ -52,17 +73,17 @@ impl TryFrom<ParsedCommandOptions> for BinCommandOptions {
     }
 }
 
-impl SplCommand<ast::BinCommand> for BinParser {
-    type RootCommand = crate::commands::BinCommand;
+impl SplCommand<BinCommand> for BinParser {
+    type RootCommand = crate::commands::BinCommandRoot;
     type Options = BinCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::BinCommand> {
+    fn parse_body(input: &str) -> IResult<&str, BinCommand> {
         map(
             pair(
                 Self::Options::match_options,
                 alt((into(aliased_field), into(field))),
             ),
-            |(options, field)| ast::BinCommand {
+            |(options, field)| BinCommand {
                 field,
                 span: options.span,
                 min_span: options.min_span,

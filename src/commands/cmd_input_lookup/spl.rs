@@ -1,12 +1,12 @@
-use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{Expr, ParsedCommandOptions};
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{expr, token, ws};
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::{map, opt};
 use nom::sequence::{preceded, tuple};
 use nom::{IResult, Parser};
-
+use pyo3::prelude::*;
 //
 //   def inputLookup[_: P]: P[InputLookup] =
 //     ("inputlookup" ~ commandOptions ~ token ~ ("where" ~ expr).?) map {
@@ -19,6 +19,24 @@ use nom::{IResult, Parser};
 //           tableName,
 //           whereOption)
 //     }
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct InputLookup {
+    #[pyo3(get)]
+    pub append: bool,
+    #[pyo3(get)]
+    pub strict: bool,
+    #[pyo3(get)]
+    pub start: i64,
+    #[pyo3(get)]
+    pub max: i64,
+    #[pyo3(get)]
+    pub table_name: String,
+    #[pyo3(get)]
+    pub where_expr: Option<Expr>,
+}
+impl_pyclass!(InputLookup { append: bool, strict: bool, start: i64, max: i64, table_name: String, where_expr: Option<Expr> });
 
 #[derive(Debug, Default)]
 pub struct InputLookupParser {}
@@ -44,18 +62,18 @@ impl TryFrom<ParsedCommandOptions> for InputLookupCommandOptions {
     }
 }
 
-impl SplCommand<ast::InputLookup> for InputLookupParser {
-    type RootCommand = crate::commands::InputLookupCommand;
+impl SplCommand<InputLookup> for InputLookupParser {
+    type RootCommand = crate::commands::InputLookupCommandRoot;
     type Options = InputLookupCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::InputLookup> {
+    fn parse_body(input: &str) -> IResult<&str, InputLookup> {
         map(
             tuple((
                 Self::Options::match_options,
                 ws(token),
                 ws(opt(preceded(ws(tag_no_case("where")), expr))),
             )),
-            |(options, table_name, where_options)| ast::InputLookup {
+            |(options, table_name, where_options)| InputLookup {
                 append: options.append,
                 strict: options.strict,
                 start: options.start,

@@ -1,5 +1,6 @@
 use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{FieldOrAlias, IntValue, ParsedCommandOptions};
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{field, field_and_value, int, ws};
 use nom::branch::alt;
@@ -8,6 +9,7 @@ use nom::combinator::{map, opt};
 use nom::multi::many1;
 use nom::sequence::{preceded, tuple};
 use nom::{IResult, Parser};
+use pyo3::prelude::*;
 //
 //   def _return[_: P]: P[ReturnCommand] = "return" ~ int.? ~ (
 //     fieldAndValue.rep(1) | ("$" ~~ field).rep(1) | field.rep(1)) map {
@@ -19,6 +21,16 @@ use nom::{IResult, Parser};
 //       })
 //   }
 
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct ReturnCommand {
+    #[pyo3(get)]
+    pub count: IntValue,
+    #[pyo3(get)]
+    pub fields: Vec<FieldOrAlias>,
+}
+impl_pyclass!(ReturnCommand { count: IntValue, fields: Vec<FieldOrAlias> });
+
 #[derive(Debug, Default)]
 pub struct ReturnParser {}
 pub struct ReturnCommandOptions {}
@@ -28,16 +40,16 @@ impl SplCommandOptions for ReturnCommandOptions {}
 impl TryFrom<ParsedCommandOptions> for ReturnCommandOptions {
     type Error = anyhow::Error;
 
-    fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
+    fn try_from(_value: ParsedCommandOptions) -> Result<Self, Self::Error> {
         Ok(Self {})
     }
 }
 
-impl SplCommand<ast::ReturnCommand> for ReturnParser {
-    type RootCommand = crate::commands::ReturnCommand;
+impl SplCommand<ReturnCommand> for ReturnParser {
+    type RootCommand = crate::commands::ReturnCommandRoot;
     type Options = ReturnCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::ReturnCommand> {
+    fn parse_body(input: &str) -> IResult<&str, ReturnCommand> {
         map(
             tuple((
                 ws(opt(int)),
@@ -53,7 +65,7 @@ impl SplCommand<ast::ReturnCommand> for ReturnParser {
                     many1(map(ws(field), |v| v.into())),
                 )),
             )),
-            |(maybe_count, fields)| ast::ReturnCommand {
+            |(maybe_count, fields)| ReturnCommand {
                 count: maybe_count.unwrap_or(1.into()),
                 fields,
             },

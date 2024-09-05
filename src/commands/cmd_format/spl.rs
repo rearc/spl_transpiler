@@ -1,11 +1,11 @@
-use crate::ast::ast;
 use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{double_quoted, ws};
 use nom::combinator::{map, opt};
 use nom::sequence::{pair, tuple};
 use nom::{IResult, Parser};
-
+use pyo3::prelude::*;
 //
 //   def format[_: P]: P[FormatCommand] = ("format" ~ commandOptions ~ doubleQuoted.rep(6).?) map {
 //     case (kv, options) =>
@@ -24,6 +24,37 @@ use nom::{IResult, Parser};
 //         rowEnd = arguments(5)
 //       )
 //   }
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct FormatCommand {
+    #[pyo3(get)]
+    pub mv_sep: String,
+    #[pyo3(get)]
+    pub max_results: i64,
+    #[pyo3(get)]
+    pub row_prefix: String,
+    #[pyo3(get)]
+    pub col_prefix: String,
+    #[pyo3(get)]
+    pub col_sep: String,
+    #[pyo3(get)]
+    pub col_end: String,
+    #[pyo3(get)]
+    pub row_sep: String,
+    #[pyo3(get)]
+    pub row_end: String,
+}
+impl_pyclass!(FormatCommand {
+    mv_sep: String,
+    max_results: i64,
+    row_prefix: String,
+    col_prefix: String,
+    col_sep: String,
+    col_end: String,
+    row_sep: String,
+    row_end: String
+});
 
 #[derive(Debug, Default)]
 pub struct FormatParser {}
@@ -45,11 +76,11 @@ impl TryFrom<ParsedCommandOptions> for FormatCommandOptions {
     }
 }
 
-impl SplCommand<ast::FormatCommand> for FormatParser {
-    type RootCommand = crate::commands::FormatCommand;
+impl SplCommand<FormatCommand> for FormatParser {
+    type RootCommand = crate::commands::FormatCommandRoot;
     type Options = FormatCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::FormatCommand> {
+    fn parse_body(input: &str) -> IResult<&str, FormatCommand> {
         map(
             pair(
                 Self::Options::match_options,
@@ -64,7 +95,7 @@ impl SplCommand<ast::FormatCommand> for FormatParser {
             ),
             |(options, delimiters)| {
                 let delimiters = delimiters.unwrap_or(("(", "(", "AND", ")", "OR", ")"));
-                ast::FormatCommand {
+                FormatCommand {
                     mv_sep: options.mv_sep,
                     max_results: options.max_results,
                     row_prefix: delimiters.0.into(),

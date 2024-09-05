@@ -1,15 +1,16 @@
+use super::spl::*;
 use crate::ast::ast;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use anyhow::bail;
 
-impl PipelineTransformer for ast::ConvertCommand {
+impl PipelineTransformer for ConvertCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
 
         for conv in self.convs.iter().cloned() {
             let result = convert_fn(self, &conv)?;
-            let ast::FieldConversion {
+            let FieldConversion {
                 field: ast::Field(name),
                 alias,
                 ..
@@ -22,12 +23,12 @@ impl PipelineTransformer for ast::ConvertCommand {
 }
 
 pub fn convert_fn(
-    cmd: &ast::ConvertCommand,
-    conversion: &ast::FieldConversion,
+    cmd: &ConvertCommand,
+    conversion: &FieldConversion,
 ) -> anyhow::Result<ColumnLike> {
-    let ast::ConvertCommand { timeformat, .. } = cmd;
+    let ConvertCommand { timeformat, .. } = cmd;
     let timeformat = crate::pyspark::transpiler::utils::convert_time_format(timeformat);
-    let ast::FieldConversion {
+    let FieldConversion {
         func,
         field: ast::Field(field_name),
         ..

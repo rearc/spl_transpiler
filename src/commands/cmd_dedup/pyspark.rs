@@ -1,9 +1,9 @@
-use crate::ast::ast;
+use crate::commands::cmd_dedup::spl::DedupCommand;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 
-impl PipelineTransformer for ast::DedupCommand {
+impl PipelineTransformer for DedupCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let df = state.df;
 
         unimplemented!();
 

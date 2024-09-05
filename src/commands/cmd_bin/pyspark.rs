@@ -1,9 +1,10 @@
+use super::spl::*;
 use crate::ast::ast;
 use crate::ast::ast::FieldOrAlias;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 
-impl PipelineTransformer for ast::BinCommand {
+impl PipelineTransformer for BinCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
         let col_name = match self.field.clone() {

@@ -1,11 +1,11 @@
-use crate::ast::ast;
-use crate::ast::ast::ParsedCommandOptions;
+use crate::ast::ast::{ParsedCommandOptions, Pipeline};
+use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::quoted_search;
 use nom::combinator::map;
 use nom::sequence::pair;
 use nom::{IResult, Parser};
-
+use pyo3::prelude::*;
 //
 //   def _map[_: P]: P[MapCommand] = "map" ~ quotedSearch ~ commandOptions map {
 //     case (subPipe, options) => MapCommand(
@@ -13,6 +13,19 @@ use nom::{IResult, Parser};
 //       options.getInt("maxsearches", 10)
 //     )
 //   }
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct MapCommand {
+    #[pyo3(get)]
+    pub search: Pipeline,
+    #[pyo3(get)]
+    pub max_searches: i64,
+}
+impl_pyclass!(MapCommand {
+    search: Pipeline,
+    max_searches: i64
+});
 
 #[derive(Debug, Default)]
 pub struct MapParser {}
@@ -32,14 +45,14 @@ impl TryFrom<ParsedCommandOptions> for MapCommandOptions {
     }
 }
 
-impl SplCommand<ast::MapCommand> for MapParser {
-    type RootCommand = crate::commands::MapCommand;
+impl SplCommand<MapCommand> for MapParser {
+    type RootCommand = crate::commands::MapCommandRoot;
     type Options = MapCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, ast::MapCommand> {
+    fn parse_body(input: &str) -> IResult<&str, MapCommand> {
         map(
             pair(quoted_search, Self::Options::match_options),
-            |(subpipe, options)| ast::MapCommand {
+            |(subpipe, options)| MapCommand {
                 search: subpipe,
                 max_searches: options.max_searches,
             },

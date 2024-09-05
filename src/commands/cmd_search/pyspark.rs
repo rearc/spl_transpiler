@@ -1,9 +1,10 @@
+use super::spl::*;
 use crate::ast::ast;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use anyhow::anyhow;
 
-impl PipelineTransformer for ast::SearchCommand {
+impl PipelineTransformer for SearchCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
         match self.expr.clone() {
             // index=lol should result in Source("lol")
