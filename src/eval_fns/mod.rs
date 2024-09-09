@@ -138,7 +138,6 @@ sin(X)                                              	 Computes the sine of X.
 sinh(X)                                             	 Computes the hyperbolic sine of X.
 tan(X)                                              	 Computes the tangent of X.
 tanh(X)                                             	 Computes the hyperbolic tangent of X.
-
  */
 
 trait EvalFunction {
@@ -149,13 +148,6 @@ trait EvalFunction {
 
 macro_rules! _eval_fn_args {
     ([$args:ident, $i:expr] ()) => {};
-    // [$($body:tt)*] => {_eval_fn_arg!($($body)*)};
-    // ($name:ident : Expr , $($tail:tt)*) => {
-    //     $name: Expr = map_arg(&args[_i])?;
-    //     _i += 1;
-    //     _eval_fn_args!($($tail)*)
-    // };
-    // (, $($tail:tt)*) => {_eval_fn_args!($($tail)*)};
     ([$args:ident, $i:ident] ($name:ident : $type:ty , $($tail:tt)*)) => {
         let $name: $type = map_arg(&$args[$i])?;
         $i += 1;
@@ -174,9 +166,6 @@ macro_rules! _eval_fn_args {
         let $name: Expr = map_arg(&$args[$i])?;
         $i += 1;
     };
-    // ([$args:expr, $i:ident] ($($tail:tt)*)) => {
-    //     _eval_fn_args!([$args,$i] $($tail)*);
-    // };
 }
 
 macro_rules! eval_fn {
@@ -202,26 +191,6 @@ macro_rules! eval_fn {
         }
     };
 }
-
-// macro_rules! _args {
-//     ($args:tt) => {_eval_fn_args!($args)};
-// }
-
-// _eval_fn_args!(a: Expr, b: String, c);
-// fn f() {
-//     let args: Vec<Expr> = vec![];
-//     // let _i = 0;
-//     // _eval_fn_args!([args, _i] (x, y, z));
-//     // _eval_fn_args!( [ args , _i ] y, z );
-//     eval_fn!([args] (condition, then_expr, else_expr) {
-//         column_like!([when([condition], [then_expr])].otherwise([else_expr]))
-//     });
-// }
-// const _: &str = _eval_fn_args!(b: String);
-
-// static SIMPLE_FUNC_MAP: phf::Map<&'static str, Option<&'static str>> = phf_map! {
-//
-// };
 
 impl TryFrom<ast::Expr> for i64 {
     type Error = anyhow::Error;
@@ -303,111 +272,7 @@ where
 pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
     let ast::Call { name, args } = call;
 
-    // match (name.as_str(), args.len()) {
     match name.as_str() {
-        // if(condition, then_expr, else_expr) -> when(condition, then_expr).otherwise(else_expr)
-        // "if" => {
-        //     let condition: Expr = map_arg(&args[0])?;
-        //     let then_expr: Expr = map_arg(&args[1])?;
-        //     let else_expr: Expr = map_arg(&args[2])?;
-        //
-        //     Ok(column_like!([when([condition], [then_expr])].otherwise([else_expr])).into())
-        // }
-        // eval_fn!(if[3](condition, then_expr, else_expr) => column_like!([when([condition], [then_expr])].otherwise([else_expr])))
-
-        // coalesce(a, b, ...) -> coalesce(col(a), col(b), ...)
-        // ("coalesce", _) => {
-        //     let cols: Vec<Expr> = map_args(args)?;
-        //     let coalesce = ColumnLike::FunctionCall {
-        //         func: "coalesce".to_string(),
-        //         args: cols,
-        //     };
-        //     Ok(column_like!([coalesce].alias("coalesce")).into())
-        // }
-
-        // mvcount(d) -> size(col(d))
-        // "mvcount" => {
-        //     let column: Expr = map_arg(&args[0])?;
-        //     Ok(column_like!([size([column])].alias("mvcount")).into())
-        // }
-
-        // mvindex(a, b, c) -> slice(a, b+1, c+1)
-        // "mvindex" => {
-        //     let x: Expr = map_arg(&args[0])?;
-        //     let start: i64 = map_arg(&args[1])?;
-        //     let end: i64 = map_arg(&args[2])?;
-        //     let length = end - start + 1;
-        //     Ok(
-        //         column_like!([slice([x], [py_lit(start + 1)], [py_lit(length)])].alias("mvindex"))
-        //             .into(),
-        //     )
-        // }
-
-        // mvappend(a, b) -> concat(a, b)
-        // "mvappend" => {
-        //     let left: Expr = map_arg(&args[0])?;
-        //     let right: Expr = map_arg(&args[1])?;
-        //     Ok(column_like!([concat([left], [right])].alias("mvappend")).into())
-        // }
-
-        // mvfilter(condition_about_d) -> filter(d, lambda d_: condition)
-        // TODO
-        // ast::Expr::Call(ast::Call { name, args }) if name == "mvfilter" && args.len() == 2 => {
-        //     let condition: Expr = map_arg(&args[0])?;
-        //     let lambda: Expr = map_arg(&args[1])?;
-        //     Ok(column_like!([filter([condition], [lambda])].alias("mvfilter")).into())
-        // },
-
-        // strftime(d, c_fmt) -> date_format(d, spark_fmt)
-        // "strftime" => {
-        //     let date: Expr = map_arg(&args[0])?;
-        //     let format: String = map_arg(&args[1])?;
-        //     let format = convert_time_format(format);
-        //     Ok(column_like!([date_format([date], [py_lit(format)])].alias("strftime")).into())
-        // }
-
-        // min(d, val) -> least(d, val)
-        // "min" => {
-        //     let column: Expr = map_arg(&args[0])?;
-        //     let value: Expr = map_arg(&args[1])?;
-        //     Ok(column_like!([least([column], [value])].alias("min")).into())
-        // }
-
-        // max(d, val) -> greatest(d, val)
-        // "max" => {
-        //     let column: Expr = map_arg(&args[0])?;
-        //     let value: Expr = map_arg(&args[1])?;
-        //     Ok(column_like!([greatest([column], [value])].alias("max")).into())
-        // }
-
-        // round(f, n) -> round(f, n)
-        // "round" => {
-        //     let column: Expr = map_arg(&args[0])?;
-        //     let precision: i64 = map_arg(&args[1])?;
-        //     Ok(column_like!([round([column], [py_lit(precision)])].alias("round")).into())
-        // }
-
-        // substr(s, start, len) -> substring(s, start, len)
-        // "substr" => {
-        //     let column: Expr = map_arg(&args[0])?;
-        //     let start: i64 = map_arg(&args[1])?;
-        //     let length: i64 = map_arg(&args[2])?;
-        //     Ok(column_like!(
-        //         [substring([column], [py_lit(start)], [py_lit(length)])].alias("substr")
-        //     )
-        //     .into())
-        // }
-
-        // cidrmatch(cidr, c) => expr("cidr_match({}, {})")
-        // "cidrmatch" => {
-        //     let cidr: String = map_arg(&args[0])?;
-        //     let col: String = map_arg(&args[1])?;
-        //     Ok(column_like!(
-        //         [expr([py_lit(format!("cidr_match('{}', {})", cidr, col))])].alias("cidrmatch")
-        //     )
-        //     .into())
-        // }
-
         // memk(v) => ...
         // Converts a string like "10k", "3g" or "7" (implicit "k") to kilobytes
         "memk" => {
@@ -670,6 +535,8 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         "sqrt" => eval_fn!(sqrt [args] (x) { column_like!(sqrt([x])) }),
         // sum(<num>,...)                                      	 Returns the sum of numerical values as an integer.
         "sum" => eval_fn!(sum [args] (x) { column_like!(sum([x])) }),
+
+        // Multivalue eval functions
         // commands(<value>)                                   	 Returns a multivalued field that contains a list of the commands used in <value>.
         "commands" => {
             unimplemented!("Unsupported function: {}", name)
@@ -724,6 +591,8 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         }
         // split(<str>,<delim>)                                	 Splits the string values on the delimiter and returns the string values as a multivalue field.
         "split" => eval_fn!(split [args] (x) { column_like!(split([x])) }),
+
+        // Statistical eval functions
         // avg(<values>)                                       	 Returns the average of numerical values as an integer.
         "avg" => eval_fn!(avg [args] (x) { column_like!(avg([x])) }),
         // max(<values>)                                       	 Returns the maximum of a set of string or numeric values.
@@ -732,6 +601,8 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         "min" => eval_fn!(min [args] (x, y) { column_like!(least([x], [y])) }),
         // random()                                            	 Returns a pseudo-random integer ranging from zero to 2^31-1.
         "random" => eval_fn!(random [args] () { column_like!(rand()) }),
+
+        // Text functions
         // len(<str>)                                          	 Returns the count of the number of characters, not bytes, in the string.
         "len" => eval_fn!(len [args] (x) { column_like!(length([x])) }),
         // lower(<str>)                                        	 Converts the string to lowercase.
@@ -760,6 +631,8 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         "urldecode" => {
             unimplemented!("Unsupported function: {}", name)
         }
+
+        // Trigonometry and Hyperbolic functions
         // acos(X)                                             	 Computes the arc cosine of X.
         "acos" => eval_fn!(acos [args] (x) { column_like!(acos([x])) }),
         // acosh(X)                                            	 Computes the arc hyperbolic cosine of X.
