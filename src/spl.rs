@@ -1,4 +1,3 @@
-use crate::ast::ast::ParsedCommandOptions;
 use crate::ast::operators::OperatorSymbolTrait;
 use crate::ast::{ast, operators, operators::OperatorSymbol};
 use crate::commands::cmd_add_totals::spl::AddTotalsParser;

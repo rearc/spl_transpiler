@@ -2,7 +2,6 @@ use crate::ast::ast;
 use crate::pyspark::ast::DataFrame::Source;
 use crate::pyspark::ast::*;
 use anyhow::{anyhow, Result};
-pub mod eval_fns;
 pub(crate) mod expr;
 pub(crate) mod utils;
 

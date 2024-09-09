@@ -80,10 +80,15 @@ macro_rules! column_like {
     (col($name: expr)) => { ColumnLike::Named { name: $name.to_string() } };
     (lit(true)) => { ColumnLike::Literal { code: "True".to_string() } };
     (lit(false)) => { ColumnLike::Literal { code: "False".to_string() } };
+    (lit(None)) => { ColumnLike::Literal { code: "None".to_string() } };
     (lit($code: literal)) => { ColumnLike::Literal { code: stringify!($code).to_string() } };
     (lit($code: expr)) => { ColumnLike::Literal { code: $code.to_string() } };
     // (py_lit($code: literal)) => { Raw::from($code) };
     (py_lit($code: expr)) => { Raw::from($code) };
+    (expr($fmt: literal $($args:tt)*)) => { ColumnLike::FunctionCall {
+        func: "expr".into(),
+        args: vec![Raw::from( format!($fmt $($args)*) ).into()],
+    } };
     ([$($base: tt)*] . alias ( $name: expr ) ) => { ColumnLike::Aliased {
         col: Box::new(column_like!($($base)*).into()),
         name: $name.into()
@@ -96,6 +101,10 @@ macro_rules! column_like {
     ($function: ident ( $([$($args: tt)*]),* )) => { ColumnLike::FunctionCall {
         func: stringify!($function).to_string(),
         args: vec![$(column_like!($($args)*).into()),*],
+    } };
+    ($function: ident ( $args: expr )) => { ColumnLike::FunctionCall {
+        func: stringify!($function).to_string(),
+        args: $args,
     } };
     ([$($left: tt)*] $op: tt [$($right: tt)*]) => { ColumnLike::BinaryOp {
         left: Box::new(column_like!($($left)*).into()),
