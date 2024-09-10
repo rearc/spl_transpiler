@@ -1,9 +1,7 @@
 use super::spl::*;
 use crate::ast::ast;
 use crate::functions::convert_fns::convert_fn;
-use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
-use anyhow::bail;
 
 impl PipelineTransformer for ConvertCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {

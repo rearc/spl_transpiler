@@ -110,7 +110,6 @@ macro_rules! _function_args {
     };
 }
 
-#[macro_use]
 macro_rules! function_transform {
     ($name:ident [$arg_vec:ident] $args:tt { $out:expr }) => {
         {

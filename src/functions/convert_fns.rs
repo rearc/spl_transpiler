@@ -1,7 +1,6 @@
 use crate::ast::ast;
 use crate::commands::cmd_convert::spl::{ConvertCommand, FieldConversion};
 use crate::functions::shared::{ctime, memk, rmcomma, rmunit};
-use crate::functions::*;
 use crate::pyspark::ast::*;
 use log::warn;
 

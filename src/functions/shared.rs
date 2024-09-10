@@ -1,5 +1,4 @@
 use crate::pyspark::ast::*;
-use anyhow::Result;
 
 pub fn ctime(c: impl Into<Expr>, timeformat: String) -> ColumnLike {
     column_like!(date_format([c.into()], [py_lit(timeformat)]))
