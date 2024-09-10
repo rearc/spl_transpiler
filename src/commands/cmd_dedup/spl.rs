@@ -107,7 +107,7 @@ impl SplCommand<DedupCommand> for DedupParser {
                             opt(map(alt((tag("+"), tag("-"))), Into::into)),
                             map(field, Into::into),
                         ))),
-                        |fields_to_sort| SortCommand { fields_to_sort },
+                        |fields_to_sort| SortCommand::new_simple(fields_to_sort),
                     ),
                 )),
             )),
@@ -123,9 +123,10 @@ impl SplCommand<DedupCommand> for DedupParser {
                 keep_events: options.keep_events,
                 keep_empty: options.keep_empty,
                 consecutive: options.consecutive,
-                sort_by: sort_by.unwrap_or(SortCommand {
-                    fields_to_sort: vec![(Some("+".into()), ast::Field::from("_no").into())],
-                }),
+                sort_by: sort_by.unwrap_or(SortCommand::new_simple(vec![(
+                    Some("+".into()),
+                    ast::Field::from("_no").into(),
+                )])),
             },
         )(input)
     }

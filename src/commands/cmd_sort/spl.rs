@@ -1,12 +1,12 @@
 use crate::ast::ast::{Expr, ParsedCommandOptions};
 use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::{expr, ws};
+use crate::spl::{expr, int, ws};
 use nom::branch::alt;
-use nom::bytes::complete::tag;
+use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
 use nom::multi::separated_list1;
-use nom::sequence::pair;
+use nom::sequence::{pair, preceded, tuple};
 use nom::IResult;
 use pyo3::prelude::*;
 //
@@ -18,8 +18,31 @@ use pyo3::prelude::*;
 pub struct SortCommand {
     #[pyo3(get)]
     pub fields_to_sort: Vec<(Option<String>, Expr)>,
+    #[pyo3(get)]
+    pub count: i64,
+    #[pyo3(get)]
+    pub descending: bool,
 }
-impl_pyclass!(SortCommand { fields_to_sort: Vec<(Option<String>, Expr)> });
+impl_pyclass!(SortCommand { fields_to_sort: Vec<(Option<String>, Expr)>, count: i64, descending: bool });
+impl Default for SortCommand {
+    fn default() -> Self {
+        SortCommand {
+            fields_to_sort: Vec::new(),
+            count: 10000,
+            descending: false,
+        }
+    }
+}
+impl SortCommand {
+    /// Simple constructor for creating an unlimited sort command. Note that `.default()` uses the `sort` command's default limit of 10,000.
+    pub fn new_simple(fields_to_sort: Vec<(Option<String>, Expr)>) -> Self {
+        SortCommand {
+            fields_to_sort,
+            count: 0,
+            descending: false,
+        }
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct SortParser {}
@@ -41,11 +64,19 @@ impl SplCommand<SortCommand> for SortParser {
 
     fn parse_body(input: &str) -> IResult<&str, SortCommand> {
         map(
-            separated_list1(
-                ws(tag(",")),
-                pair(opt(map(alt((tag("+"), tag("-"))), String::from)), expr),
-            ),
-            |fields_to_sort| SortCommand { fields_to_sort },
+            tuple((
+                opt(preceded(opt(ws(tag_no_case("limit="))), ws(int))),
+                separated_list1(
+                    ws(tag(",")),
+                    pair(opt(map(alt((tag("+"), tag("-"))), String::from)), expr),
+                ),
+                opt(ws(tag_no_case("desc"))),
+            )),
+            |(count, fields_to_sort, desc)| SortCommand {
+                fields_to_sort,
+                count: count.map(|v| v.0).unwrap_or(10000),
+                descending: desc.is_some(),
+            },
         )(input)
     }
 }

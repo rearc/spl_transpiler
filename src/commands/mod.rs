@@ -1,3 +1,4 @@
+mod regex_utils;
 #[allow(unused_imports)]
 /* Full command list: https://docs.splunk.com/Documentation/SplunkCloud/latest/SearchReference/ListOfSearchCommands
 Command          	 Description

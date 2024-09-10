@@ -1,12 +1,17 @@
 use crate::commands::cmd_table::spl::TableCommand;
+use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 
 impl PipelineTransformer for TableCommand {
-    #[allow(unused_variables, unreachable_code)]
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
-        let df = state.df;
+        let mut df = state.df;
 
-        unimplemented!();
+        df = df.select(
+            self.fields
+                .iter()
+                .map(|field| column_like!(col(field.0.clone())))
+                .collect(),
+        );
 
         Ok(PipelineTransformState { df })
     }

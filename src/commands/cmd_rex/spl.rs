@@ -2,6 +2,7 @@ use crate::ast::ast::ParsedCommandOptions;
 use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::double_quoted;
+use anyhow::ensure;
 use nom::combinator::map;
 use nom::sequence::pair;
 use nom::IResult;
@@ -22,7 +23,7 @@ use pyo3::prelude::*;
 #[pyclass(frozen, eq, hash)]
 pub struct RexCommand {
     #[pyo3(get)]
-    pub field: Option<String>,
+    pub field: String,
     #[pyo3(get)]
     pub max_match: i64,
     #[pyo3(get)]
@@ -33,7 +34,7 @@ pub struct RexCommand {
     pub regex: String,
 }
 impl_pyclass!(RexCommand {
-    field: Option<String>,
+    field: String,
     max_match: i64,
     offset_field: Option<String>,
     mode: Option<String>,
@@ -43,7 +44,7 @@ impl_pyclass!(RexCommand {
 #[derive(Debug, Default)]
 pub struct RexParser {}
 pub struct RexCommandOptions {
-    field: Option<String>,
+    field: String,
     max_match: i64,
     offset_field: Option<String>,
     mode: Option<String>,
@@ -55,11 +56,17 @@ impl TryFrom<ParsedCommandOptions> for RexCommandOptions {
     type Error = anyhow::Error;
 
     fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
+        let mode = value
+            .get_string_option("mode")?
+            .map(|s| s.to_ascii_lowercase());
+        if let Some(mode_str) = mode.clone() {
+            ensure!(mode_str == "sed", "Invalid rex mode: {}", mode_str);
+        };
         Ok(Self {
-            field: value.get_string_option("field")?,
+            field: value.get_string("field", "_raw")?,
             max_match: value.get_int("max_match", 1)?,
             offset_field: value.get_string_option("offset_field")?,
-            mode: value.get_string_option("mode")?,
+            mode,
         })
     }
 }

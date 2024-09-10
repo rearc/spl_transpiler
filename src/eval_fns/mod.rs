@@ -4,8 +4,8 @@ use crate::pyspark::ast::*;
 use crate::pyspark::dealias::Dealias;
 use crate::pyspark::transpiler::utils::convert_time_format;
 use anyhow::{bail, ensure, Result};
+use log::warn;
 use std::any::type_name;
-
 /*
 https://docs.splunk.com/Documentation/SplunkCloud/9.2.2406/SearchReference/CommonEvalFunctions#Function_list_by_category
 Type of function
@@ -658,20 +658,12 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         "tanh" => eval_fn!(tanh [args] (x) { column_like!(tanh([x])) }),
 
         // Fallback
-        // (n, l) => bail!("Unsupported function: {}([{} args])", n, l),
         name => {
+            warn!(
+                "Unknown eval function encountered, returning as is: {}",
+                name
+            );
             let args: Vec<Expr> = map_args(args)?;
-            // let spark_name = match SIMPLE_FUNC_MAP.get(name).cloned() {
-            //     // Unknown function
-            //     None => {
-            //         warn!("Unknown eval function encountered, returning as is: {}", name);
-            //         name
-            //     },
-            //     // Known function with no known trivial mapping
-            //     Some(None) => name,
-            //     // Known function with known trivial mapping
-            //     Some(Some(spark_name)) => spark_name,
-            // };
             Ok(ColumnLike::Aliased {
                 name: name.into(),
                 col: Box::new(

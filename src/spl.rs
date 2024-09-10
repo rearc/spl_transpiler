@@ -2010,6 +2010,7 @@ mod tests {
                         (Some("-".into()), ast::Field::from("B").into()),
                         (Some("+".into()), _call!(num(ast::Field::from("C"))).into()),
                     ],
+                    ..Default::default()
                 }
                 .into()
             ))
@@ -2104,6 +2105,7 @@ mod tests {
                 "",
                 SortCommand {
                     fields_to_sort: vec![(None, ast::Field::from("A").into())],
+                    ..Default::default()
                 }
                 .into()
             ))
@@ -2710,7 +2712,7 @@ mod tests {
                 "",
                 ast::Pipeline {
                     commands: vec![RexCommand {
-                        field: Some("savedsearch_id".to_string()),
+                        field: "savedsearch_id".to_string(),
                         max_match: 10,
                         offset_field: None,
                         mode: None,
@@ -2743,7 +2745,7 @@ mod tests {
                 "",
                 ast::Pipeline {
                     commands: vec![RexCommand {
-                        field: None,
+                        field: "_raw".to_string(),
                         max_match: 1,
                         offset_field: None,
                         mode: Some("sed".to_string()),
@@ -3263,9 +3265,10 @@ mod tests {
                     keep_events: true,
                     keep_empty: false,
                     consecutive: true,
-                    sort_by: SortCommand {
-                        fields_to_sort: vec![(Some("+".into()), ast::Field::from("_no").into())],
-                    },
+                    sort_by: SortCommand::new_simple(vec![(
+                        Some("+".into()),
+                        ast::Field::from("_no").into()
+                    )]),
                 }
                 .into()
             ))
@@ -3308,12 +3311,10 @@ mod tests {
                     keep_events: true,
                     keep_empty: false,
                     consecutive: false,
-                    sort_by: SortCommand {
-                        fields_to_sort: vec![
-                            (Some("+".into()), ast::Field::from("host").into()),
-                            (Some("-".into()), ast::Field::from("ip").into()),
-                        ],
-                    },
+                    sort_by: SortCommand::new_simple(vec![
+                        (Some("+".into()), ast::Field::from("host").into()),
+                        (Some("-".into()), ast::Field::from("ip").into()),
+                    ]),
                 }
                 .into()
             ))
@@ -3804,9 +3805,10 @@ mod tests {
                     keep_events: true,
                     keep_empty: false,
                     consecutive: true,
-                    sort_by: SortCommand {
-                        fields_to_sort: vec![(Some("+".into()), ast::Field::from("_no").into())],
-                    },
+                    sort_by: SortCommand::new_simple(vec![(
+                        Some("+".into()),
+                        ast::Field::from("_no").into(),
+                    )]),
                 }
                 .into(),
             ],

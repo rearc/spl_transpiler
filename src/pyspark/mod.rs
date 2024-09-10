@@ -923,4 +923,78 @@ mod tests {
             r#"spark.table('main').groupBy('x').agg(F.count().alias('count')).orderBy(F.desc(F.col('count'))).limit(5)"#,
         )
     }
+
+    #[test]
+    fn test_where_1() {
+        generates(
+            r#"index=alt | where n>2"#,
+            r#"spark.table("alt").where((F.col("n") > F.lit(2)))"#,
+        );
+    }
+
+    #[test]
+    fn test_table_1() {
+        generates(
+            r#"index=alt | table x y z"#,
+            r#"spark.table("alt").select(F.col("x"), F.col("y"), F.col("z"))"#,
+        );
+    }
+
+    #[test]
+    fn test_sort_1() {
+        generates(
+            r#"index=alt | sort x, -y"#,
+            r#"spark.table("alt").orderBy(F.col("x").asc(), F.col("y").desc()).limit(10000)"#,
+        );
+    }
+
+    #[test]
+    fn test_sort_2() {
+        generates(
+            r#"index=alt | sort 0 x, -y desc"#,
+            r#"spark.table("alt").orderBy(F.col("x").desc(), F.col("y").asc())"#,
+        );
+    }
+
+    #[test]
+    fn test_rex_1() {
+        generates(
+            r#"index=alt | rex field=_raw "From: <(?<from>.*)> To: <(?<to>.*)>""#,
+            r#"spark.table("alt").withColumn(
+                "from",
+                F.regexp_extract(F.col("_raw"), r"From: <(?<from>.*)> To: <(?<to>.*)>", 1)
+            ).withColumn(
+                "to",
+                F.regexp_extract(F.col("_raw"), r"From: <(?<from>.*)> To: <(?<to>.*)>", 2)
+            )"#,
+        );
+    }
+
+    #[test]
+    fn test_regex_1() {
+        generates(
+            r#"index=alt | regex "From: <(?<from>.*)> To: <(?<to>.*)>""#,
+            r#"spark.table("alt").where(
+                F.regexp_like(F.col("_raw"), r"From: <(?<from>.*)> To: <(?<to>.*)>")
+            )"#,
+        );
+    }
+
+    #[test]
+    fn test_regex_2() {
+        generates(
+            r#"index=alt | regex c!="From: <(?<from>.*)> To: <(?<to>.*)>""#,
+            r#"spark.table("alt").where(
+                ~F.regexp_like(F.col("c"), r"From: <(?<from>.*)> To: <(?<to>.*)>")
+            )"#,
+        );
+    }
+
+    #[test]
+    fn test_rename_1() {
+        generates(
+            r#"index=alt | rename x AS y, a AS b"#,
+            r#"spark.table("alt").withColumnRenamed("x", "y").withColumnRenamed("a", "b")"#,
+        );
+    }
 }

@@ -8,7 +8,7 @@ pub struct Base();
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 // #[pyclass(frozen,eq,hash)]
-pub struct Raw(String);
+pub struct Raw(pub String);
 
 impl From<String> for Raw {
     fn from(value: String) -> Raw {
@@ -109,6 +109,9 @@ macro_rules! column_like {
     ([$($left: tt)*] $op: tt [$($right: tt)*]) => { ColumnLike::BinaryOp {
         left: Box::new(column_like!($($left)*).into()),
         op: stringify!($op).to_string(),
+        right: Box::new(column_like!($($right)*).into()),
+    } };
+    (~ [$($right: tt)*]) => { ColumnLike::UnaryNot {
         right: Box::new(column_like!($($right)*).into()),
     } };
     ($e: expr) => { $e };
@@ -214,6 +217,11 @@ pub enum DataFrame {
         column: ColumnLike,
         name: String,
     },
+    WithColumnRenamed {
+        source: Box<DataFrame>,
+        old_name: String,
+        new_name: String,
+    },
     OrderBy {
         source: Box<DataFrame>,
         columns: Vec<ColumnLike>,
@@ -274,6 +282,17 @@ impl DataFrame {
             source: Box::new(self.clone()),
             column: column.unaliased(),
             name: name.to_string(),
+        }
+    }
+    pub fn with_column_renamed(
+        &self,
+        old_name: impl ToString,
+        new_name: impl ToString,
+    ) -> DataFrame {
+        Self::WithColumnRenamed {
+            source: Box::new(self.clone()),
+            old_name: old_name.to_string(),
+            new_name: new_name.to_string(),
         }
     }
     pub fn order_by(&self, columns: Vec<ColumnLike>) -> DataFrame {
@@ -360,6 +379,16 @@ impl TemplateNode for DataFrame {
                 source.to_spark_query()?,
                 name,
                 column.to_spark_query()?,
+            )),
+            DataFrame::WithColumnRenamed {
+                source,
+                old_name,
+                new_name,
+            } => Ok(format!(
+                "{}.withColumnRenamed('{}', '{}',)",
+                source.to_spark_query()?,
+                old_name,
+                new_name,
             )),
             DataFrame::OrderBy { source, columns } => {
                 let columns: Result<Vec<String>> =

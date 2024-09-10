@@ -1,6 +1,6 @@
 [package]
 name = "spl_transpiler"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 
 [lib]
@@ -13,6 +13,7 @@ pyo3-built = "*"
 float-derive = "*"
 anyhow = "*"
 log = "*"
+regex-syntax = "*"
 
 inventory = "*"
 phf = { version = "*", features = ["macros"] }

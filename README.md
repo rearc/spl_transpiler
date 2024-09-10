@@ -131,7 +131,7 @@ Support status can be one of the following:
 | `autoregress`      | None    |        |
 | `bin` (`bucket`)   | Partial | Yes    |
 | `bucketdir`        | None    |        |
-| `chart`            | None    |        |
+| `chart`            | None    | Yes    |
 | `cluster`          | None    |        |
 | `cofilter`         | None    |        |
 | `collect`          | Parser  | Yes    |
@@ -189,7 +189,7 @@ Support status can be one of the following:
 | `meventcollect`    | None    |        |
 | `mpreview`         | None    |        |
 | `msearch`          | None    |        |
-| `mstats`           | None    |        |
+| `mstats`           | None    | Yes    |
 | `multikv`          | None    |        |
 | `multisearch`      | Partial | Yes    |
 | `mvcombine`        | Parser  |        |
@@ -203,17 +203,17 @@ Support status can be one of the following:
 | `pivot`            | None    |        |
 | `predict`          | None    |        |
 | `rangemap`         | None    |        |
-| `rare`             | None    |        |
+| `rare`             | None    | Yes    |
 | `redistribute`     | None    |        |
-| `regex`            | Parser  | Yes    |
+| `regex`            | Partial | Yes    |
 | `reltime`          | None    |        |
-| `rename`           | Parser  | Yes    |
+| `rename`           | Partial | Yes    |
 | `replace`          | None    |        |
 | `require`          | None    |        |
 | `rest`             | None    |        |
 | `return`           | Parser  | Yes    |
 | `reverse`          | None    |        |
-| `rex`              | Parser  | Yes    |
+| `rex`              | Partial | Yes    |
 | `rtorder`          | None    |        |
 | `savedsearch`      | None    |        |
 | `script` (`run`)   | None    |        |
@@ -230,19 +230,19 @@ Support status can be one of the following:
 | `sistats`          | None    |        |
 | `sitimechart`      | None    |        |
 | `sitop`            | None    |        |
-| `sort`             | Parser  | Yes    |
+| `sort`             | Partial | Yes    |
 | `spath`            | None    |        |
 | `stats`            | Partial | Yes    |
 | `strcat`           | None    |        |
 | `streamstats`      | Parser  | Yes    |
-| `table`            | Parser  | Yes    |
+| `table`            | Partial | Yes    |
 | `tags`             | None    |        |
-| `tail`             | None    |        |
+| `tail`             | None    | Yes    |
 | `timechart`        | None    |        |
 | `timewrap`         | None    |        |
 | `tojson`           | None    |        |
 | `top`              | Partial | Yes    |
-| `transaction`      | None    |        |
+| `transaction`      | None    | Yes    |
 | `transpose`        | None    |        |
 | `trendline`        | None    |        |
 | `tscollect`        | None    |        |
@@ -254,7 +254,7 @@ Support status can be one of the following:
 | `uniq`             | None    |        |
 | `untable`          | None    |        |
 | `walklex`          | None    |        |
-| `where`            | Parser  | Yes    |
+| `where`            | Partial | Yes    |
 | `x11`              | None    |        |
 | `xmlkv`            | None    |        |
 | `xmlunescape`      | None    |        |
@@ -273,149 +273,149 @@ Like with commands, there are a lot of built-in functions and not all of them ma
 This transpiler intends to support most queries and will thus support the most common functions.
 However, there is no goal at this time to support all Splunk functions.
 
-| Category | Subcategory                 | Function             | Support | Target |
-|----------|-----------------------------|----------------------|---------|--------|
-| Eval     | Bitwise                     | `bit_and`            | Yes     | Yes    |
-| Eval     | Bitwise                     | `bit_or`             | Yes     | Yes    |
-| Eval     | Bitwise                     | `bit_not`            | Yes     | Yes    |
-| Eval     | Bitwise                     | `bit_xor`            | Yes     | Yes    |
-| Eval     | Bitwise                     | `bit_shift_left`     | Yes     | Yes    |
-| Eval     | Bitwise                     | `bit_shift_right`    | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `case`               | No      |        |
-| Eval     | Comparison and Conditional  | `cidrmatch`          | Yes*    | Yes    |
-| Eval     | Comparison and Conditional  | `coalesce`           | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `false`              | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `if`                 | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `in`                 | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `like`               | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `lookup`             | No      |        |
-| Eval     | Comparison and Conditional  | `match`              | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `null`               | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `nullif`             | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `searchmatch`        | No      |        |
-| Eval     | Comparison and Conditional  | `true`               | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `validate`           | No      |        |
-| Eval     | Conversion                  | `ipmask`             | No      |        |
-| Eval     | Conversion                  | `printf`             | No      |        |
-| Eval     | Conversion                  | `tonumber`           | No      |        |
-| Eval     | Conversion                  | `tostring`           | No      |        |
-| Eval     | Cryptographic               | `md5`                | Yes     | Yes    |
-| Eval     | Cryptographic               | `sha1`               | Yes     | Yes    |
-| Eval     | Cryptographic               | `sha256`             | Yes     | Yes    |
-| Eval     | Cryptographic               | `sha512`             | Yes     | Yes    |
-| Eval     | Date and Time               | `now`                | Yes     | Yes    |
-| Eval     | Date and Time               | `relative_time`      | No      |        |
-| Eval     | Date and Time               | `strftime`           | Partial | Yes    |
-| Eval     | Date and Time               | `strptime`           | No      | Yes    |
-| Eval     | Date and Time               | `time`               | Yes     | Yes    |
-| Eval     | Informational               | `isbool`             | No      | No     |
-| Eval     | Informational               | `isint`              | No      | No     |
-| Eval     | Informational               | `isnotnull`          | Yes     | Yes    |
-| Eval     | Informational               | `isnull`             | Yes     | Yes    |
-| Eval     | Informational               | `isnum`              | No      | No     |
-| Eval     | Informational               | `isstr`              | No      | No     |
-| Eval     | Informational               | `typeof`             | No      | No     |
-| Eval     | JSON                        | `json_object`        | No      |        |
-| Eval     | JSON                        | `json_append`        | No      |        |
-| Eval     | JSON                        | `json_array`         | No      |        |
-| Eval     | JSON                        | `json_array_to_mv`   | No      |        |
-| Eval     | JSON                        | `json_extend`        | No      |        |
-| Eval     | JSON                        | `json_extract`       | No      |        |
-| Eval     | JSON                        | `json_extract_exact` | No      |        |
-| Eval     | JSON                        | `json_keys`          | No      |        |
-| Eval     | JSON                        | `json_set`           | No      |        |
-| Eval     | JSON                        | `json_set_exact`     | No      |        |
-| Eval     | JSON                        | `json_valid`         | No      |        |
-| Eval     | Mathematical                | `abs`                | Yes     | Yes    |
-| Eval     | Mathematical                | `ceiling`            | Yes     | Yes    |
-| Eval     | Mathematical                | `exact`              | No      |        |
-| Eval     | Mathematical                | `exp`                | Yes     | Yes    |
-| Eval     | Mathematical                | `floor`              | Yes     | Yes    |
-| Eval     | Mathematical                | `ln`                 | Yes     | Yes    |
-| Eval     | Mathematical                | `log`                | Yes     | Yes    |
-| Eval     | Mathematical                | `pi`                 | Yes     | Yes    |
-| Eval     | Mathematical                | `pow`                | Yes     | Yes    |
-| Eval     | Mathematical                | `round`              | Yes     | Yes    |
-| Eval     | Mathematical                | `sigfig`             | No      |        |
-| Eval     | Mathematical                | `sqrt`               | Yes     | Yes    |
-| Eval     | Mathematical                | `sum`                | Yes     | Yes    |
-| Eval     | Multivalue                  | `commands`           | No      |        |
-| Eval     | Multivalue                  | `mvappend`           | Yes     | Yes    |
-| Eval     | Multivalue                  | `mvcount`            | Yes     | Yes    |
-| Eval     | Multivalue                  | `mvdedup`            | No      |        |
-| Eval     | Multivalue                  | `mvfilter`           | No      |        |
-| Eval     | Multivalue                  | `mvfind`             | No      |        |
-| Eval     | Multivalue                  | `mvindex`            | Yes     | Yes    |
-| Eval     | Multivalue                  | `mvjoin`             | No      |        |
-| Eval     | Multivalue                  | `mvmap`              | No      |        |
-| Eval     | Multivalue                  | `mvrange`            | No      |        |
-| Eval     | Multivalue                  | `mvsort`             | No      |        |
-| Eval     | Multivalue                  | `mvzip`              | No      |        |
-| Eval     | Multivalue                  | `mv_to_json_array`   | No      |        |
-| Eval     | Multivalue                  | `split`              | Yes     | Yes    |
-| Eval     | Statistical                 | `avg`                | Yes     | Yes    |
-| Eval     | Statistical                 | `max`                | Yes     | Yes    |
-| Eval     | Statistical                 | `min`                | Yes     | Yes    |
-| Eval     | Statistical                 | `random`             | Yes     | Yes    |
-| Eval     | Text                        | `len`                | Yes     | Yes    |
-| Eval     | Text                        | `lower`              | Yes     | Yes    |
-| Eval     | Text                        | `ltrim`              | Yes     | Yes    |
-| Eval     | Text                        | `replace`            | Yes     | Yes    |
-| Eval     | Text                        | `rtrim`              | Yes     | Yes    |
-| Eval     | Text                        | `spath`              | No      |        |
-| Eval     | Text                        | `substr`             | Yes     | Yes    |
-| Eval     | Text                        | `trim`               | Yes     | Yes    |
-| Eval     | Text                        | `upper`              | Yes     | Yes    |
-| Eval     | Text                        | `urldecode`          | No      |        |
-| Eval     | Trigonometry and Hyperbolic | `acos`               | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `acosh`              | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `asin`               | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `asinh`              | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `atan`               | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `atan2`              | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `atanh`              | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `cos`                | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `cosh`               | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `hypot`              | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `sin`                | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `sinh`               | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `tan`                | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `tanh`               | Yes     | Yes    |
-| Stats    | Aggregate                   | `avg`                | No      |        |
-| Stats    | Aggregate                   | `count`              | Yes     | Yes    |
-| Stats    | Aggregate                   | `distinct_count`     | No      |        |
-| Stats    | Aggregate                   | `estdc`              | No      |        |
-| Stats    | Aggregate                   | `estdc_error`        | No      |        |
-| Stats    | Aggregate                   | `exactperc`          | No      |        |
-| Stats    | Aggregate                   | `max`                | No      | Yes    |
-| Stats    | Aggregate                   | `mean`               | No      | Yes    |
-| Stats    | Aggregate                   | `median`             | No      | Yes    |
-| Stats    | Aggregate                   | `min`                | No      | Yes    |
-| Stats    | Aggregate                   | `mode`               | No      | Yes    |
-| Stats    | Aggregate                   | `percentile`         | No      | Yes    |
-| Stats    | Aggregate                   | `range`              | No      | Yes    |
-| Stats    | Aggregate                   | `stdev`              | No      | Yes    |
-| Stats    | Aggregate                   | `stdevp`             | No      | Yes    |
-| Stats    | Aggregate                   | `sum`                | Yes     | Yes    |
-| Stats    | Aggregate                   | `sumsq`              | No      | Yes    |
-| Stats    | Aggregate                   | `upperperc`          | No      | Yes    |
-| Stats    | Aggregate                   | `var`                | No      | Yes    |
-| Stats    | Aggregate                   | `varp`               | No      | Yes    |
-| Stats    | Event order                 | `first`              | No      |        |
-| Stats    | Event order                 | `last`               | No      |        |
-| Stats    | Multivalue stats and chart  | `list`               | No      |        |
-| Stats    | Multivalue stats and chart  | `values`             | Yes     | Yes    |
-| Stats    | Time                        | `earliest`           | Yes     | Yes    |
-| Stats    | Time                        | `earliest_time`      | No      |        |
-| Stats    | Time                        | `latest`             | Yes     | Yes    |
-| Stats    | Time                        | `latest_time`        | No      |        |
-| Stats    | Time                        | `per_day`            | No      |        |
-| Stats    | Time                        | `per_hour`           | No      |        |
-| Stats    | Time                        | `per_minute`         | No      |        |
-| Stats    | Time                        | `per_second`         | No      |        |
-| Stats    | Time                        | `rate`               | No      |        |
-| Stats    | Time                        | `rate_avg`           | No      |        |
-| Stats    | Time                        | `rate_sum`           | No      |        |
+| Category | Subcategory                 | Function                | Support | Target |
+|----------|-----------------------------|-------------------------|---------|--------|
+| Eval     | Bitwise                     | `bit_and`               | Yes     | Yes    |
+| Eval     | Bitwise                     | `bit_or`                | Yes     | Yes    |
+| Eval     | Bitwise                     | `bit_not`               | Yes     | Yes    |
+| Eval     | Bitwise                     | `bit_xor`               | Yes     | Yes    |
+| Eval     | Bitwise                     | `bit_shift_left`        | Yes     | Yes    |
+| Eval     | Bitwise                     | `bit_shift_right`       | Yes     | Yes    |
+| Eval     | Comparison and Conditional  | `case`                  | No      | Yes    |
+| Eval     | Comparison and Conditional  | `cidrmatch`             | Yes*    | Yes    |
+| Eval     | Comparison and Conditional  | `coalesce`              | Yes     | Yes    |
+| Eval     | Comparison and Conditional  | `false`                 | Yes     | Yes    |
+| Eval     | Comparison and Conditional  | `if`                    | Yes     | Yes    |
+| Eval     | Comparison and Conditional  | `in`                    | Yes     | Yes    |
+| Eval     | Comparison and Conditional  | `like`                  | Yes     | Yes    |
+| Eval     | Comparison and Conditional  | `lookup`                | No      |        |
+| Eval     | Comparison and Conditional  | `match`                 | Yes     | Yes    |
+| Eval     | Comparison and Conditional  | `null`                  | Yes     | Yes    |
+| Eval     | Comparison and Conditional  | `nullif`                | Yes     | Yes    |
+| Eval     | Comparison and Conditional  | `searchmatch`           | No      |        |
+| Eval     | Comparison and Conditional  | `true`                  | Yes     | Yes    |
+| Eval     | Comparison and Conditional  | `validate`              | No      | Yes    |
+| Eval     | Conversion                  | `ipmask`                | No      |        |
+| Eval     | Conversion                  | `printf`                | No      |        |
+| Eval     | Conversion                  | `tonumber`              | No      | Yes    |
+| Eval     | Conversion                  | `tostring`              | No      | Yes    |
+| Eval     | Cryptographic               | `md5`                   | Yes     | Yes    |
+| Eval     | Cryptographic               | `sha1`                  | Yes     | Yes    |
+| Eval     | Cryptographic               | `sha256`                | Yes     | Yes    |
+| Eval     | Cryptographic               | `sha512`                | Yes     | Yes    |
+| Eval     | Date and Time               | `now`                   | Yes     | Yes    |
+| Eval     | Date and Time               | `relative_time`         | No      | Yes    |
+| Eval     | Date and Time               | `strftime`              | Partial | Yes    |
+| Eval     | Date and Time               | `strptime`              | No      | Yes    |
+| Eval     | Date and Time               | `time`                  | Yes     | Yes    |
+| Eval     | Informational               | `isbool`                | No      | No     |
+| Eval     | Informational               | `isint`                 | No      | No     |
+| Eval     | Informational               | `isnotnull`             | Yes     | Yes    |
+| Eval     | Informational               | `isnull`                | Yes     | Yes    |
+| Eval     | Informational               | `isnum`                 | No      | No     |
+| Eval     | Informational               | `isstr`                 | No      | No     |
+| Eval     | Informational               | `typeof`                | No      | No     |
+| Eval     | JSON                        | `json_object`           | No      |        |
+| Eval     | JSON                        | `json_append`           | No      |        |
+| Eval     | JSON                        | `json_array`            | No      |        |
+| Eval     | JSON                        | `json_array_to_mv`      | No      |        |
+| Eval     | JSON                        | `json_extend`           | No      |        |
+| Eval     | JSON                        | `json_extract`          | No      |        |
+| Eval     | JSON                        | `json_extract_exact`    | No      |        |
+| Eval     | JSON                        | `json_keys`             | No      |        |
+| Eval     | JSON                        | `json_set`              | No      |        |
+| Eval     | JSON                        | `json_set_exact`        | No      |        |
+| Eval     | JSON                        | `json_valid`            | No      |        |
+| Eval     | Mathematical                | `abs`                   | Yes     | Yes    |
+| Eval     | Mathematical                | `ceiling` (`ceil`)      | Yes     | Yes    |
+| Eval     | Mathematical                | `exact`                 | No      | Yes    |
+| Eval     | Mathematical                | `exp`                   | Yes     | Yes    |
+| Eval     | Mathematical                | `floor`                 | Yes     | Yes    |
+| Eval     | Mathematical                | `ln`                    | Yes     | Yes    |
+| Eval     | Mathematical                | `log`                   | Yes     | Yes    |
+| Eval     | Mathematical                | `pi`                    | Yes     | Yes    |
+| Eval     | Mathematical                | `pow`                   | Yes     | Yes    |
+| Eval     | Mathematical                | `round`                 | Yes     | Yes    |
+| Eval     | Mathematical                | `sigfig`                | No      |        |
+| Eval     | Mathematical                | `sqrt`                  | Yes     | Yes    |
+| Eval     | Mathematical                | `sum`                   | Yes     | Yes    |
+| Eval     | Multivalue                  | `commands`              | No      |        |
+| Eval     | Multivalue                  | `mvappend`              | Yes     | Yes    |
+| Eval     | Multivalue                  | `mvcount`               | Yes     | Yes    |
+| Eval     | Multivalue                  | `mvdedup`               | No      |        |
+| Eval     | Multivalue                  | `mvfilter`              | No      | Yes    |
+| Eval     | Multivalue                  | `mvfind`                | No      |        |
+| Eval     | Multivalue                  | `mvindex`               | Yes     | Yes    |
+| Eval     | Multivalue                  | `mvjoin`                | No      | Yes    |
+| Eval     | Multivalue                  | `mvmap`                 | No      |        |
+| Eval     | Multivalue                  | `mvrange`               | No      |        |
+| Eval     | Multivalue                  | `mvsort`                | No      |        |
+| Eval     | Multivalue                  | `mvzip`                 | No      |        |
+| Eval     | Multivalue                  | `mv_to_json_array`      | No      |        |
+| Eval     | Multivalue                  | `split`                 | Yes     | Yes    |
+| Eval     | Statistical                 | `avg`                   | Yes     | Yes    |
+| Eval     | Statistical                 | `max`                   | Partial | Yes    |
+| Eval     | Statistical                 | `min`                   | Partial | Yes    |
+| Eval     | Statistical                 | `random`                | Yes     | Yes    |
+| Eval     | Text                        | `len`                   | Yes     | Yes    |
+| Eval     | Text                        | `lower`                 | Yes     | Yes    |
+| Eval     | Text                        | `ltrim`                 | Yes     | Yes    |
+| Eval     | Text                        | `replace`               | Yes     | Yes    |
+| Eval     | Text                        | `rtrim`                 | Yes     | Yes    |
+| Eval     | Text                        | `spath`                 | No      |        |
+| Eval     | Text                        | `substr`                | Yes     | Yes    |
+| Eval     | Text                        | `trim`                  | Yes     | Yes    |
+| Eval     | Text                        | `upper`                 | Yes     | Yes    |
+| Eval     | Text                        | `urldecode`             | No      | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `acos`                  | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `acosh`                 | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `asin`                  | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `asinh`                 | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `atan`                  | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `atan2`                 | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `atanh`                 | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `cos`                   | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `cosh`                  | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `hypot`                 | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `sin`                   | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `sinh`                  | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `tan`                   | Yes     | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `tanh`                  | Yes     | Yes    |
+| Stats    | Aggregate                   | `avg`                   | No      | Yes    |
+| Stats    | Aggregate                   | `count`                 | Yes     | Yes    |
+| Stats    | Aggregate                   | `distinct_count` (`dc`) | No      | Yes    |
+| Stats    | Aggregate                   | `estdc`                 | No      |        |
+| Stats    | Aggregate                   | `estdc_error`           | No      |        |
+| Stats    | Aggregate                   | `exactperc`             | No      |        |
+| Stats    | Aggregate                   | `max`                   | No      | Yes    |
+| Stats    | Aggregate                   | `mean`                  | No      | Yes    |
+| Stats    | Aggregate                   | `median`                | No      | Yes    |
+| Stats    | Aggregate                   | `min`                   | No      | Yes    |
+| Stats    | Aggregate                   | `mode`                  | No      | Yes    |
+| Stats    | Aggregate                   | `percentile`            | No      | Yes    |
+| Stats    | Aggregate                   | `range`                 | No      | Yes    |
+| Stats    | Aggregate                   | `stdev`                 | No      | Yes    |
+| Stats    | Aggregate                   | `stdevp`                | No      | Yes    |
+| Stats    | Aggregate                   | `sum`                   | Yes     | Yes    |
+| Stats    | Aggregate                   | `sumsq`                 | No      | Yes    |
+| Stats    | Aggregate                   | `upperperc`             | No      | Yes    |
+| Stats    | Aggregate                   | `var`                   | No      | Yes    |
+| Stats    | Aggregate                   | `varp`                  | No      | Yes    |
+| Stats    | Event order                 | `first`                 | No      |        |
+| Stats    | Event order                 | `last`                  | No      |        |
+| Stats    | Multivalue stats and chart  | `list`                  | No      |        |
+| Stats    | Multivalue stats and chart  | `values`                | Yes     | Yes    |
+| Stats    | Time                        | `earliest`              | Yes     | Yes    |
+| Stats    | Time                        | `earliest_time`         | No      |        |
+| Stats    | Time                        | `latest`                | Yes     | Yes    |
+| Stats    | Time                        | `latest_time`           | No      |        |
+| Stats    | Time                        | `per_day`               | No      |        |
+| Stats    | Time                        | `per_hour`              | No      |        |
+| Stats    | Time                        | `per_minute`            | No      |        |
+| Stats    | Time                        | `per_second`            | No      |        |
+| Stats    | Time                        | `rate`                  | No      |        |
+| Stats    | Time                        | `rate_avg`              | No      |        |
+| Stats    | Time                        | `rate_sum`              | No      |        |
 
 \* Pyspark output depends on custom UDFs instead of native Spark functions. Some of these may be provided by this
 package, some may be provided by Databricks Sirens.
