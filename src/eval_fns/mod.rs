@@ -391,11 +391,11 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
             unimplemented!("Unsupported function: {}", name)
         }
         // printf(<format>,<arguments>)                        	 Creates a formatted string based on a format description that you provide.
-        "printf" => eval_fn!(printf [args] (x) { column_like!(format_string([x])) }),
+        "printf" => unimplemented!("Unsupported function: {}", name),
         // tonumber(<str>,<base>)                              	 Converts a string to a number.
-        "tonumber" => eval_fn!(tonumber [args] (x) { column_like!(cast([x])) }),
+        "tonumber" => unimplemented!("Unsupported function: {}", name),
         // tostring(<value>,<format>)                          	 Converts the input, such as a number or a Boolean value, to a string.
-        "tostring" => eval_fn!(tostring [args] (x) { column_like!(cast([x])) }),
+        "tostring" => unimplemented!("Unsupported function: {}", name),
 
         // Cryptographic functions
         // md5(<str>)                                          	 Computes the md5 hash for the string value.
