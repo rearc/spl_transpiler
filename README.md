@@ -16,10 +16,17 @@ print(convert_spl_to_pyspark(r"""multisearch
 [index=regionA | fields +country, orders]
 [index=regionB | fields +country, orders]"""))
 
-# spark.table("regionA").select(F.col("country"), F.col("orders")).unionByName(
-#     spark.table("regionB").select(F.col("country"), F.col("orders")),
+# spark.table("regionA").select(
+#     F.col("country"),
+#     F.col("orders"),
+# ).unionByName(
+#     spark.table("regionB").select(
+#         F.col("country"),
+#         F.col("orders"),
+#     ),
 #     allowMissingColumns=True,
 # )
+
 ```
 
 ## Interactive CLI
@@ -56,8 +63,3 @@ However, it lays a solid foundation for the whole process and is modular enough 
 
 Ways to contribute:
 - Add SPL queries and what the equivalent PySpark could would be. These test cases can drive development and prioritize the most commonly used features.
-- Add support for additional functions and commands. While the SPL parser works for most commands, many do not yet the ability to render back out to PySpark. Please see `/src/pyspark/transpiler/command/eval_fns.rs` and `/convert_fns.rs` to add support for more in-command functions, and `/src/pyspark/transpiler/command/mod.rs` to add support for more top-level commands.
-
-# Future
-
-- Add UI (with `textual`) for interactive demonstration/use
