@@ -3,8 +3,8 @@ pub mod eval_fns;
 mod shared;
 pub mod stat_fns;
 
-use crate::ast::ast;
 use crate::pyspark::dealias::Dealias;
+use crate::spl::ast;
 use anyhow::{bail, Result};
 
 impl TryFrom<ast::Expr> for i64 {

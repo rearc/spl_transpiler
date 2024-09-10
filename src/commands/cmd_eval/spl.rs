@@ -1,7 +1,7 @@
-use crate::ast::ast::{Expr, Field, ParsedCommandOptions};
-use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::{expr, field, ws};
+use crate::spl::ast::{Expr, Field, ParsedCommandOptions};
+use crate::spl::parser::{expr, field, ws};
+use crate::spl::python::impl_pyclass;
 use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::multi::separated_list0;

@@ -1,10 +1,11 @@
-use crate::ast::ast;
+use crate::spl::ast;
 use pyo3::prelude::*;
 
 macro_rules! impl_pyclass {
     ($name: ty { $arg_tp: ty }) => {
         #[pymethods]
         impl $name {
+            #[allow(clippy::too_many_arguments)]
             #[new]
             fn new(value: $arg_tp) -> Self {
                 Self ( value )
@@ -18,6 +19,7 @@ macro_rules! impl_pyclass {
     ($name: path {$($arg: ident : $arg_tp: ty),*}) => {
         #[pymethods]
         impl $name {
+            #[allow(clippy::too_many_arguments)]
             #[new]
             fn new($($arg: $arg_tp),*) -> Self {
                 Self { $($arg),* }
@@ -31,6 +33,7 @@ macro_rules! impl_pyclass {
     ($name: path {$(|$arg: ident : $arg_tp: ty| $conv: expr),*}) => {
         #[pymethods]
         impl $name {
+            #[allow(clippy::too_many_arguments)]
             #[new]
             fn new($( $arg: $arg_tp ),*) -> Self {
                 Self { $( $arg : (|$arg: $arg_tp| $conv)($arg) ),* }

@@ -1,7 +1,7 @@
-use crate::ast::ast::ParsedCommandOptions;
-use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::double_quoted;
+use crate::spl::ast::ParsedCommandOptions;
+use crate::spl::parser::double_quoted;
+use crate::spl::python::impl_pyclass;
 use anyhow::ensure;
 use nom::combinator::map;
 use nom::sequence::pair;

@@ -1,9 +1,9 @@
-use crate::ast::ast;
-use crate::ast::ast::{Field, ParsedCommandOptions};
-use crate::ast::python::impl_pyclass;
 use crate::commands::cmd_sort::spl::SortCommand;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::{field, int, ws};
+use crate::spl::ast;
+use crate::spl::ast::{Field, ParsedCommandOptions};
+use crate::spl::parser::{field, int, ws};
+use crate::spl::python::impl_pyclass;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt, verify};

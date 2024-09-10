@@ -788,6 +788,7 @@ impl From<Alias> for FieldOrAlias {
     }
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub enum Command {

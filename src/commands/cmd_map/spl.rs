@@ -1,7 +1,7 @@
-use crate::ast::ast::{ParsedCommandOptions, Pipeline};
-use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::quoted_search;
+use crate::spl::ast::{ParsedCommandOptions, Pipeline};
+use crate::spl::parser::quoted_search;
+use crate::spl::python::impl_pyclass;
 use nom::combinator::map;
 use nom::sequence::pair;
 use nom::IResult;

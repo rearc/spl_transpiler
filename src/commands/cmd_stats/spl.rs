@@ -1,8 +1,7 @@
-use crate::ast::ast;
-use crate::ast::ast::{Expr, Field, ParsedCommandOptions};
-use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::{bool_, field_list, stats_call, ws};
+use crate::spl::ast::{Expr, Field, ParsedCommandOptions};
+use crate::spl::parser::{bool_, field_list, stats_call, ws};
+use crate::spl::python::impl_pyclass;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
 use nom::sequence::{pair, preceded, tuple};
@@ -40,7 +39,7 @@ pub struct StatsCommand {
     #[pyo3(get)]
     pub dedup_split_vals: bool,
 }
-impl_pyclass!(StatsCommand { partitions: i64, all_num: bool, delim: String, funcs: Vec<Expr>, by: Vec<ast::Field>, dedup_split_vals: bool });
+impl_pyclass!(StatsCommand { partitions: i64, all_num: bool, delim: String, funcs: Vec<Expr>, by: Vec<Field>, dedup_split_vals: bool });
 
 #[derive(Debug, Default)]
 pub struct StatsParser {}

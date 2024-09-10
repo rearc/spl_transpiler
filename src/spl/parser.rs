@@ -1,5 +1,3 @@
-use crate::ast::operators::OperatorSymbolTrait;
-use crate::ast::{ast, operators, operators::OperatorSymbol};
 use crate::commands::cmd_add_totals::spl::AddTotalsParser;
 use crate::commands::cmd_bin::spl::BinParser;
 use crate::commands::cmd_collect::spl::CollectParser;
@@ -31,6 +29,8 @@ use crate::commands::cmd_table::spl::TableParser;
 use crate::commands::cmd_top::spl::TopParser;
 use crate::commands::cmd_where::spl::WhereParser;
 use crate::commands::spl::SplCommand;
+use crate::spl::operators::OperatorSymbolTrait;
+use crate::spl::{ast, operators, operators::OperatorSymbol};
 use nom::bytes::complete::{tag_no_case, take_while};
 use nom::character::complete::{alphanumeric1, anychar, multispace0, multispace1};
 use nom::combinator::{all_consuming, into, map_parser, verify};

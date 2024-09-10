@@ -2,6 +2,7 @@ use anyhow::Result;
 use log::{error, warn};
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
+use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, Clone)]
@@ -16,7 +17,7 @@ impl Display for BlackNotInstalled {
     }
 }
 
-impl std::error::Error for BlackNotInstalled {}
+impl Error for BlackNotInstalled {}
 
 pub fn format_python_code(code: impl ToString) -> Result<String> {
     // TODO: When ruff format is available on cargo, use that instead of an embedded Python interpeter

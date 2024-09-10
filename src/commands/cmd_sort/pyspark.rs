@@ -1,7 +1,7 @@
-use crate::ast::ast;
 use crate::commands::cmd_sort::spl::SortCommand;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
+use crate::spl::ast;
 use anyhow::{bail, Result};
 
 /// Converts a generic column-like expression into an explicitly ascending or descending ordering
@@ -43,7 +43,7 @@ fn _resolve_expr(e: ast::Expr) -> Result<ColumnLike> {
 }
 
 impl PipelineTransformer for SortCommand {
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform(&self, state: PipelineTransformState) -> Result<PipelineTransformState> {
         let mut df = state.df;
 
         let sort_fields: Result<Vec<_>> = self

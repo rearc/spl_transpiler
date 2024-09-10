@@ -1,7 +1,7 @@
-use crate::ast::ast::{Alias, ParsedCommandOptions};
-use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::{aliased_field, ws};
+use crate::spl::ast::{Alias, ParsedCommandOptions};
+use crate::spl::parser::{aliased_field, ws};
+use crate::spl::python::impl_pyclass;
 use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::multi::separated_list1;

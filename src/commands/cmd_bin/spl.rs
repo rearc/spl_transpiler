@@ -1,8 +1,8 @@
-use crate::ast::ast;
-use crate::ast::ast::{FieldOrAlias, ParsedCommandOptions, TimeSpan};
-use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::{aliased_field, field};
+use crate::spl::ast;
+use crate::spl::ast::{FieldOrAlias, ParsedCommandOptions, TimeSpan};
+use crate::spl::parser::{aliased_field, field};
+use crate::spl::python::impl_pyclass;
 use nom::branch::alt;
 use nom::combinator::{into, map};
 use nom::sequence::pair;

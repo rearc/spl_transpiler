@@ -1,7 +1,7 @@
-use crate::ast::ast::{FieldLike, ParsedCommandOptions};
-use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::{field_rep, token, ws};
+use crate::spl::ast::{FieldLike, ParsedCommandOptions};
+use crate::spl::parser::{field_rep, token, ws};
+use crate::spl::python::impl_pyclass;
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::multispace1;

@@ -159,7 +159,7 @@ pub enum Expr {
 }
 
 impl TemplateNode for Expr {
-    fn to_spark_query(&self) -> anyhow::Result<String> {
+    fn to_spark_query(&self) -> Result<String> {
         match self {
             Expr::Column(col @ ColumnLike::BinaryOp { .. }) => {
                 Ok(format!("({})", col.to_spark_query()?,))
@@ -335,7 +335,7 @@ impl DataFrame {
 }
 
 impl TemplateNode for DataFrame {
-    fn to_spark_query(&self) -> anyhow::Result<String> {
+    fn to_spark_query(&self) -> Result<String> {
         match self {
             DataFrame::Source { name } => Ok(format!("spark.table('{}')", name)),
             DataFrame::Select { source, columns } => {
@@ -432,7 +432,7 @@ pub struct TransformedPipeline {
 }
 
 impl TemplateNode for TransformedPipeline {
-    fn to_spark_query(&self) -> anyhow::Result<String> {
+    fn to_spark_query(&self) -> Result<String> {
         let dfs: Result<Vec<String>> = self
             .dataframes
             .iter()

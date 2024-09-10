@@ -1,6 +1,6 @@
-use crate::ast::ast::ParsedCommandOptions;
-use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
+use crate::spl::ast::ParsedCommandOptions;
+use crate::spl::python::impl_pyclass;
 use nom::combinator::map;
 use nom::IResult;
 use pyo3::prelude::*;

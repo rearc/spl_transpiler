@@ -1,4 +1,4 @@
-use crate::ast::ast::Pipeline;
+use crate::spl::ast::Pipeline;
 use anyhow::Result;
 
 pub(crate) mod ast;
@@ -22,7 +22,8 @@ mod tests {
     use crate::pyspark::convert;
 
     fn generates(spl_query: &str, spark_query: &str) {
-        let (_, pipeline_ast) = crate::spl::pipeline(spl_query).expect("Failed to parse SPL query");
+        let (_, pipeline_ast) =
+            crate::parser::pipeline(spl_query).expect("Failed to parse SPL query");
         let converted = convert(pipeline_ast).expect("Failed to convert SPL query to Spark query");
         let rendered = converted
             .to_spark_query()

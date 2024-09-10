@@ -1,9 +1,9 @@
-use crate::ast::ast::{Expr, ParsedCommandOptions};
-use crate::ast::operators::OperatorSymbolTrait;
-use crate::ast::python::impl_pyclass;
-use crate::ast::{ast, operators};
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::{expr, ws};
+use crate::spl::ast::{Expr, ParsedCommandOptions};
+use crate::spl::operators::OperatorSymbolTrait;
+use crate::spl::parser::{expr, ws};
+use crate::spl::python::impl_pyclass;
+use crate::spl::{ast, operators};
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::{multispace0, multispace1};

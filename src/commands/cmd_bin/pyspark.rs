@@ -1,8 +1,8 @@
 use super::spl::*;
-use crate::ast::ast;
-use crate::ast::ast::FieldOrAlias;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
+use crate::spl::ast;
+use crate::spl::ast::FieldOrAlias;
 
 impl PipelineTransformer for BinCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {

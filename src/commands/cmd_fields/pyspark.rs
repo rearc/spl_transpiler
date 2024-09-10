@@ -1,7 +1,7 @@
 use super::spl::*;
-use crate::ast::ast;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
+use crate::spl::ast;
 
 impl PipelineTransformer for FieldsCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {

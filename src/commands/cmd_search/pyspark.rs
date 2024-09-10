@@ -1,19 +1,15 @@
 use super::spl::*;
-use crate::ast::ast;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
+use crate::spl::ast;
 use anyhow::{bail, ensure, Result};
 use std::collections::HashSet;
 
 fn _is_index(expr: &ast::Expr) -> bool {
-    match expr {
-        ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(name))))
-            if name == "index" =>
-        {
-            true
-        }
-        _ => false,
-    }
+    matches!(
+        expr,
+        ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(name)))) if name == "index"
+    )
 }
 
 fn split_conditions(
@@ -63,7 +59,7 @@ fn split_conditions(
 }
 
 impl PipelineTransformer for SearchCommand {
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform(&self, state: PipelineTransformState) -> Result<PipelineTransformState> {
         let mut indices = HashSet::new();
         let condition_expr = split_conditions(&self.expr, true, &mut indices)?;
         let mut df = if !indices.is_empty() {

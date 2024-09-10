@@ -1,6 +1,6 @@
-use crate::ast::ast::ParsedCommandOptions;
 use crate::commands::CommandBase;
-use crate::spl::{command_options, unwrapped};
+use crate::spl::ast::ParsedCommandOptions;
+use crate::spl::parser::{command_options, unwrapped};
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::multispace1;

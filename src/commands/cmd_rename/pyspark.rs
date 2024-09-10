@@ -1,6 +1,6 @@
-use crate::ast::ast;
 use crate::commands::cmd_rename::spl::RenameCommand;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
+use crate::spl::ast;
 use anyhow::bail;
 
 impl PipelineTransformer for RenameCommand {
