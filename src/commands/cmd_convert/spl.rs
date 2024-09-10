@@ -27,6 +27,7 @@ use pyo3::prelude::*;
 pub struct FieldConversion {
     #[pyo3(get)]
     pub func: String,
+    // TODO: This should be either a Wildcard or a Field
     #[pyo3(get)]
     pub field: Field,
     #[pyo3(get)]

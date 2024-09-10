@@ -8,7 +8,7 @@ impl Dealias for ColumnLike {
     fn unaliased(&self) -> Self {
         match self {
             ColumnLike::Aliased { col, .. } => match *col.clone() {
-                Expr::Column(col) => col,
+                Expr::Column(col) => col.unaliased(),
                 _ => self.clone(),
             },
             _ => self.clone(),

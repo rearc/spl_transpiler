@@ -691,7 +691,10 @@ mod tests {
     fn test_36() {
         generates(
             r#"eval rmcomma=rmcomma(s)"#,
-            r#"spark.table('main').withColumn('rmcomma', F.regexp_replace(F.col('s'), ',', '').cast('double'))"#,
+            r#"spark.table('main').withColumn(
+                'rmcomma',
+                F.regexp_replace(F.col('s'), ',', '').cast('double')
+            )"#,
         );
     }
 

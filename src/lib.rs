@@ -3,8 +3,8 @@ use pyo3::prelude::*;
 
 pub(crate) mod ast;
 pub(crate) mod commands;
-pub(crate) mod eval_fns;
 pub(crate) mod format_python;
+pub(crate) mod functions;
 pub(crate) mod pyspark;
 pub(crate) mod spl;
 

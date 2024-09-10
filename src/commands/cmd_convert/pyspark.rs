@@ -1,5 +1,6 @@
 use super::spl::*;
 use crate::ast::ast;
+use crate::functions::convert_fns::convert_fn;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use anyhow::bail;
@@ -19,27 +20,5 @@ impl PipelineTransformer for ConvertCommand {
             df = df.with_column(name, result)
         }
         Ok(PipelineTransformState { df })
-    }
-}
-
-pub fn convert_fn(
-    cmd: &ConvertCommand,
-    conversion: &FieldConversion,
-) -> anyhow::Result<ColumnLike> {
-    let ConvertCommand { timeformat, .. } = cmd;
-    let timeformat = crate::pyspark::transpiler::utils::convert_time_format(timeformat);
-    let FieldConversion {
-        func,
-        field: ast::Field(field_name),
-        ..
-    } = conversion;
-
-    match func.as_str() {
-        "ctime" => Ok(column_like!(date_format(
-            [col(field_name)],
-            [py_lit(timeformat)]
-        ))),
-
-        _ => bail!("Unsupported conversion function: {}", func),
     }
 }
