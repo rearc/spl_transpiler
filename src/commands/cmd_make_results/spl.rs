@@ -2,7 +2,7 @@ use crate::ast::ast::ParsedCommandOptions;
 use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use nom::combinator::map;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def makeResults[_: P]: P[MakeResults] = ("makeresults" ~ commandOptions) map {

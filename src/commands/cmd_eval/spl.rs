@@ -6,7 +6,7 @@ use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::multi::separated_list0;
 use nom::sequence::separated_pair;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def eval[_: P]: P[EvalCommand] = "eval" ~ (field ~ "=" ~ expr).rep(sep = ",") map EvalCommand

@@ -4,7 +4,7 @@ use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::double_quoted;
 use nom::combinator::map;
 use nom::sequence::pair;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   // https://docs.splunk.com/Documentation/Splunk/8.2.2/SearchReference/Rex

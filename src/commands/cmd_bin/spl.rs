@@ -6,7 +6,7 @@ use crate::spl::{aliased_field, field};
 use nom::branch::alt;
 use nom::combinator::{into, map};
 use nom::sequence::pair;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   // bin [<bin-options>...] <field> [AS <newfield>]

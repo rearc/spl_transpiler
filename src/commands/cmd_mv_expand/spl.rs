@@ -5,7 +5,7 @@ use crate::spl::{field, int, ws};
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
 use nom::sequence::{pair, preceded};
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def mvexpand[_: P]: P[MvExpandCommand] = ("mvexpand" ~ field ~ ("limit" ~ "=" ~ int).?) map {

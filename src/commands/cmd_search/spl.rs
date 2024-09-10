@@ -10,7 +10,7 @@ use nom::character::complete::{multispace0, multispace1};
 use nom::combinator::{eof, map, verify};
 use nom::multi::fold_many_m_n;
 use nom::sequence::tuple;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //   def impliedSearch[_: P]: P[SearchCommand] =
 //     "search".? ~ expr.rep(max = 100) map(_.reduce((a, b) => Binary(a, And, b))) map SearchCommand

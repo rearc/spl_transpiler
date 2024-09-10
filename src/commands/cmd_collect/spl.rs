@@ -5,7 +5,7 @@ use crate::spl::field_list;
 use anyhow::anyhow;
 use nom::combinator::map;
 use nom::sequence::pair;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def collect[_: P]: P[CollectCommand] = "collect" ~ commandOptions ~ fieldList map {

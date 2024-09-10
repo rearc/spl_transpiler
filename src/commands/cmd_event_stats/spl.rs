@@ -5,7 +5,7 @@ use crate::spl::{field_list, stats_call, ws};
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::{map, opt};
 use nom::sequence::{preceded, tuple};
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def eventStats[_: P]: P[EventStatsCommand] = ("eventstats" ~ commandOptions ~ statsCall

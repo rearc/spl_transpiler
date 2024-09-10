@@ -6,7 +6,7 @@ use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::{map, opt};
 use nom::sequence::pair;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //   def _regex[_: P]: P[RegexCommand] =
 //     "regex" ~ (field ~ ("="|"!=").!).? ~ doubleQuoted map RegexCommand.tupled

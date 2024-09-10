@@ -4,7 +4,7 @@ use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{field, ws};
 use nom::combinator::map;
 use nom::multi::many1;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //   def table[_: P]: P[TableCommand] = "table" ~ field.rep(1) map TableCommand
 

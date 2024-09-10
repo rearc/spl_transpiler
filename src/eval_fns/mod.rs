@@ -1,8 +1,10 @@
 use crate::ast::ast;
+use crate::pyspark::ast::column_like;
 use crate::pyspark::ast::*;
 use crate::pyspark::dealias::Dealias;
 use crate::pyspark::transpiler::utils::convert_time_format;
-use anyhow::{bail, Result};
+use anyhow::{bail, ensure, Result};
+use std::any::type_name;
 
 /*
 https://docs.splunk.com/Documentation/SplunkCloud/9.2.2406/SearchReference/CommonEvalFunctions#Function_list_by_category
@@ -140,29 +142,27 @@ tan(X)                                              	 Computes the tangent of X.
 tanh(X)                                             	 Computes the hyperbolic tangent of X.
  */
 
-trait EvalFunction {
-    const SPL_NAME: &'static str;
-
-    fn to_column_like(&self) -> Result<ColumnLike>;
-}
-
 macro_rules! _eval_fn_args {
     ([$args:ident, $i:expr] ()) => {};
     ([$args:ident, $i:ident] ($name:ident : $type:ty , $($tail:tt)*)) => {
+        ensure!($i < $args.len(), "Expected an argument for position {} ({}:{}), but only received {}", stringify!($i), stringify!($name), type_name::<$type>(), $args.len());
         let $name: $type = map_arg(&$args[$i])?;
         $i += 1;
         _eval_fn_args!([$args,$i] ($($tail)*));
     };
     ([$args:ident, $i:ident] ($name:ident : $type:ty)) => {
+        ensure!($i < $args.len(), "Expected an argument for position {} ({}:{}), but only received {}", stringify!($i), stringify!($name), type_name::<$type>(), $args.len());
         let $name: $type = map_arg(&$args[$i])?;
         $i += 1;
     };
     ([$args:ident, $i:ident] ($name:ident , $($tail:tt)*)) => {
+        ensure!($i < $args.len(), "Expected an argument for position {} ({}:Expr), but only received {}", stringify!($i), stringify!($name), $args.len());
         let $name: Expr = map_arg(&$args[$i])?;
         $i += 1;
         _eval_fn_args!([$args,$i] ($($tail)*));
     };
     ([$args:ident, $i:ident] ($name:ident)) => {
+        ensure!($i < $args.len(), "Expected an argument for position {} ({}:Expr), but only received {}", stringify!($i), stringify!($name), $args.len());
         let $name: Expr = map_arg(&$args[$i])?;
         $i += 1;
     };
@@ -171,9 +171,6 @@ macro_rules! _eval_fn_args {
 macro_rules! eval_fn {
     ($name:ident [$arg_vec:ident] $args:tt { $out:expr }) => {
         {
-            use anyhow::ensure;
-            use crate::pyspark::ast::column_like;
-
             let mut _i: usize = 0;
             _eval_fn_args!([$arg_vec, _i] $args);
             ensure!(_i == $arg_vec.len(), "Mistmatched number of arguments (code: {}, runtime: {}); fix arg list or assign remaining arguments using `eval_fn!({} [{} -> mapped_args] ...`", _i, $arg_vec.len(), stringify!($name), stringify!($arg_vec));
@@ -182,8 +179,6 @@ macro_rules! eval_fn {
     };
     ($name:ident [$arg_vec:ident -> $mapped_arg_name:ident] $args:tt { $out:expr }) => {
         {
-            use crate::pyspark::ast::column_like;
-
             let mut _i: usize = 0;
             _eval_fn_args!([$arg_vec, _i] $args);
             let $mapped_arg_name: Vec<Expr> = map_args($arg_vec.iter().skip(_i).cloned().collect())?;
@@ -360,7 +355,7 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
             column_like!(coalesce(mapped_args))
         }),
         // false()                                             	 Returns FALSE.
-        "false" => eval_fn!(false [args] (x) { column_like!(lit(false)) }),
+        "false" => eval_fn!(false [args] () { column_like!(lit(false)) }),
         // if(<predicate>,<true_value>,<false_value>)          	 If the <predicate> expression evaluates to TRUE, returns the <true_value>, otherwise the function returns the <false_value>.
         "if" => eval_fn!(if [args](condition, then_expr, else_expr) {
             column_like!([when([condition], [then_expr])].otherwise([else_expr]))
@@ -376,7 +371,7 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         // match(<str>, <regex>)                               	 Returns TRUE if the regular expression <regex> finds a match against any substring of the string value <str>. Otherwise returns FALSE.
         "match" => eval_fn!(match [args] (x, regex) { column_like!(regexp_like([x], [regex])) }),
         // null()                                              	 This function takes no arguments and returns NULL.
-        "null" => eval_fn!(null [args] (x) { column_like!(lit(None)) }),
+        "null" => eval_fn!(null [args] () { column_like!(lit(None)) }),
         // nullif(<field1>,<field2>)                           	 Compares the values in two fields and returns NULL if the value in <field1> is equal to the value in <field2>. Otherwise returns the value in <field1>.
         "nullif" => eval_fn!(nullif [args] (x, y) { column_like!(nullif([x], [y])) }),
         // searchmatch(<search_str>)                           	 Returns TRUE if the event matches the search string.
@@ -384,7 +379,7 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
             unimplemented!("Unsupported function: {}", name)
         }
         // true()                                              	 Returns TRUE.
-        "true" => eval_fn!(true [args] (x) { column_like!(lit(true)) }),
+        "true" => eval_fn!(true [args] () { column_like!(lit(true)) }),
         // validate(<condition>, <value>,...)                  	 Takes a list of conditions and values and returns the value that corresponds to the condition that evaluates to FALSE. This function defaults to NULL if all conditions evaluate to TRUE. This function is the opposite of the case function.
         "validate" => {
             unimplemented!("Unsupported function: {}", name)
@@ -688,5 +683,31 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
                 ),
             })
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_simple_function_max() {
+        let result = eval_fn(ast::Call {
+            name: "max".to_string(),
+            args: vec![ast::Field::from("a").into(), ast::Field::from("b").into()],
+        });
+        assert_eq!(
+            result.unwrap(),
+            column_like!([greatest([col("a")], [col("b")])].alias("max"))
+        );
+    }
+
+    #[test]
+    fn test_graceful_failure_for_missing_args() {
+        let result = eval_fn(ast::Call {
+            name: "sin".to_string(),
+            args: vec![],
+        });
+        assert!(result.is_err());
     }
 }

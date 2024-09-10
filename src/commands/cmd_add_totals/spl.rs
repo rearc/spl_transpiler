@@ -5,7 +5,7 @@ use crate::spl::{field, ws};
 use nom::combinator::map;
 use nom::multi::many0;
 use nom::sequence::pair;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def cAddtotals[_: P]: P[AddTotals] = "addtotals" ~ commandOptions ~ field.rep(1).? map {

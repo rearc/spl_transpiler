@@ -7,7 +7,7 @@ use nom::bytes::complete::tag;
 use nom::combinator::{map, opt};
 use nom::multi::separated_list1;
 use nom::sequence::pair;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def sort[_: P]: P[SortCommand] =

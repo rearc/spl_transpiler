@@ -7,7 +7,7 @@ use nom::bytes::complete::tag;
 use nom::combinator::{map, opt};
 use nom::multi::many1;
 use nom::sequence::{preceded, tuple};
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def fillNull[_: P]: P[FillNullCommand] = ("fillnull" ~ ("value=" ~~ (doubleQuoted|token)).?

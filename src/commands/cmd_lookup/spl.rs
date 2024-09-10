@@ -7,7 +7,7 @@ use nom::bytes::complete::tag_no_case;
 use nom::character::complete::multispace1;
 use nom::combinator::{map, opt};
 use nom::sequence::{separated_pair, tuple};
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 
 #[derive(Debug, PartialEq, Clone, Hash)]

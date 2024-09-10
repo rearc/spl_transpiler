@@ -5,7 +5,7 @@ use crate::spl::{aliased_field, ws};
 use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::multi::separated_list1;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def rename[_: P]: P[RenameCommand] =

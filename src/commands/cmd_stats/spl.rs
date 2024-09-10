@@ -6,7 +6,7 @@ use crate::spl::{bool_, field_list, stats_call, ws};
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
 use nom::sequence::{pair, preceded, tuple};
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def stats[_: P]: P[StatsCommand] = ("stats" ~ commandOptions ~ statsCall ~

@@ -3,7 +3,7 @@ use crate::ast::python::impl_pyclass;
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::expr;
 use nom::combinator::map;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //   // where <predicate-expression>
 //   def where[_: P]: P[WhereCommand] = "where" ~ expr map WhereCommand

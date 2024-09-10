@@ -4,7 +4,7 @@ use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{double_quoted, ws};
 use nom::combinator::{map, opt};
 use nom::sequence::{pair, tuple};
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def format[_: P]: P[FormatCommand] = ("format" ~ commandOptions ~ doubleQuoted.rep(6).?) map {

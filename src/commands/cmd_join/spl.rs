@@ -6,7 +6,7 @@ use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::multi::separated_list1;
 use nom::sequence::tuple;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //   def join[_: P]: P[JoinCommand] =
 //     ("join" ~ commandOptions ~ field.rep(min = 1, sep = ",") ~ subSearch) map {

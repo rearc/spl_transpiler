@@ -4,7 +4,7 @@ use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::quoted_search;
 use nom::combinator::map;
 use nom::sequence::pair;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
 //
 //   def _map[_: P]: P[MapCommand] = "map" ~ quotedSearch ~ commandOptions map {
