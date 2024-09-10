@@ -15,15 +15,15 @@ fn _stats_func(func: &ast::Expr, mut df: DataFrame) -> anyhow::Result<(DataFrame
             })
         }
         // count() -> `count(1).alias("count")`
-        ast::Expr::Call(ast::Call { name, args }) if name == "count" && args.len() == 0 => {
-            Ok(column_like!([count([lit(1)])].alias("count")).into())
+        ast::Expr::Call(ast::Call { name, args }) if name == "count" && args.is_empty() => {
+            Ok(column_like!([count([lit(1)])].alias("count")))
         }
         // sum(x) -> `sum(x).alias("sum")`
         ast::Expr::Call(ast::Call { name, args }) if name == "sum" && args.len() == 1 => {
             match &args[0] {
                 ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(
                     name,
-                )))) => Ok(column_like!([sum([col(name)])].alias("sum")).into()),
+                )))) => Ok(column_like!([sum([col(name)])].alias("sum"))),
                 _ => Err(anyhow!("Unsupported stats sum argument: {:?}", args[0])),
             }
         }
@@ -32,7 +32,7 @@ fn _stats_func(func: &ast::Expr, mut df: DataFrame) -> anyhow::Result<(DataFrame
             match &args[0] {
                 ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(
                     name,
-                )))) => Ok(column_like!([collect_set([col(name)])].alias("values")).into()),
+                )))) => Ok(column_like!([collect_set([col(name)])].alias("values"))),
                 _ => Err(anyhow!("Unsupported stats values argument: {:?}", args[0])),
             }
         }
@@ -43,7 +43,9 @@ fn _stats_func(func: &ast::Expr, mut df: DataFrame) -> anyhow::Result<(DataFrame
                     name,
                 )))) => {
                     df = df.order_by(vec![column_like!([col("_time")].asc())]);
-                    Ok(column_like!([first([col(name)], [py_lit(true)])].alias("earliest")).into())
+                    Ok(column_like!(
+                        [first([col(name)], [py_lit(true)])].alias("earliest")
+                    ))
                 }
                 _ => Err(anyhow!(
                     "Unsupported stats earliest argument: {:?}",
@@ -58,7 +60,9 @@ fn _stats_func(func: &ast::Expr, mut df: DataFrame) -> anyhow::Result<(DataFrame
                     name,
                 )))) => {
                     df = df.order_by(vec![column_like!([col("_time")].asc())]);
-                    Ok(column_like!([last([col(name)], [py_lit(true)])].alias("latest")).into())
+                    Ok(column_like!(
+                        [last([col(name)], [py_lit(true)])].alias("latest")
+                    ))
                 }
                 _ => Err(anyhow!(
                     "Unsupported stats earliest argument: {:?}",

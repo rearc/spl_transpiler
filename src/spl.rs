@@ -179,7 +179,6 @@ pub fn bool_(input: &str) -> IResult<&str, ast::BoolValue> {
         )),
         ast::BoolValue::from,
     )(input)
-    .into()
 }
 
 //   def doubleQuoted[_: P]: P[String] = P( "\"" ~ (CharsWhile(!"\"".contains(_)) | "\\" ~~ AnyChar | !"\"").rep.! ~ "\"" )
@@ -338,7 +337,7 @@ pub fn field_and_constant(input: &str) -> IResult<&str, ast::FC> {
     map(separated_pair(token, ws(tag("=")), constant), |(k, v)| {
         ast::FC {
             field: k.into(),
-            value: v.into(),
+            value: v,
         }
     })(input)
 }
@@ -575,8 +574,8 @@ pub fn term_call(input: &str) -> IResult<&str, ast::Call> {
 //   def argu[_: P]: P[Expr] = termCall | call | constant
 pub fn argu(input: &str) -> IResult<&str, ast::Expr> {
     alt((
-        map(term_call, |v| ast::Expr::Call(v)),
-        map(call, |v| ast::Expr::Call(v)),
+        map(term_call, ast::Expr::Call),
+        map(call, ast::Expr::Call),
         map(constant, |v| ast::Expr::Leaf(ast::LeafExpr::Constant(v))),
     ))(input)
 }
@@ -598,7 +597,7 @@ pub fn primary(input: &str) -> IResult<&str, ast::Expr> {
                 })
             },
         ),
-        map(field_in, |v| ast::Expr::FieldIn(v)),
+        map(field_in, ast::Expr::FieldIn),
         parens,
         argu,
     ))(input)
@@ -928,7 +927,7 @@ mod tests {
     fn test_double_quoted() {
         assert_eq!(
             double_quoted("\"double quoted string\" and then some"),
-            Ok((" and then some", "double quoted string".into()))
+            Ok((" and then some", "double quoted string"))
         );
         assert!(double_quoted("double quoted \"string\"").is_err())
     }
@@ -1081,7 +1080,6 @@ mod tests {
                         _eq(ast::Field::from("index"), ast::Field::from("dummy")),
                         _eq(ast::Field::from("host"), ast::Variable::from("host_var"))
                     )
-                    .into()
                 }
             ))
         );
@@ -1118,7 +1116,7 @@ mod tests {
     fn test_filename() {
         assert_eq!(
             filename("D:\\Work\\Stuff.xls"),
-            Ok(("", "D:\\Work\\Stuff.xls".into()))
+            Ok(("", "D:\\Work\\Stuff.xls"))
         );
     }
 
@@ -1663,7 +1661,6 @@ mod tests {
                         ast::Field("str_3".to_string()).into(),
                     ],
                 }
-                .into()
             ))
         );
         assert_eq!(
@@ -1789,8 +1786,8 @@ mod tests {
                 "",
                 HeadCommand {
                     eval_expr: ast::IntValue(20).into(),
-                    keep_last: ast::BoolValue(false).into(),
-                    null_option: ast::BoolValue(false).into(),
+                    keep_last: ast::BoolValue(false),
+                    null_option: ast::BoolValue(false),
                 }
                 .into()
             ))
@@ -1814,8 +1811,8 @@ mod tests {
                 "",
                 HeadCommand {
                     eval_expr: ast::IntValue(400).into(),
-                    keep_last: ast::BoolValue(false).into(),
-                    null_option: ast::BoolValue(false).into(),
+                    keep_last: ast::BoolValue(false),
+                    null_option: ast::BoolValue(false),
                 }
                 .into()
             ))
@@ -1840,8 +1837,8 @@ mod tests {
                 "",
                 HeadCommand {
                     eval_expr: ast::IntValue(400).into(),
-                    keep_last: ast::BoolValue(true).into(),
-                    null_option: ast::BoolValue(false).into(),
+                    keep_last: ast::BoolValue(true),
+                    null_option: ast::BoolValue(false),
                 }
                 .into()
             ))
@@ -1870,8 +1867,8 @@ mod tests {
                 "",
                 HeadCommand {
                     eval_expr: _gt(ast::Field("count".to_string()), ast::IntValue(10),),
-                    keep_last: ast::BoolValue(false).into(),
-                    null_option: ast::BoolValue(false).into(),
+                    keep_last: ast::BoolValue(false),
+                    null_option: ast::BoolValue(false),
                 }
                 .into()
             ))
@@ -1886,8 +1883,8 @@ mod tests {
                 "",
                 HeadCommand {
                     eval_expr: _gte(ast::Field("count".to_string()), ast::IntValue(10),),
-                    keep_last: ast::BoolValue(true).into(),
-                    null_option: ast::BoolValue(false).into(),
+                    keep_last: ast::BoolValue(true),
+                    null_option: ast::BoolValue(false),
                 }
                 .into()
             ))
@@ -1921,7 +1918,6 @@ mod tests {
                         ast::Field("column_c".to_string()),
                     ],
                 }
-                .into()
             ))
         )
     }
@@ -1951,7 +1947,6 @@ mod tests {
                         ast::Field("column_b".to_string()),
                     ],
                 }
-                .into()
             ))
         )
     }
@@ -1981,7 +1976,6 @@ mod tests {
                         ast::Field("column_b".to_string()),
                     ],
                 }
-                .into()
             ))
         )
     }
@@ -2012,7 +2006,6 @@ mod tests {
                     ],
                     ..Default::default()
                 }
-                .into()
             ))
         )
     }
@@ -2037,7 +2030,6 @@ mod tests {
                     }
                     .into()],
                 }
-                .into()
             ))
         )
     }
@@ -2107,7 +2099,6 @@ mod tests {
                     fields_to_sort: vec![(None, ast::Field::from("A").into())],
                     ..Default::default()
                 }
-                .into()
             ))
         )
     }
@@ -2130,7 +2121,6 @@ mod tests {
                         ast::StrValue::from("Discovery").into()
                     ),],
                 }
-                .into()
             ))
         )
     }
@@ -2153,7 +2143,6 @@ mod tests {
                         _call!(lower(ast::Field::from("email"))).into(),
                     ),],
                 }
-                .into()
             ))
         )
     }
@@ -2176,7 +2165,6 @@ mod tests {
                     ast::StrValue::from("@.+"),
                     ast::StrValue::from("")
                 ))
-                .into()
             ))
         );
         assert_eq!(
@@ -2210,7 +2198,6 @@ mod tests {
                         .into()
                     ),],
                 }
-                .into()
             ))
         )
     }
@@ -2237,7 +2224,6 @@ mod tests {
                         (ast::Field::from("b"), ast::Field::from("c").into()),
                     ],
                 }
-                .into()
             ))
         )
     }
@@ -2260,8 +2246,7 @@ mod tests {
                         func: "ctime".into(),
                         field: ast::Field::from("indextime"),
                         alias: None,
-                    }
-                    .into(),],
+                    },],
                 }
                 .into()
             ))
@@ -2318,7 +2303,6 @@ mod tests {
                     }
                     .into()],
                 }
-                .into()
             ))
         )
     }
@@ -2396,7 +2380,6 @@ mod tests {
                         .into()
                     ],
                 }
-                .into()
             ))
         )
     }
@@ -2442,7 +2425,6 @@ mod tests {
                 ast::Pipeline {
                     commands: vec![_lookup_cmd.clone().into()],
                 }
-                .into()
             ))
         )
     }
@@ -2471,7 +2453,6 @@ mod tests {
                     }
                     .into()],
                 }
-                .into()
             ))
         )
     }
@@ -2502,7 +2483,6 @@ mod tests {
                     }
                     .into()],
                 }
-                .into()
             ))
         )
     }
@@ -2575,7 +2555,7 @@ mod tests {
                             _alias("lastPassHistId", _call!(last(ast::Field::from("histID"))))
                                 .into(),
                         ],
-                        by: vec![ast::Field::from("testCaseId").into()],
+                        by: vec![ast::Field::from("testCaseId")],
                         dedup_split_vals: false
                     }
                     .into()],
@@ -2627,7 +2607,6 @@ mod tests {
                     }
                     .into()],
                 }
-                .into()
             ))
         )
     }
@@ -2674,7 +2653,7 @@ mod tests {
                             _alias("latest", _call!(latest(ast::Field::from("_time")))).into(),
                             _alias("var_2", _call!(values(ast::Field::from("var_2")))).into(),
                         ],
-                        by: vec![ast::Field::from("var_1").into()],
+                        by: vec![ast::Field::from("var_1")],
                         dedup_split_vals: false
                     }
                     .into()],
@@ -2720,7 +2699,6 @@ mod tests {
                     }
                     .into()],
                 }
-                .into()
             ))
         )
     }
@@ -2753,7 +2731,6 @@ mod tests {
                     }
                     .into()],
                 }
-                .into()
             ))
         )
     }
@@ -2775,7 +2752,7 @@ mod tests {
             Ok((
                 "",
                 RenameCommand {
-                    alias: vec![_alias("IPAddress", ast::Field::from("_ip")).into()],
+                    alias: vec![_alias("IPAddress", ast::Field::from("_ip"))],
                 }
                 .into()
             ))
@@ -2808,9 +2785,9 @@ mod tests {
                 "",
                 RenameCommand {
                     alias: vec![
-                        _alias("IPAddress", ast::Field::from("_ip")).into(),
-                        _alias("host", ast::Field::from("_host")).into(),
-                        _alias("port", ast::Field::from("_port")).into(),
+                        _alias("IPAddress", ast::Field::from("_ip")),
+                        _alias("host", ast::Field::from("_host")),
+                        _alias("port", ast::Field::from("_port")),
                     ],
                 }
                 .into()
@@ -2836,7 +2813,7 @@ mod tests {
             Ok((
                 "",
                 RenameCommand {
-                    alias: vec![_alias("bar*", ast::Field::from("foo*")).into()],
+                    alias: vec![_alias("bar*", ast::Field::from("foo*"))],
                 }
                 .into()
             ))
@@ -2860,7 +2837,7 @@ mod tests {
             Ok((
                 "",
                 RenameCommand {
-                    alias: vec![_alias("Count of Events", ast::Field::from("count")).into()],
+                    alias: vec![_alias("Count of Events", ast::Field::from("count"))],
                 }
                 .into()
             ))
@@ -2901,7 +2878,6 @@ mod tests {
                         }
                         .into()],
                     }
-                    .into()
                 }
                 .into()
             ))
@@ -2953,7 +2929,6 @@ mod tests {
                         }
                         .into()],
                     }
-                    .into()
                 }
                 .into()
             ))
@@ -3001,7 +2976,7 @@ mod tests {
                             }
                             .into(),
                             RenameCommand {
-                                alias: vec![_alias("product_id", ast::Field::from("pid")).into()],
+                                alias: vec![_alias("product_id", ast::Field::from("pid"))],
                             }
                             .into()
                         ],
@@ -3029,7 +3004,6 @@ mod tests {
                     item: Some((ast::Field::from("_raw"), "=".into())),
                     regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
                 }
-                .into()
             ))
         )
     }
@@ -3050,7 +3024,6 @@ mod tests {
                     item: Some((ast::Field::from("_raw"), "!=".into())),
                     regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
                 }
-                .into()
             ))
         )
     }
@@ -3071,7 +3044,6 @@ mod tests {
                     item: None,
                     regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
                 }
-                .into()
             ))
         )
     }
@@ -3099,7 +3071,6 @@ mod tests {
                         ast::Field::from("env").into(),
                     ],
                 }
-                .into()
             ))
         )
     }
@@ -3131,7 +3102,6 @@ mod tests {
                         ast::Field::from("port").into(),
                     ],
                 }
-                .into()
             ))
         )
     }
@@ -3159,7 +3129,6 @@ mod tests {
                         _alias("host", ast::Field::from("port")).into(),
                     ],
                 }
-                .into()
             ))
         )
     }
@@ -3178,7 +3147,6 @@ mod tests {
                     value: None,
                     fields: None,
                 }
-                .into()
             ))
         )
     }
@@ -3197,7 +3165,6 @@ mod tests {
                     value: Some("NA".into()),
                     fields: None,
                 }
-                .into()
             ))
         )
     }
@@ -3219,13 +3186,7 @@ mod tests {
                 "",
                 FillNullCommand {
                     value: Some("NULL".into()),
-                    fields: Some(
-                        vec![
-                            ast::Field::from("host").into(),
-                            ast::Field::from("port").into(),
-                        ]
-                        .into()
-                    ),
+                    fields: Some(vec![ast::Field::from("host"), ast::Field::from("port"),].into()),
                 }
                 .into()
             ))
@@ -3258,9 +3219,9 @@ mod tests {
                 DedupCommand {
                     num_results: 10,
                     fields: vec![
-                        ast::Field::from("host").into(),
-                        ast::Field::from("ip").into(),
-                        ast::Field::from("port").into(),
+                        ast::Field::from("host"),
+                        ast::Field::from("ip"),
+                        ast::Field::from("port"),
                     ],
                     keep_events: true,
                     keep_empty: false,
@@ -3304,9 +3265,9 @@ mod tests {
                 DedupCommand {
                     num_results: 10,
                     fields: vec![
-                        ast::Field::from("host").into(),
-                        ast::Field::from("ip").into(),
-                        ast::Field::from("port").into(),
+                        ast::Field::from("host"),
+                        ast::Field::from("ip"),
+                        ast::Field::from("port"),
                     ],
                     keep_events: true,
                     keep_empty: false,
@@ -3351,7 +3312,6 @@ mod tests {
                     table_name: "myTable".into(),
                     where_expr: Some(_eq(ast::Field::from("test_id"), ast::IntValue(11),)),
                 }
-                .into()
             ))
         )
     }
@@ -3381,7 +3341,6 @@ mod tests {
                     table_name: "myTable".into(),
                     where_expr: None,
                 }
-                .into()
             ))
         )
     }
@@ -3415,7 +3374,6 @@ mod tests {
                     row_sep: "OR".into(),
                     row_end: ")".into(),
                 }
-                .into()
             ))
         )
     }
@@ -3449,7 +3407,6 @@ mod tests {
                     row_sep: "||".into(),
                     row_end: "]".into(),
                 }
-                .into()
             ))
         )
     }
@@ -3471,7 +3428,6 @@ mod tests {
                     delim: None,
                     field: ast::Field::from("host"),
                 }
-                .into()
             ))
         )
     }
@@ -3493,7 +3449,6 @@ mod tests {
                     delim: Some(",".into()),
                     field: ast::Field::from("host"),
                 }
-                .into()
             ))
         )
     }
@@ -3605,7 +3560,7 @@ mod tests {
             Ok((
                 "",
                 AddTotals {
-                    fields: vec![ast::Field::from("num_1"), ast::Field::from("num_2")].into(),
+                    fields: vec![ast::Field::from("num_1"), ast::Field::from("num_2")],
                     row: true,
                     col: false,
                     field_name: "num_total".into(),
@@ -3636,7 +3591,7 @@ mod tests {
                 EventStatsCommand {
                     all_num: false,
                     funcs: vec![_call!(min(ast::Field::from("n"))).into()],
-                    by: vec![ast::Field::from("gender").into()],
+                    by: vec![ast::Field::from("gender")],
                 }
                 .into()
             ))
@@ -3682,8 +3637,7 @@ mod tests {
                             )
                         }
                         .into()]
-                    }
-                    .into(),
+                    },
                     max_searches: 20,
                 }
                 .into()

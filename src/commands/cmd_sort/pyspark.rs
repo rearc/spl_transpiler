@@ -52,7 +52,7 @@ impl PipelineTransformer for SortCommand {
             .cloned()
             .map(|(sign, expr)| {
                 let col = _resolve_expr(expr)?;
-                Ok(_ascending_or_descending(col, sign, self.descending)?)
+                _ascending_or_descending(col, sign, self.descending)
             })
             .collect();
 

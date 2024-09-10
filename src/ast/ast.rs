@@ -588,155 +588,155 @@ pub enum Expr {
     FieldConversion(FieldConversion),
 }
 
-impl Into<Constant> for TimeSpan {
-    fn into(self) -> Constant {
-        Constant::SplSpan(SplSpan::TimeSpan(self))
+impl From<TimeSpan> for Constant {
+    fn from(val: TimeSpan) -> Self {
+        Constant::SplSpan(SplSpan::TimeSpan(val))
     }
 }
-impl Into<Constant> for BoolValue {
-    fn into(self) -> Constant {
-        Constant::Bool(self)
+impl From<BoolValue> for Constant {
+    fn from(val: BoolValue) -> Self {
+        Constant::Bool(val)
     }
 }
-impl Into<Constant> for IntValue {
-    fn into(self) -> Constant {
-        Constant::Int(self)
+impl From<IntValue> for Constant {
+    fn from(val: IntValue) -> Self {
+        Constant::Int(val)
     }
 }
-impl Into<Constant> for DoubleValue {
-    fn into(self) -> Constant {
-        Constant::Double(self)
+impl From<DoubleValue> for Constant {
+    fn from(val: DoubleValue) -> Self {
+        Constant::Double(val)
     }
 }
-impl Into<Constant> for StrValue {
-    fn into(self) -> Constant {
-        Constant::Str(self)
+impl From<StrValue> for Constant {
+    fn from(val: StrValue) -> Self {
+        Constant::Str(val)
     }
 }
-impl Into<Constant> for SnapTime {
-    fn into(self) -> Constant {
-        Constant::SnapTime(self)
+impl From<SnapTime> for Constant {
+    fn from(val: SnapTime) -> Self {
+        Constant::SnapTime(val)
     }
 }
-impl Into<Constant> for Field {
-    fn into(self) -> Constant {
-        Constant::Field(self)
+impl From<Field> for Constant {
+    fn from(val: Field) -> Self {
+        Constant::Field(val)
     }
 }
-impl Into<Constant> for Wildcard {
-    fn into(self) -> Constant {
-        Constant::Wildcard(self)
+impl From<Wildcard> for Constant {
+    fn from(val: Wildcard) -> Self {
+        Constant::Wildcard(val)
     }
 }
-impl Into<Constant> for Variable {
-    fn into(self) -> Constant {
-        Constant::Variable(self)
+impl From<Variable> for Constant {
+    fn from(val: Variable) -> Self {
+        Constant::Variable(val)
     }
 }
-impl Into<Constant> for IPv4CIDR {
-    fn into(self) -> Constant {
-        Constant::IPv4CIDR(self)
+impl From<IPv4CIDR> for Constant {
+    fn from(val: IPv4CIDR) -> Self {
+        Constant::IPv4CIDR(val)
     }
 }
 
-impl Into<Expr> for TimeSpan {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::Constant(self.into()))
+impl From<TimeSpan> for Expr {
+    fn from(val: TimeSpan) -> Self {
+        Expr::Leaf(LeafExpr::Constant(val.into()))
     }
 }
-impl Into<Expr> for BoolValue {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::Constant(self.into()))
+impl From<BoolValue> for Expr {
+    fn from(val: BoolValue) -> Self {
+        Expr::Leaf(LeafExpr::Constant(val.into()))
     }
 }
-impl Into<Expr> for IntValue {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::Constant(self.into()))
+impl From<IntValue> for Expr {
+    fn from(val: IntValue) -> Self {
+        Expr::Leaf(LeafExpr::Constant(val.into()))
     }
 }
-impl Into<Expr> for DoubleValue {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::Constant(self.into()))
+impl From<DoubleValue> for Expr {
+    fn from(val: DoubleValue) -> Self {
+        Expr::Leaf(LeafExpr::Constant(val.into()))
     }
 }
-impl Into<Expr> for StrValue {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::Constant(self.into()))
+impl From<StrValue> for Expr {
+    fn from(val: StrValue) -> Self {
+        Expr::Leaf(LeafExpr::Constant(val.into()))
     }
 }
-impl Into<Expr> for SnapTime {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::Constant(self.into()))
+impl From<SnapTime> for Expr {
+    fn from(val: SnapTime) -> Self {
+        Expr::Leaf(LeafExpr::Constant(val.into()))
     }
 }
-impl Into<Expr> for Field {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::Constant(self.into()))
+impl From<Field> for Expr {
+    fn from(val: Field) -> Self {
+        Expr::Leaf(LeafExpr::Constant(val.into()))
     }
 }
-impl Into<Expr> for Wildcard {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::Constant(self.into()))
+impl From<Wildcard> for Expr {
+    fn from(val: Wildcard) -> Self {
+        Expr::Leaf(LeafExpr::Constant(val.into()))
     }
 }
-impl Into<Expr> for Variable {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::Constant(self.into()))
+impl From<Variable> for Expr {
+    fn from(val: Variable) -> Self {
+        Expr::Leaf(LeafExpr::Constant(val.into()))
     }
 }
-impl Into<Expr> for IPv4CIDR {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::Constant(self.into()))
+impl From<IPv4CIDR> for Expr {
+    fn from(val: IPv4CIDR) -> Self {
+        Expr::Leaf(LeafExpr::Constant(val.into()))
     }
 }
-impl Into<Expr> for FV {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::FV(self))
+impl From<FV> for Expr {
+    fn from(val: FV) -> Self {
+        Expr::Leaf(LeafExpr::FV(val))
     }
 }
-impl Into<Expr> for FB {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::FB(self))
+impl From<FB> for Expr {
+    fn from(val: FB) -> Self {
+        Expr::Leaf(LeafExpr::FB(val))
     }
 }
-impl Into<Expr> for FC {
-    fn into(self) -> Expr {
-        Expr::Leaf(LeafExpr::FC(self))
+impl From<FC> for Expr {
+    fn from(val: FC) -> Self {
+        Expr::Leaf(LeafExpr::FC(val))
     }
 }
-impl Into<Expr> for AliasedField {
-    fn into(self) -> Expr {
-        Expr::AliasedField(self)
+impl From<AliasedField> for Expr {
+    fn from(val: AliasedField) -> Self {
+        Expr::AliasedField(val)
     }
 }
-impl Into<Expr> for Binary {
-    fn into(self) -> Expr {
-        Expr::Binary(self)
+impl From<Binary> for Expr {
+    fn from(val: Binary) -> Self {
+        Expr::Binary(val)
     }
 }
-impl Into<Expr> for Unary {
-    fn into(self) -> Expr {
-        Expr::Unary(self)
+impl From<Unary> for Expr {
+    fn from(val: Unary) -> Self {
+        Expr::Unary(val)
     }
 }
-impl Into<Expr> for Call {
-    fn into(self) -> Expr {
-        Expr::Call(self)
+impl From<Call> for Expr {
+    fn from(val: Call) -> Self {
+        Expr::Call(val)
     }
 }
-impl Into<Expr> for FieldIn {
-    fn into(self) -> Expr {
-        Expr::FieldIn(self)
+impl From<FieldIn> for Expr {
+    fn from(val: FieldIn) -> Self {
+        Expr::FieldIn(val)
     }
 }
-impl Into<Expr> for Alias {
-    fn into(self) -> Expr {
-        Expr::Alias(self)
+impl From<Alias> for Expr {
+    fn from(val: Alias) -> Self {
+        Expr::Alias(val)
     }
 }
-impl Into<Expr> for FieldConversion {
-    fn into(self) -> Expr {
-        Expr::FieldConversion(self)
+impl From<FieldConversion> for Expr {
+    fn from(val: FieldConversion) -> Self {
+        Expr::FieldConversion(val)
     }
 }
 
@@ -749,24 +749,24 @@ pub enum FieldLike {
     Alias(Alias),
 }
 
-impl Into<FieldLike> for Field {
-    fn into(self) -> FieldLike {
-        FieldLike::Field(self)
+impl From<Field> for FieldLike {
+    fn from(val: Field) -> Self {
+        FieldLike::Field(val)
     }
 }
-impl Into<FieldLike> for Wildcard {
-    fn into(self) -> FieldLike {
-        FieldLike::Wildcard(self)
+impl From<Wildcard> for FieldLike {
+    fn from(val: Wildcard) -> Self {
+        FieldLike::Wildcard(val)
     }
 }
-impl Into<FieldLike> for AliasedField {
-    fn into(self) -> FieldLike {
-        FieldLike::AliasedField(self)
+impl From<AliasedField> for FieldLike {
+    fn from(val: AliasedField) -> Self {
+        FieldLike::AliasedField(val)
     }
 }
-impl Into<FieldLike> for Alias {
-    fn into(self) -> FieldLike {
-        FieldLike::Alias(self)
+impl From<Alias> for FieldLike {
+    fn from(val: Alias) -> Self {
+        FieldLike::Alias(val)
     }
 }
 
@@ -777,14 +777,14 @@ pub enum FieldOrAlias {
     Alias(Alias),
 }
 
-impl Into<FieldOrAlias> for Field {
-    fn into(self) -> FieldOrAlias {
-        FieldOrAlias::Field(self)
+impl From<Field> for FieldOrAlias {
+    fn from(val: Field) -> Self {
+        FieldOrAlias::Field(val)
     }
 }
-impl Into<FieldOrAlias> for Alias {
-    fn into(self) -> FieldOrAlias {
-        FieldOrAlias::Alias(self)
+impl From<Alias> for FieldOrAlias {
+    fn from(val: Alias) -> Self {
+        FieldOrAlias::Alias(val)
     }
 }
 
@@ -825,163 +825,163 @@ pub enum Command {
     WhereCommand(WhereCommand),
 }
 
-impl Into<Command> for SearchCommand {
-    fn into(self) -> Command {
-        Command::SearchCommand(self)
+impl From<SearchCommand> for Command {
+    fn from(val: SearchCommand) -> Self {
+        Command::SearchCommand(val)
     }
 }
-impl Into<Command> for EvalCommand {
-    fn into(self) -> Command {
-        Command::EvalCommand(self)
+impl From<EvalCommand> for Command {
+    fn from(val: EvalCommand) -> Self {
+        Command::EvalCommand(val)
     }
 }
-impl Into<Command> for FieldConversion {
-    fn into(self) -> Command {
-        Command::FieldConversion(self)
+impl From<FieldConversion> for Command {
+    fn from(val: FieldConversion) -> Self {
+        Command::FieldConversion(val)
     }
 }
-impl Into<Command> for ConvertCommand {
-    fn into(self) -> Command {
-        Command::ConvertCommand(self)
+impl From<ConvertCommand> for Command {
+    fn from(val: ConvertCommand) -> Self {
+        Command::ConvertCommand(val)
     }
 }
-impl Into<Command> for LookupCommand {
-    fn into(self) -> Command {
-        Command::LookupCommand(self)
+impl From<LookupCommand> for Command {
+    fn from(val: LookupCommand) -> Self {
+        Command::LookupCommand(val)
     }
 }
-impl Into<Command> for CollectCommand {
-    fn into(self) -> Command {
-        Command::CollectCommand(self)
+impl From<CollectCommand> for Command {
+    fn from(val: CollectCommand) -> Self {
+        Command::CollectCommand(val)
     }
 }
-impl Into<Command> for WhereCommand {
-    fn into(self) -> Command {
-        Command::WhereCommand(self)
+impl From<WhereCommand> for Command {
+    fn from(val: WhereCommand) -> Self {
+        Command::WhereCommand(val)
     }
 }
-impl Into<Command> for TableCommand {
-    fn into(self) -> Command {
-        Command::TableCommand(self)
+impl From<TableCommand> for Command {
+    fn from(val: TableCommand) -> Self {
+        Command::TableCommand(val)
     }
 }
-impl Into<Command> for TopCommand {
-    fn into(self) -> Command {
-        Command::TopCommand(self)
+impl From<TopCommand> for Command {
+    fn from(val: TopCommand) -> Self {
+        Command::TopCommand(val)
     }
 }
-impl Into<Command> for HeadCommand {
-    fn into(self) -> Command {
-        Command::HeadCommand(self)
+impl From<HeadCommand> for Command {
+    fn from(val: HeadCommand) -> Self {
+        Command::HeadCommand(val)
     }
 }
-impl Into<Command> for FieldsCommand {
-    fn into(self) -> Command {
-        Command::FieldsCommand(self)
+impl From<FieldsCommand> for Command {
+    fn from(val: FieldsCommand) -> Self {
+        Command::FieldsCommand(val)
     }
 }
-impl Into<Command> for SortCommand {
-    fn into(self) -> Command {
-        Command::SortCommand(self)
+impl From<SortCommand> for Command {
+    fn from(val: SortCommand) -> Self {
+        Command::SortCommand(val)
     }
 }
-impl Into<Command> for StatsCommand {
-    fn into(self) -> Command {
-        Command::StatsCommand(self)
+impl From<StatsCommand> for Command {
+    fn from(val: StatsCommand) -> Self {
+        Command::StatsCommand(val)
     }
 }
-impl Into<Command> for RexCommand {
-    fn into(self) -> Command {
-        Command::RexCommand(self)
+impl From<RexCommand> for Command {
+    fn from(val: RexCommand) -> Self {
+        Command::RexCommand(val)
     }
 }
-impl Into<Command> for RenameCommand {
-    fn into(self) -> Command {
-        Command::RenameCommand(self)
+impl From<RenameCommand> for Command {
+    fn from(val: RenameCommand) -> Self {
+        Command::RenameCommand(val)
     }
 }
-impl Into<Command> for RegexCommand {
-    fn into(self) -> Command {
-        Command::RegexCommand(self)
+impl From<RegexCommand> for Command {
+    fn from(val: RegexCommand) -> Self {
+        Command::RegexCommand(val)
     }
 }
-impl Into<Command> for JoinCommand {
-    fn into(self) -> Command {
-        Command::JoinCommand(self)
+impl From<JoinCommand> for Command {
+    fn from(val: JoinCommand) -> Self {
+        Command::JoinCommand(val)
     }
 }
-impl Into<Command> for ReturnCommand {
-    fn into(self) -> Command {
-        Command::ReturnCommand(self)
+impl From<ReturnCommand> for Command {
+    fn from(val: ReturnCommand) -> Self {
+        Command::ReturnCommand(val)
     }
 }
-impl Into<Command> for FillNullCommand {
-    fn into(self) -> Command {
-        Command::FillNullCommand(self)
+impl From<FillNullCommand> for Command {
+    fn from(val: FillNullCommand) -> Self {
+        Command::FillNullCommand(val)
     }
 }
-impl Into<Command> for EventStatsCommand {
-    fn into(self) -> Command {
-        Command::EventStatsCommand(self)
+impl From<EventStatsCommand> for Command {
+    fn from(val: EventStatsCommand) -> Self {
+        Command::EventStatsCommand(val)
     }
 }
-impl Into<Command> for StreamStatsCommand {
-    fn into(self) -> Command {
-        Command::StreamStatsCommand(self)
+impl From<StreamStatsCommand> for Command {
+    fn from(val: StreamStatsCommand) -> Self {
+        Command::StreamStatsCommand(val)
     }
 }
-impl Into<Command> for DedupCommand {
-    fn into(self) -> Command {
-        Command::DedupCommand(self)
+impl From<DedupCommand> for Command {
+    fn from(val: DedupCommand) -> Self {
+        Command::DedupCommand(val)
     }
 }
-impl Into<Command> for InputLookup {
-    fn into(self) -> Command {
-        Command::InputLookup(self)
+impl From<InputLookup> for Command {
+    fn from(val: InputLookup) -> Self {
+        Command::InputLookup(val)
     }
 }
-impl Into<Command> for FormatCommand {
-    fn into(self) -> Command {
-        Command::FormatCommand(self)
+impl From<FormatCommand> for Command {
+    fn from(val: FormatCommand) -> Self {
+        Command::FormatCommand(val)
     }
 }
-impl Into<Command> for MvCombineCommand {
-    fn into(self) -> Command {
-        Command::MvCombineCommand(self)
+impl From<MvCombineCommand> for Command {
+    fn from(val: MvCombineCommand) -> Self {
+        Command::MvCombineCommand(val)
     }
 }
-impl Into<Command> for MvExpandCommand {
-    fn into(self) -> Command {
-        Command::MvExpandCommand(self)
+impl From<MvExpandCommand> for Command {
+    fn from(val: MvExpandCommand) -> Self {
+        Command::MvExpandCommand(val)
     }
 }
-impl Into<Command> for MakeResults {
-    fn into(self) -> Command {
-        Command::MakeResults(self)
+impl From<MakeResults> for Command {
+    fn from(val: MakeResults) -> Self {
+        Command::MakeResults(val)
     }
 }
-impl Into<Command> for AddTotals {
-    fn into(self) -> Command {
-        Command::AddTotals(self)
+impl From<AddTotals> for Command {
+    fn from(val: AddTotals) -> Self {
+        Command::AddTotals(val)
     }
 }
-impl Into<Command> for BinCommand {
-    fn into(self) -> Command {
-        Command::BinCommand(self)
+impl From<BinCommand> for Command {
+    fn from(val: BinCommand) -> Self {
+        Command::BinCommand(val)
     }
 }
-impl Into<Command> for MultiSearch {
-    fn into(self) -> Command {
-        Command::MultiSearch(self)
+impl From<MultiSearch> for Command {
+    fn from(val: MultiSearch) -> Self {
+        Command::MultiSearch(val)
     }
 }
-impl Into<Command> for MapCommand {
-    fn into(self) -> Command {
-        Command::MapCommand(self)
+impl From<MapCommand> for Command {
+    fn from(val: MapCommand) -> Self {
+        Command::MapCommand(val)
     }
 }
-impl Into<Command> for Pipeline {
-    fn into(self) -> Command {
-        Command::Pipeline(self)
+impl From<Pipeline> for Command {
+    fn from(val: Pipeline) -> Self {
+        Command::Pipeline(val)
     }
 }

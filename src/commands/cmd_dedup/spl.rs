@@ -107,7 +107,7 @@ impl SplCommand<DedupCommand> for DedupParser {
                             opt(map(alt((tag("+"), tag("-"))), Into::into)),
                             map(field, Into::into),
                         ))),
-                        |fields_to_sort| SortCommand::new_simple(fields_to_sort),
+                        SortCommand::new_simple,
                     ),
                 )),
             )),

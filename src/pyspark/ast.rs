@@ -170,14 +170,14 @@ impl TemplateNode for Expr {
     }
 }
 
-impl Into<Expr> for ColumnLike {
-    fn into(self) -> Expr {
-        Expr::Column(self)
+impl From<ColumnLike> for Expr {
+    fn from(val: ColumnLike) -> Self {
+        Expr::Column(val)
     }
 }
-impl Into<Expr> for Raw {
-    fn into(self) -> Expr {
-        Expr::Raw(self)
+impl From<Raw> for Expr {
+    fn from(val: Raw) -> Self {
+        Expr::Raw(val)
     }
 }
 impl TryInto<ColumnLike> for Expr {
@@ -449,7 +449,7 @@ impl TryInto<DataFrame> for TransformedPipeline {
             self.dataframes.len() == 1,
             "Unable to map over multi-dataframe pipelines"
         );
-        Ok(self.dataframes.get(0).unwrap().clone())
+        Ok(self.dataframes.first().unwrap().clone())
     }
 }
 

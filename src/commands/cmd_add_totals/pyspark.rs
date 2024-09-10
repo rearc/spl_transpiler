@@ -14,7 +14,6 @@ impl PipelineTransformer for super::spl::AddTotals {
                     [col(name)]
                 )]
                 .otherwise([lit(0.0)]))
-                .into()
             })
             .collect();
 

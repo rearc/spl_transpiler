@@ -35,7 +35,7 @@ pub trait SplCommand<T> {
     }
 
     fn match_name_raw(input: &str) -> IResult<&str, ()> {
-        match Self::RootCommand::ALIAS.clone() {
+        match Self::RootCommand::ALIAS {
             Some(alias) => map(
                 alt((tag_no_case(Self::RootCommand::NAME), tag_no_case(alias))),
                 |_| (),

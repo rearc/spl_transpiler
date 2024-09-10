@@ -29,7 +29,5 @@ pub fn rmcomma(c: impl Into<Expr>) -> ColumnLike {
 /// Given a string like "10k", "3g", or "7", return just the numeric component
 pub fn rmunit(c: impl Into<Expr>) -> ColumnLike {
     const REGEX: &str = r#"(?i)^(\d*\.?\d+)(\w*)$"#;
-    let num_val = column_like!(regexp_extract([c.into()], [py_lit(REGEX)], [py_lit(1)]));
-    let num_val = column_like!([num_val].cast([py_lit("double")]));
-    num_val
+    column_like!([regexp_extract([c.into()], [py_lit(REGEX)], [py_lit(1)])].cast([py_lit("double")]))
 }

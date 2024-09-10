@@ -115,13 +115,13 @@ impl TryFrom<ast::Expr> for Expr {
                                 bail!("Unimplemented value in field-in rhs: {:?}", const_)
                             }
                             ast::Constant::Bool(ast::BoolValue(val)) => {
-                                Ok(column_like!([c.clone()] == [Raw::from(val.clone())]))
+                                Ok(column_like!([c.clone()] == [Raw::from(*val)]))
                             }
                             ast::Constant::Int(ast::IntValue(val)) => {
-                                Ok(column_like!([c.clone()] == [Raw::from(val.clone())]))
+                                Ok(column_like!([c.clone()] == [Raw::from(*val)]))
                             }
                             ast::Constant::Double(ast::DoubleValue(val)) => {
-                                Ok(column_like!([c.clone()] == [Raw::from(val.clone())]))
+                                Ok(column_like!([c.clone()] == [Raw::from(*val)]))
                             }
                             ast::Constant::Str(ast::StrValue(val)) => {
                                 Ok(column_like!([c.clone()] == [Raw::from(val.clone())]))
@@ -147,7 +147,7 @@ impl TryFrom<ast::Expr> for Expr {
                     })
                     .collect();
                 let checks = checks?;
-                Ok(join_as_binaries("|", checks, column_like!(lit(true)).into()).into())
+                Ok(join_as_binaries("|", checks, column_like!(lit(true))).into())
                 // Ok(match checks.len() {
                 //     0 => column_like!(lit(true)).into(),
                 //     1 => checks[0].clone().into(),

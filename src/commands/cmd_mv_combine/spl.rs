@@ -53,7 +53,7 @@ impl SplCommand<MvCombineCommand> for MvCombineParser {
             ),
             |(delim_opt, field)| MvCombineCommand {
                 delim: delim_opt.map(Into::into),
-                field: field.into(),
+                field,
             },
         )(input)
     }

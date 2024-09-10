@@ -4,7 +4,7 @@ use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::{double_quoted, field, token, ws};
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::combinator::{map, opt};
+use nom::combinator::{into, map, opt};
 use nom::multi::many1;
 use nom::sequence::{preceded, tuple};
 use nom::IResult;
@@ -48,7 +48,7 @@ impl SplCommand<FillNullCommand> for FillNullParser {
         map(
             tuple((
                 opt(preceded(tag("value="), alt((double_quoted, token)))),
-                opt(many1(map(ws(field), |v| v.into()))),
+                opt(many1(into(ws(field)))),
             )),
             |(maybe_value, fields)| FillNullCommand {
                 value: maybe_value.map(|v| v.to_string()),

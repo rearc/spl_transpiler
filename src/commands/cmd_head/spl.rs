@@ -66,7 +66,7 @@ impl SplCommand<HeadCommand> for HeadParser {
                 ws(opt(preceded(ws(tag_no_case("null=")), bool_))),
             )),
             |(limit_or_expr, keep_last_opt, null_opt)| HeadCommand {
-                eval_expr: limit_or_expr.into(),
+                eval_expr: limit_or_expr,
                 keep_last: keep_last_opt.unwrap_or(false.into()),
                 null_option: null_opt.unwrap_or(false.into()),
             },

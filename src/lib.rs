@@ -39,7 +39,7 @@ fn spl_transpiler(m: &Bound<'_, PyModule>) -> PyResult<()> {
     /// Converts SPL query code directly into equivalent PySpark query code, if possible.
     fn convert_spl_to_pyspark(spl_code: &str, format: bool) -> PyResult<String> {
         let pipeline: ast::ast::Pipeline = parse(spl_code)?;
-        Ok(render_pyspark(&pipeline, format)?)
+        render_pyspark(&pipeline, format)
     }
 
     let ast_m = PyModule::new_bound(m.py(), "ast")?;
