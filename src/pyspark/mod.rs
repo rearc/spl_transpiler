@@ -1,9 +1,9 @@
 use crate::spl::ast::Pipeline;
 use anyhow::Result;
 
+pub(crate) mod alias;
 pub(crate) mod ast;
 pub(crate) mod base;
-pub(crate) mod dealias;
 pub(crate) mod transpiler;
 
 pub use ast::TransformedPipeline;
@@ -1000,5 +1000,57 @@ mod tests {
             r#"index=alt | rename x AS y, a AS b"#,
             r#"spark.table("alt").withColumnRenamed("x", "y").withColumnRenamed("a", "b")"#,
         );
+    }
+
+    #[test]
+    fn test_case_fn_1() {
+        generates(
+            r#"index=alt | eval description=case(status==200, "OK", status==404, "Not found", status==500, "Internal Server Error")"#,
+            r#"spark.table("alt").withColumn(
+                "description",
+                F.when(
+                    (F.col("status") == F.lit(200)),
+                    F.lit("OK")
+                ).when(
+                    (F.col("status") == F.lit(404)),
+                    F.lit("Not found")
+                ).when(
+                    (F.col("status") == F.lit(500)),
+                    F.lit("Internal Server Error")
+                )
+            )"#,
+        )
+    }
+
+    #[test]
+    fn test_max_fn_multi_1() {
+        generates(
+            r#"index=alt | eval x=max(a, b, c)"#,
+            r#"spark.table("alt").withColumn(
+                "x",
+                F.greatest(F.greatest(F.col("a"), F.col("b")), F.col("c"))
+            )"#,
+        )
+    }
+
+    #[test]
+    fn test_avg_fn_multi_1() {
+        generates(
+            r#"index=alt | eval x=avg(a, b, c)"#,
+            r#"spark.table("alt").withColumn(
+                "x",
+                ((F.col("a") + F.col("b")) + F.col("c")) / 3
+            )"#,
+        )
+    }
+
+    #[test]
+    fn test_percentile_fn_1() {
+        generates(
+            r#"index=alt | stats percentile99(a) AS x"#,
+            r#"spark.table("alt").groupBy().agg(
+                F.percentile_approx(F.col("a"), 0.99).alias("x")
+            )"#,
+        )
     }
 }

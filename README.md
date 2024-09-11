@@ -281,7 +281,7 @@ However, there is no goal at this time to support all Splunk functions.
 | Eval     | Bitwise                     | `bit_xor`               | Yes     | Yes    |
 | Eval     | Bitwise                     | `bit_shift_left`        | Yes     | Yes    |
 | Eval     | Bitwise                     | `bit_shift_right`       | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `case`                  | No      | Yes    |
+| Eval     | Comparison and Conditional  | `case`                  | Yes     | Yes    |
 | Eval     | Comparison and Conditional  | `cidrmatch`             | Yes*    | Yes    |
 | Eval     | Comparison and Conditional  | `coalesce`              | Yes     | Yes    |
 | Eval     | Comparison and Conditional  | `false`                 | Yes     | Yes    |
@@ -294,11 +294,11 @@ However, there is no goal at this time to support all Splunk functions.
 | Eval     | Comparison and Conditional  | `nullif`                | Yes     | Yes    |
 | Eval     | Comparison and Conditional  | `searchmatch`           | No      |        |
 | Eval     | Comparison and Conditional  | `true`                  | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `validate`              | No      | Yes    |
+| Eval     | Comparison and Conditional  | `validate`              | Yes     | Yes    |
 | Eval     | Conversion                  | `ipmask`                | No      |        |
 | Eval     | Conversion                  | `printf`                | No      |        |
-| Eval     | Conversion                  | `tonumber`              | No      | Yes    |
-| Eval     | Conversion                  | `tostring`              | No      | Yes    |
+| Eval     | Conversion                  | `tonumber`              | Partial | Yes    |
+| Eval     | Conversion                  | `tostring`              | Partial | Yes    |
 | Eval     | Cryptographic               | `md5`                   | Yes     | Yes    |
 | Eval     | Cryptographic               | `sha1`                  | Yes     | Yes    |
 | Eval     | Cryptographic               | `sha256`                | Yes     | Yes    |
@@ -306,7 +306,7 @@ However, there is no goal at this time to support all Splunk functions.
 | Eval     | Date and Time               | `now`                   | Yes     | Yes    |
 | Eval     | Date and Time               | `relative_time`         | No      | Yes    |
 | Eval     | Date and Time               | `strftime`              | Partial | Yes    |
-| Eval     | Date and Time               | `strptime`              | No      | Yes    |
+| Eval     | Date and Time               | `strptime`              | Partial | Yes    |
 | Eval     | Date and Time               | `time`                  | Yes     | Yes    |
 | Eval     | Informational               | `isbool`                | No      | No     |
 | Eval     | Informational               | `isint`                 | No      | No     |
@@ -322,13 +322,13 @@ However, there is no goal at this time to support all Splunk functions.
 | Eval     | JSON                        | `json_extend`           | No      |        |
 | Eval     | JSON                        | `json_extract`          | No      |        |
 | Eval     | JSON                        | `json_extract_exact`    | No      |        |
-| Eval     | JSON                        | `json_keys`             | No      |        |
+| Eval     | JSON                        | `json_keys`             | Yes     |        |
 | Eval     | JSON                        | `json_set`              | No      |        |
 | Eval     | JSON                        | `json_set_exact`        | No      |        |
-| Eval     | JSON                        | `json_valid`            | No      |        |
+| Eval     | JSON                        | `json_valid`            | Yes     |        |
 | Eval     | Mathematical                | `abs`                   | Yes     | Yes    |
 | Eval     | Mathematical                | `ceiling` (`ceil`)      | Yes     | Yes    |
-| Eval     | Mathematical                | `exact`                 | No      | Yes    |
+| Eval     | Mathematical                | `exact`                 | No      | No     |
 | Eval     | Mathematical                | `exp`                   | Yes     | Yes    |
 | Eval     | Mathematical                | `floor`                 | Yes     | Yes    |
 | Eval     | Mathematical                | `ln`                    | Yes     | Yes    |
@@ -336,7 +336,7 @@ However, there is no goal at this time to support all Splunk functions.
 | Eval     | Mathematical                | `pi`                    | Yes     | Yes    |
 | Eval     | Mathematical                | `pow`                   | Yes     | Yes    |
 | Eval     | Mathematical                | `round`                 | Yes     | Yes    |
-| Eval     | Mathematical                | `sigfig`                | No      |        |
+| Eval     | Mathematical                | `sigfig`                | No      | No     |
 | Eval     | Mathematical                | `sqrt`                  | Yes     | Yes    |
 | Eval     | Mathematical                | `sum`                   | Yes     | Yes    |
 | Eval     | Multivalue                  | `commands`              | No      |        |
@@ -354,8 +354,8 @@ However, there is no goal at this time to support all Splunk functions.
 | Eval     | Multivalue                  | `mv_to_json_array`      | No      |        |
 | Eval     | Multivalue                  | `split`                 | Yes     | Yes    |
 | Eval     | Statistical                 | `avg`                   | Yes     | Yes    |
-| Eval     | Statistical                 | `max`                   | Partial | Yes    |
-| Eval     | Statistical                 | `min`                   | Partial | Yes    |
+| Eval     | Statistical                 | `max`                   | Yes     | Yes    |
+| Eval     | Statistical                 | `min`                   | Yes     | Yes    |
 | Eval     | Statistical                 | `random`                | Yes     | Yes    |
 | Eval     | Text                        | `len`                   | Yes     | Yes    |
 | Eval     | Text                        | `lower`                 | Yes     | Yes    |
@@ -366,7 +366,7 @@ However, there is no goal at this time to support all Splunk functions.
 | Eval     | Text                        | `substr`                | Yes     | Yes    |
 | Eval     | Text                        | `trim`                  | Yes     | Yes    |
 | Eval     | Text                        | `upper`                 | Yes     | Yes    |
-| Eval     | Text                        | `urldecode`             | No      | Yes    |
+| Eval     | Text                        | `urldecode`             | Yes     | Yes    |
 | Eval     | Trigonometry and Hyperbolic | `acos`                  | Yes     | Yes    |
 | Eval     | Trigonometry and Hyperbolic | `acosh`                 | Yes     | Yes    |
 | Eval     | Trigonometry and Hyperbolic | `asin`                  | Yes     | Yes    |
@@ -381,39 +381,39 @@ However, there is no goal at this time to support all Splunk functions.
 | Eval     | Trigonometry and Hyperbolic | `sinh`                  | Yes     | Yes    |
 | Eval     | Trigonometry and Hyperbolic | `tan`                   | Yes     | Yes    |
 | Eval     | Trigonometry and Hyperbolic | `tanh`                  | Yes     | Yes    |
-| Stats    | Aggregate                   | `avg`                   | No      | Yes    |
+| Stats    | Aggregate                   | `avg`                   | Yes     | Yes    |
 | Stats    | Aggregate                   | `count`                 | Yes     | Yes    |
-| Stats    | Aggregate                   | `distinct_count` (`dc`) | No      | Yes    |
-| Stats    | Aggregate                   | `estdc`                 | No      |        |
+| Stats    | Aggregate                   | `distinct_count` (`dc`) | Yes     | Yes    |
+| Stats    | Aggregate                   | `estdc`                 | Yes     |        |
 | Stats    | Aggregate                   | `estdc_error`           | No      |        |
-| Stats    | Aggregate                   | `exactperc`             | No      |        |
-| Stats    | Aggregate                   | `max`                   | No      | Yes    |
-| Stats    | Aggregate                   | `mean`                  | No      | Yes    |
-| Stats    | Aggregate                   | `median`                | No      | Yes    |
-| Stats    | Aggregate                   | `min`                   | No      | Yes    |
-| Stats    | Aggregate                   | `mode`                  | No      | Yes    |
-| Stats    | Aggregate                   | `percentile`            | No      | Yes    |
-| Stats    | Aggregate                   | `range`                 | No      | Yes    |
-| Stats    | Aggregate                   | `stdev`                 | No      | Yes    |
-| Stats    | Aggregate                   | `stdevp`                | No      | Yes    |
+| Stats    | Aggregate                   | `exactperc`             | Yes     |        |
+| Stats    | Aggregate                   | `max`                   | Yes     | Yes    |
+| Stats    | Aggregate                   | `mean`                  | Yes     | Yes    |
+| Stats    | Aggregate                   | `median`                | Yes     | Yes    |
+| Stats    | Aggregate                   | `min`                   | Yes     | Yes    |
+| Stats    | Aggregate                   | `mode`                  | Yes     | Yes    |
+| Stats    | Aggregate                   | `percentile`            | Yes     | Yes    |
+| Stats    | Aggregate                   | `range`                 | Yes     | Yes    |
+| Stats    | Aggregate                   | `stdev`                 | Yes     | Yes    |
+| Stats    | Aggregate                   | `stdevp`                | Yes     | Yes    |
 | Stats    | Aggregate                   | `sum`                   | Yes     | Yes    |
-| Stats    | Aggregate                   | `sumsq`                 | No      | Yes    |
-| Stats    | Aggregate                   | `upperperc`             | No      | Yes    |
-| Stats    | Aggregate                   | `var`                   | No      | Yes    |
-| Stats    | Aggregate                   | `varp`                  | No      | Yes    |
-| Stats    | Event order                 | `first`                 | No      |        |
-| Stats    | Event order                 | `last`                  | No      |        |
-| Stats    | Multivalue stats and chart  | `list`                  | No      |        |
+| Stats    | Aggregate                   | `sumsq`                 | Yes     | Yes    |
+| Stats    | Aggregate                   | `upperperc`             | Yes     | Yes    |
+| Stats    | Aggregate                   | `var`                   | Yes     | Yes    |
+| Stats    | Aggregate                   | `varp`                  | Yes     | Yes    |
+| Stats    | Event order                 | `first`                 | Yes     |        |
+| Stats    | Event order                 | `last`                  | Yes     |        |
+| Stats    | Multivalue stats and chart  | `list`                  | Yes     |        |
 | Stats    | Multivalue stats and chart  | `values`                | Yes     | Yes    |
 | Stats    | Time                        | `earliest`              | Yes     | Yes    |
-| Stats    | Time                        | `earliest_time`         | No      |        |
+| Stats    | Time                        | `earliest_time`         | Yes?    |        |
 | Stats    | Time                        | `latest`                | Yes     | Yes    |
-| Stats    | Time                        | `latest_time`           | No      |        |
+| Stats    | Time                        | `latest_time`           | Yes?    |        |
 | Stats    | Time                        | `per_day`               | No      |        |
 | Stats    | Time                        | `per_hour`              | No      |        |
 | Stats    | Time                        | `per_minute`            | No      |        |
 | Stats    | Time                        | `per_second`            | No      |        |
-| Stats    | Time                        | `rate`                  | No      |        |
+| Stats    | Time                        | `rate`                  | Yes?    |        |
 | Stats    | Time                        | `rate_avg`              | No      |        |
 | Stats    | Time                        | `rate_sum`              | No      |        |
 

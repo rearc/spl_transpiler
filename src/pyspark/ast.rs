@@ -1,5 +1,5 @@
+use crate::pyspark::alias::Aliasable;
 use crate::pyspark::base::TemplateNode;
-use crate::pyspark::dealias::Dealias;
 use anyhow::{ensure, Result};
 
 #[derive(Debug, PartialEq, Clone, Hash)]

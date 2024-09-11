@@ -3,7 +3,6 @@ use crate::functions::shared::{ctime, memk, rmcomma, rmunit};
 use crate::pyspark::ast::*;
 use crate::spl::ast;
 use log::warn;
-
 /*
 https://docs.splunk.com/Documentation/SplunkCloud/9.2.2406/SearchReference/Convert
 
@@ -44,7 +43,6 @@ pub fn convert_fn(
     conversion: &FieldConversion,
 ) -> anyhow::Result<ColumnLike> {
     let ConvertCommand { timeformat, .. } = cmd;
-    let timeformat = crate::pyspark::transpiler::utils::convert_time_format(timeformat);
     let FieldConversion {
         func,
         field: ast::Field(field_name),
@@ -52,7 +50,7 @@ pub fn convert_fn(
     } = conversion;
 
     match func.as_str() {
-        "ctime" => Ok(ctime(column_like!(col(field_name)), timeformat)),
+        "ctime" => ctime(column_like!(col(field_name)), timeformat.clone()),
         "memk" => Ok(memk(column_like!(col(field_name)))),
         "rmunit" => Ok(rmunit(column_like!(col(field_name)))),
         "rmcomma" => Ok(rmcomma(column_like!(col(field_name)))),

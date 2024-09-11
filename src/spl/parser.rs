@@ -420,6 +420,9 @@ pub fn all(input: &str) -> IResult<&str, OperatorSymbol> {
         map(operators::GreaterThan::pattern, |_| {
             OperatorSymbol::GreaterThan(operators::GreaterThan {})
         }),
+        map(operators::StrictlyEquals::pattern, |_| {
+            OperatorSymbol::StrictlyEquals(operators::StrictlyEquals {})
+        }),
         map(operators::Equals::pattern, |_| {
             OperatorSymbol::Equals(operators::Equals {})
         }),
@@ -3789,5 +3792,38 @@ mod tests {
                 .into()
             ))
         )
+    }
+
+    #[test]
+    fn test_case_call_1() {
+        let _call_ast = ast::Call {
+            name: "case".to_string(),
+            args: vec![
+                _binop::<operators::StrictlyEquals>(ast::Field::from("status"), ast::IntValue(200)),
+                ast::StrValue::from("OK").into(),
+                _binop::<operators::StrictlyEquals>(ast::Field::from("status"), ast::IntValue(404)),
+                ast::StrValue::from("Not found").into(),
+                _binop::<operators::StrictlyEquals>(ast::Field::from("status"), ast::IntValue(500)),
+                ast::StrValue::from("Internal Server Error").into(),
+            ],
+        };
+        assert_eq!(
+            call(
+                r#"case(status==200, "OK", status==404, "Not found", status==500, "Internal Server Error")"#
+            ),
+            Ok(("", _call_ast.clone()))
+        );
+        assert_eq!(
+            EvalParser::parse(
+                r#"eval description=case(status==200, "OK", status==404, "Not found", status==500, "Internal Server Error")"#
+            ),
+            Ok((
+                "",
+                EvalCommand {
+                    fields: vec![(ast::Field::from("description"), _call_ast.into())],
+                }
+                .into()
+            ))
+        );
     }
 }

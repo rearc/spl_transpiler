@@ -1,8 +1,8 @@
 use crate::functions::shared::{memk, rmcomma, rmunit};
 use crate::functions::*;
+use crate::pyspark::alias::Aliasable;
 use crate::pyspark::ast::column_like;
 use crate::pyspark::ast::*;
-use crate::pyspark::dealias::Dealias;
 use crate::pyspark::transpiler::utils::convert_time_format;
 use crate::spl::ast;
 use anyhow::{bail, ensure, Result};
@@ -177,9 +177,20 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
 
         // Comparison and Conditional functions
         // case(<condition>,<value>,...)                       	 Accepts alternating conditions and values. Returns the first value for which the condition evaluates to TRUE.
-        "case" => {
-            bail!("UNIMPLEMENTED: Unsupported function: {}", name)
-        }
+        "case" => function_transform!(case [args -> mapped_args] () {
+            ensure!(mapped_args.len() % 2 == 0, "case() function requires an even number of arguments (conditions and values).");
+            let mut c = None;
+            for i in (0..mapped_args.len()).step_by(2) {
+                let condition = mapped_args[i].clone();
+                let value = mapped_args[i + 1].clone();
+                c = match c {
+                    None => Some(column_like!(when([condition], [value]))),
+                    Some(c) => Some(column_like!([c].when([condition], [value])))
+                }
+            }
+            ensure!(c.is_some(), "No condition-value pairs found in case() function.");
+            c.unwrap()
+        }),
         // cidrmatch(<cidr>,<ip>)                              	 Returns TRUE when an IP address, <ip>, belongs to a particular CIDR subnet, <cidr>.
         "cidrmatch" => function_transform!(cidrmatch [args] (cidr: String, col: String) {
             column_like!(expr("cidr_match('{}', {})", cidr, col))
@@ -219,9 +230,20 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         // true()                                              	 Returns TRUE.
         "true" => function_transform!(true [args] () { column_like!(lit(true)) }),
         // validate(<condition>, <value>,...)                  	 Takes a list of conditions and values and returns the value that corresponds to the condition that evaluates to FALSE. This function defaults to NULL if all conditions evaluate to TRUE. This function is the opposite of the case function.
-        "validate" => {
-            bail!("UNIMPLEMENTED: Unsupported function: {}", name)
-        }
+        "validate" => function_transform!(validate [args -> mapped_args] () {
+            ensure!(mapped_args.len() % 2 == 0, "case() function requires an even number of arguments (conditions and values).");
+            let mut c = None;
+            for i in (0..mapped_args.len()).step_by(2) {
+                let condition = mapped_args[i].clone();
+                let value = mapped_args[i + 1].clone();
+                c = match c {
+                    None => Some(column_like!(when([~[condition]], [value]))),
+                    Some(c) => Some(column_like!([c].when([~[condition]], [value])))
+                }
+            }
+            ensure!(c.is_some(), "No condition-value pairs found in case() function.");
+            c.unwrap()
+        }),
 
         // Conversion functions
         // ipmask(<mask>,<ip>)                                 	 Generates a new masked IP address by applying a mask to an IP address using a bitwise AND operation.
@@ -231,9 +253,15 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         // printf(<format>,<arguments>)                        	 Creates a formatted string based on a format description that you provide.
         "printf" => bail!("UNIMPLEMENTED: Unsupported function: {}", name),
         // tonumber(<str>,<base>)                              	 Converts a string to a number.
-        "tonumber" => bail!("UNIMPLEMENTED: Unsupported function: {}", name),
+        "tonumber" => function_transform!(tonumber [args -> mapped_args] (x) {
+            ensure!(mapped_args.is_empty(), "UMIMPLEMENTED: Unsupported `base` argument provided to `tonumber`");
+            column_like!([x].cast([py_lit("double")]))
+        }),
         // tostring(<value>,<format>)                          	 Converts the input, such as a number or a Boolean value, to a string.
-        "tostring" => bail!("UNIMPLEMENTED: Unsupported function: {}", name),
+        "tostring" => function_transform!(tostring [args -> mapped_args] (x) {
+            ensure!(mapped_args.is_empty(), "UMIMPLEMENTED: Unsupported `format` argument provided to `tostring`");
+            column_like!([x].cast([py_lit("string")]))
+        }),
 
         // Cryptographic functions
         // md5(<str>)                                          	 Computes the md5 hash for the string value.
@@ -258,12 +286,14 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         }
         // strftime(<time>,<format>)                           	 Takes a UNIX time and renders it into a human readable format.
         "strftime" => function_transform!(strftime [args] (date, format: String) {
-            column_like!(date_format([date], [py_lit(convert_time_format(format))]))
+            let converted_time_format = convert_time_format(format)?;
+            column_like!(date_format([date], [py_lit(converted_time_format)]))
         }),
         // strptime(<str>,<format>)                            	 Takes a human readable time and renders it into UNIX time.
-        "strptime" => {
-            bail!("UNIMPLEMENTED: Unsupported function: {}", name)
-        }
+        "strptime" => function_transform!(strptime [args] (date, format: String) {
+            let converted_time_format = convert_time_format(format)?;
+            column_like!(to_timestamp([date], [py_lit(converted_time_format)]))
+        }),
         // time()                                              	 The time that eval function was computed. The time will be different for each event, based on when the event was processed.
         "time" => function_transform!(time [args] () { column_like!(current_timestamp()) }),
 
@@ -323,9 +353,9 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
             bail!("UNIMPLEMENTED: Unsupported function: {}", name)
         }
         // json_keys(<json>)                                   	 Returns the keys from the key-value pairs in a JSON object as a JSON array.
-        "json_keys" => {
-            bail!("UNIMPLEMENTED: Unsupported function: {}", name)
-        }
+        "json_keys" => function_transform!(json_keys [args] (x) {
+            column_like!(json_object_keys([x]))
+        }),
         // json_set(<json>, <path_value_pairs>)                	 Inserts or overwrites values for a JSON node with the values provided and returns an updated JSON object.
         "json_set" => {
             bail!("UNIMPLEMENTED: Unsupported function: {}", name)
@@ -335,9 +365,9 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
             bail!("UNIMPLEMENTED: Unsupported function: {}", name)
         }
         // json_valid(<json>)                                  	 Evaluates whether piece of JSON uses valid JSON syntax and returns either TRUE or FALSE.
-        "json_valid" => {
-            bail!("UNIMPLEMENTED: Unsupported function: {}", name)
-        }
+        "json_valid" => function_transform!(json_valid [args] (x) {
+            column_like!([get_json_object([x], [py_lit("$")])].isNotNull())
+        }),
 
         // Mathematical functions
         // abs(<num>)                                          	 Returns the absolute value.
@@ -345,9 +375,10 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         // ceiling(<num>)                                      	 Rounds the value up to the next highest integer.
         "ceiling" => function_transform!(ceiling [args] (x) { column_like!(ceil([x])) }),
         // exact(<expression>)                                 	 Returns the result of a numeric eval calculation with a larger amount of precision in the formatted output.
-        "exact" => {
-            bail!("UNIMPLEMENTED: Unsupported function: {}", name)
-        }
+        "exact" => function_transform!(exact [args] (x) {
+            warn!("`exact()` is meaningless in Spark since significant figures are not tracked, use proper precision for your expression inputs instead");
+            column_like!([x].cast([py_lit("double")]))
+        }),
         // exp(<num>)                                          	 Returns the exponential function eN.
         "exp" => function_transform!(exp [args] (x) { column_like!(exp([x])) }),
         // floor(<num>)                                        	 Rounds the value down to the next lowest integer.
@@ -366,7 +397,7 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         }),
         // sigfig(<num>)                                       	 Rounds <num> to the appropriate number of significant figures.
         "sigfig" => {
-            bail!("UNIMPLEMENTED: Unsupported function: {}", name)
+            bail!("Unsupported function `{}`: significant figures are not tracked in Spark, use proper precision for your expression inputs instead", name);
         }
         // sqrt(<num>)                                         	 Returns the square root of the value.
         "sqrt" => function_transform!(sqrt [args] (x) { column_like!(sqrt([x])) }),
@@ -431,11 +462,45 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
 
         // Statistical eval functions
         // avg(<values>)                                       	 Returns the average of numerical values as an integer.
-        "avg" => function_transform!(avg [args] (x) { column_like!(avg([x])) }),
+        "avg" => function_transform!(avg [args -> mapped_args] () {
+            ensure!(!mapped_args.is_empty(), "Must provide at least one column to average together");
+            let mut out: Option<Expr> = None;
+            let num_args = mapped_args.len() as i64;
+            for c in mapped_args {
+                out = match out {
+                    Some(v) => Some(column_like!([v] + [c]).into()),
+                    None => Some(c),
+                }
+            };
+            assert!(out.is_some(), "Failed to compute average");
+            column_like!([out.unwrap()] / [py_lit(num_args)])
+        }),
         // max(<values>)                                       	 Returns the maximum of a set of string or numeric values.
-        "max" => function_transform!(max [args] (x, y) { column_like!(greatest([x], [y])) }),
+        "max" => function_transform!(max [args -> mapped_args] () {
+            ensure!(!mapped_args.is_empty(), "Must provide at least one column to max together");
+            let mut out: Option<Expr> = None;
+            for c in mapped_args {
+                out = match out {
+                    Some(v) => Some(column_like!(greatest([v], [c])).into()),
+                    None => Some(c),
+                }
+            };
+            assert!(out.is_some(), "Failed to compute average");
+            out.unwrap()
+        }),
         // min(<values>)                                       	 Returns the minimum of a set of string or numeric values.
-        "min" => function_transform!(min [args] (x, y) { column_like!(least([x], [y])) }),
+        "min" => function_transform!(min [args -> mapped_args] () {
+            ensure!(!mapped_args.is_empty(), "Must provide at least one column to max together");
+            let mut out: Option<Expr> = None;
+            for c in mapped_args {
+                out = match out {
+                    Some(v) => Some(column_like!(least([v], [c])).into()),
+                    None => Some(c),
+                }
+            };
+            assert!(out.is_some(), "Failed to compute average");
+            out.unwrap()
+        }),
         // random()                                            	 Returns a pseudo-random integer ranging from zero to 2^31-1.
         "random" => function_transform!(random [args] () { column_like!(rand()) }),
 
@@ -471,9 +536,7 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         // upper(<str>)                                        	 Returns the string in uppercase.
         "upper" => function_transform!(upper [args] (x) { column_like!(upper([x])) }),
         // urldecode(<url>)                                    	 Replaces URL escaped characters with the original characters.
-        "urldecode" => {
-            bail!("UNIMPLEMENTED: Unsupported function: {}", name)
-        }
+        "urldecode" => function_transform!(urldecode [args] (x) { column_like!(url_decode([x])) }),
 
         // Trigonometry and Hyperbolic functions
         // acos(X)                                             	 Computes the arc cosine of X.

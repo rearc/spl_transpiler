@@ -1,7 +1,13 @@
 use crate::pyspark::ast::*;
+use crate::pyspark::transpiler::utils::convert_time_format;
+use anyhow::Result;
 
-pub fn ctime(c: impl Into<Expr>, timeformat: String) -> ColumnLike {
-    column_like!(date_format([c.into()], [py_lit(timeformat)]))
+pub fn ctime(c: impl Into<Expr>, timeformat: String) -> Result<ColumnLike> {
+    let converted_time_format = convert_time_format(timeformat)?;
+    Ok(column_like!(date_format(
+        [c.into()],
+        [py_lit(converted_time_format)]
+    )))
 }
 
 /// Converts a string like "10k", "3g" or "7" (implicit "k") to kilobytes

@@ -3,7 +3,7 @@ pub mod eval_fns;
 mod shared;
 pub mod stat_fns;
 
-use crate::pyspark::dealias::Dealias;
+use crate::pyspark::alias::Aliasable;
 use crate::spl::ast;
 use anyhow::{bail, Result};
 
@@ -68,7 +68,7 @@ impl TryFrom<ast::Expr> for String {
 fn map_arg<E, T>(arg: &ast::Expr) -> Result<T>
 where
     E: Into<anyhow::Error>,
-    T: TryFrom<ast::Expr, Error = E> + Dealias,
+    T: TryFrom<ast::Expr, Error = E> + Aliasable,
 {
     arg.clone()
         .try_into()
@@ -79,7 +79,7 @@ where
 fn map_args<E, T>(args: Vec<ast::Expr>) -> Result<Vec<T>>
 where
     E: Into<anyhow::Error>,
-    T: TryFrom<ast::Expr, Error = E> + Dealias,
+    T: TryFrom<ast::Expr, Error = E> + Aliasable,
 {
     args.iter().map(|arg| map_arg(arg)).collect()
 }
@@ -111,7 +111,7 @@ macro_rules! _function_args {
 }
 
 macro_rules! function_transform {
-    ($name:ident [$arg_vec:ident] $args:tt { $out:expr }) => {
+    ($name:ident [$arg_vec:ident] $args:tt $out:block ) => {
         {
             let mut _i: usize = 0;
             _function_args!([$arg_vec, _i] $args);
@@ -119,7 +119,7 @@ macro_rules! function_transform {
             Ok(column_like!([$out.unaliased()].alias(stringify!($name))).into())
         }
     };
-    ($name:ident [$arg_vec:ident -> $mapped_arg_name:ident] $args:tt { $out:expr }) => {
+    ($name:ident [$arg_vec:ident -> $mapped_arg_name:ident] $args:tt $out:block ) => {
         {
             let mut _i: usize = 0;
             _function_args!([$arg_vec, _i] $args);

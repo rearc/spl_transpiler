@@ -103,6 +103,12 @@ impl OperatorSymbolTrait for Equals {
         alt((tag("="), tag("::")))(input)
     }
 }
+#[derive(Debug, PartialEq, Clone)]
+pub struct StrictlyEquals;
+impl OperatorSymbolTrait for StrictlyEquals {
+    const SYMBOL: &'static str = "==";
+    const PRECEDENCE: i32 = 7;
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct NotEquals;
@@ -128,6 +134,7 @@ pub enum OperatorSymbol {
     GreaterEquals(GreaterEquals),
     LessEquals(LessEquals),
     Equals(Equals),
+    StrictlyEquals(StrictlyEquals),
     NotEquals(NotEquals),
 }
 
@@ -167,6 +174,7 @@ impl OperatorSymbol {
             OperatorSymbol::GreaterEquals(_) => GreaterEquals::SYMBOL,
             OperatorSymbol::LessEquals(_) => LessEquals::SYMBOL,
             OperatorSymbol::Equals(_) => Equals::SYMBOL,
+            OperatorSymbol::StrictlyEquals(_) => StrictlyEquals::SYMBOL,
             OperatorSymbol::NotEquals(_) => NotEquals::SYMBOL,
         }
     }
@@ -186,6 +194,7 @@ impl OperatorSymbol {
             OperatorSymbol::GreaterEquals(_) => GreaterEquals::PRECEDENCE,
             OperatorSymbol::LessEquals(_) => LessEquals::PRECEDENCE,
             OperatorSymbol::Equals(_) => Equals::PRECEDENCE,
+            OperatorSymbol::StrictlyEquals(_) => StrictlyEquals::PRECEDENCE,
             OperatorSymbol::NotEquals(_) => NotEquals::PRECEDENCE,
         }
     }
