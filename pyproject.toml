@@ -18,11 +18,13 @@ classifiers = [
 ]
 dependencies = [
     "black",
+    "pydantic>=2",
 ]
 
 [project.optional-dependencies]
 test = [
-    "pytest"
+    "pytest",
+    "pytest-dependency"
 ]
 cli = [
     "textual[syntax]"

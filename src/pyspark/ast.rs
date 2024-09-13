@@ -196,6 +196,10 @@ pub enum DataFrame {
     Source {
         name: String,
     },
+    Named {
+        source: Box<DataFrame>,
+        name: String,
+    },
     Select {
         source: Box<DataFrame>,
         columns: Vec<ColumnLike>,
@@ -250,6 +254,12 @@ pub enum DataFrame {
 impl DataFrame {
     pub fn source(name: impl ToString) -> DataFrame {
         DataFrame::Source {
+            name: name.to_string(),
+        }
+    }
+    pub fn named(&self, name: impl ToString) -> DataFrame {
+        DataFrame::Named {
+            source: Box::new(self.clone()),
             name: name.to_string(),
         }
     }
@@ -338,6 +348,12 @@ impl TemplateNode for DataFrame {
     fn to_spark_query(&self) -> Result<String> {
         match self {
             DataFrame::Source { name } => Ok(format!("spark.table('{}')", name)),
+            DataFrame::Named { source, name } => Ok(format!(
+                "{}.write.saveAsTable('{}')\n\n{}",
+                source.to_spark_query()?,
+                name,
+                DataFrame::source(name).to_spark_query()?,
+            )),
             DataFrame::Select { source, columns } => {
                 let columns: Result<Vec<String>> =
                     columns.iter().map(|col| col.to_spark_query()).collect();
@@ -523,6 +539,23 @@ mod tests {
                 column_like!([col("orig_name")].alias("alias_name")),
             ),
             r#"spark.table("main").withColumn("final_name", F.col("orig_name"))"#,
+        )
+    }
+
+    #[test]
+    fn test_named() {
+        generates(
+            DataFrame::source("main")
+                .with_column(
+                    "final_name",
+                    column_like!([col("orig_name")].alias("alias_name")),
+                )
+                .named("prev"),
+            r#"
+spark.table("main").withColumn("final_name", F.col("orig_name")).write.saveAsTable("prev")
+
+spark.table("prev")
+            "#,
         )
     }
 }

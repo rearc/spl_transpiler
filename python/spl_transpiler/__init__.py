@@ -6,10 +6,15 @@ from spl_transpiler.spl_transpiler import (
     ast,
 )
 
+from .macros import substitute_macros, parse_with_macros, MacroDefinition
+
 __all__ = (
     "__version__",
     "parse",
     "render_pyspark",
     "convert_spl_to_pyspark",
     "ast",
+    "MacroDefinition",
+    "substitute_macros",
+    "parse_with_macros",
 )

@@ -23,6 +23,16 @@ fn spl_transpiler(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     #[pyfn(m)]
+    /// Parses SPL query code into a syntax tree.
+    fn detect_macros(spl_code: &str) -> PyResult<(Vec<(&str, spl::macros::MacroCall)>, &str)> {
+        match spl::macros::spl_macros(spl_code) {
+            Ok(("", res)) => Ok(res),
+            Ok(_) => Err(PyValueError::new_err("Failed to fully parse input")),
+            Err(e) => Err(PyValueError::new_err(format!("Error parsing SPL: {}", e))),
+        }
+    }
+
+    #[pyfn(m)]
     #[pyo3(signature = (pipeline, format=true))]
     /// Renders a parsed SPL syntax tree into equivalent PySpark query code, if possible.
     fn render_pyspark(pipeline: &spl::ast::Pipeline, format: bool) -> PyResult<String> {
@@ -41,6 +51,8 @@ fn spl_transpiler(m: &Bound<'_, PyModule>) -> PyResult<()> {
         let pipeline: spl::ast::Pipeline = parse(spl_code)?;
         render_pyspark(&pipeline, format)
     }
+
+    m.add_class::<spl::macros::MacroCall>()?;
 
     let ast_m = PyModule::new_bound(m.py(), "ast")?;
     spl::python::ast(&ast_m)?;
