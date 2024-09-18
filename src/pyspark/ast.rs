@@ -238,6 +238,10 @@ pub enum DataFrame {
         source: Box<DataFrame>,
         limit: u64,
     },
+    Tail {
+        source: Box<DataFrame>,
+        limit: u64,
+    },
     Join {
         source: Box<DataFrame>,
         other: Box<DataFrame>,
@@ -319,6 +323,12 @@ impl DataFrame {
     }
     pub fn limit(&self, limit: impl Into<u64>) -> DataFrame {
         Self::Limit {
+            source: Box::new(self.clone()),
+            limit: limit.into(),
+        }
+    }
+    pub fn tail(&self, limit: impl Into<u64>) -> DataFrame {
+        Self::Tail {
             source: Box::new(self.clone()),
             limit: limit.into(),
         }
@@ -422,6 +432,9 @@ impl TemplateNode for DataFrame {
             )),
             DataFrame::Limit { source, limit } => {
                 Ok(format!("{}.limit({},)", source.to_spark_query()?, limit))
+            }
+            DataFrame::Tail { source, limit } => {
+                Ok(format!("{}.tail({})", source.to_spark_query()?, limit))
             }
             DataFrame::Join {
                 source,

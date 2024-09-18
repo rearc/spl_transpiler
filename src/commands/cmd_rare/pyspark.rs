@@ -3,12 +3,12 @@ use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use anyhow::bail;
 
-impl PipelineTransformer for TopCommand {
+impl PipelineTransformer for RareCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
 
         if self.use_other {
-            bail!("UNIMPLEMENTED: No implementation yet for `useother=true` in `top`")
+            bail!("UNIMPLEMENTED: No implementation yet for `useother=true` in `rare`")
         }
 
         let groupby_fields: Vec<_> = self
@@ -31,7 +31,7 @@ impl PipelineTransformer for TopCommand {
             )
         }
 
-        df = df.order_by(vec![column_like!([col("count")].desc())]);
+        df = df.order_by(vec![column_like!([col("count")].asc())]);
 
         if self.n != 0 {
             df = df.limit(self.n);

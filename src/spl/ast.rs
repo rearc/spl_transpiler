@@ -211,16 +211,19 @@ use crate::commands::cmd_map::spl::MapCommand;
 use crate::commands::cmd_multi_search::spl::MultiSearchCommand;
 use crate::commands::cmd_mv_combine::spl::MvCombineCommand;
 use crate::commands::cmd_mv_expand::spl::MvExpandCommand;
+use crate::commands::cmd_rare::spl::RareCommand;
 use crate::commands::cmd_regex::spl::RegexCommand;
 use crate::commands::cmd_rename::spl::RenameCommand;
 use crate::commands::cmd_return::spl::ReturnCommand;
 use crate::commands::cmd_rex::spl::RexCommand;
+use crate::commands::cmd_s_path::spl::SPathCommand;
 use crate::commands::cmd_search::spl::SearchCommand;
 use crate::commands::cmd_sort::spl::SortCommand;
 use crate::commands::cmd_stats::spl::StatsCommand;
 use crate::commands::cmd_stream_stats::spl::StreamStatsCommand;
 use crate::commands::cmd_t_stats::spl::TStatsCommand;
 use crate::commands::cmd_table::spl::TableCommand;
+use crate::commands::cmd_tail::spl::TailCommand;
 use crate::commands::cmd_top::spl::TopCommand;
 use crate::commands::cmd_where::spl::WhereCommand;
 use anyhow::anyhow;
@@ -847,59 +850,62 @@ pub enum Command {
     MultiSearchCommand(MultiSearchCommand),
     MvCombineCommand(MvCombineCommand),
     MvExpandCommand(MvExpandCommand),
+    RareCommand(RareCommand),
     RegexCommand(RegexCommand),
     RenameCommand(RenameCommand),
     ReturnCommand(ReturnCommand),
     RexCommand(RexCommand),
     SearchCommand(SearchCommand),
+    SPathCommand(SPathCommand),
     SortCommand(SortCommand),
     StatsCommand(StatsCommand),
     StreamStatsCommand(StreamStatsCommand),
     TableCommand(TableCommand),
+    TailCommand(TailCommand),
     TopCommand(TopCommand),
     TStatsCommand(TStatsCommand),
     WhereCommand(WhereCommand),
     // Pipeline(Pipeline),
 }
 
-macro_rules! trivial_enum_from_type {
-    ($cls:ident : $enum_tp:ident) => {
-        impl From<$cls> for $enum_tp {
-            fn from(val: $cls) -> Self {
-                $enum_tp::$cls(val)
-            }
-        }
-    };
-}
+// macro_rules! trivial_enum_from_type {
+//     ($cls:ident : $enum_tp:ident) => {
+//         impl From<$cls> for $enum_tp {
+//             fn from(val: $cls) -> Self {
+//                 $enum_tp::$cls(val)
+//             }
+//         }
+//     };
+// }
 
-trivial_enum_from_type!(AddTotalsCommand: Command);
-trivial_enum_from_type!(BinCommand: Command);
-trivial_enum_from_type!(CollectCommand: Command);
-trivial_enum_from_type!(ConvertCommand: Command);
-trivial_enum_from_type!(DedupCommand: Command);
-trivial_enum_from_type!(EvalCommand: Command);
-trivial_enum_from_type!(EventStatsCommand: Command);
-trivial_enum_from_type!(FieldsCommand: Command);
-trivial_enum_from_type!(FillNullCommand: Command);
-trivial_enum_from_type!(FormatCommand: Command);
-trivial_enum_from_type!(HeadCommand: Command);
-trivial_enum_from_type!(InputLookupCommand: Command);
-trivial_enum_from_type!(JoinCommand: Command);
-trivial_enum_from_type!(LookupCommand: Command);
-trivial_enum_from_type!(MakeResultsCommand: Command);
-trivial_enum_from_type!(MapCommand: Command);
-trivial_enum_from_type!(MultiSearchCommand: Command);
-trivial_enum_from_type!(MvCombineCommand: Command);
-trivial_enum_from_type!(MvExpandCommand: Command);
-trivial_enum_from_type!(RegexCommand: Command);
-trivial_enum_from_type!(RenameCommand: Command);
-trivial_enum_from_type!(ReturnCommand: Command);
-trivial_enum_from_type!(RexCommand: Command);
-trivial_enum_from_type!(SearchCommand: Command);
-trivial_enum_from_type!(SortCommand: Command);
-trivial_enum_from_type!(StatsCommand: Command);
-trivial_enum_from_type!(StreamStatsCommand: Command);
-trivial_enum_from_type!(TableCommand: Command);
-trivial_enum_from_type!(TopCommand: Command);
-trivial_enum_from_type!(TStatsCommand: Command);
-trivial_enum_from_type!(WhereCommand: Command);
+// trivial_enum_from_type!(AddTotalsCommand: Command);
+// trivial_enum_from_type!(BinCommand: Command);
+// trivial_enum_from_type!(CollectCommand: Command);
+// trivial_enum_from_type!(ConvertCommand: Command);
+// trivial_enum_from_type!(DedupCommand: Command);
+// trivial_enum_from_type!(EvalCommand: Command);
+// trivial_enum_from_type!(EventStatsCommand: Command);
+// trivial_enum_from_type!(FieldsCommand: Command);
+// trivial_enum_from_type!(FillNullCommand: Command);
+// trivial_enum_from_type!(FormatCommand: Command);
+// trivial_enum_from_type!(HeadCommand: Command);
+// trivial_enum_from_type!(InputLookupCommand: Command);
+// trivial_enum_from_type!(JoinCommand: Command);
+// trivial_enum_from_type!(LookupCommand: Command);
+// trivial_enum_from_type!(MakeResultsCommand: Command);
+// trivial_enum_from_type!(MapCommand: Command);
+// trivial_enum_from_type!(MultiSearchCommand: Command);
+// trivial_enum_from_type!(MvCombineCommand: Command);
+// trivial_enum_from_type!(MvExpandCommand: Command);
+// trivial_enum_from_type!(RegexCommand: Command);
+// trivial_enum_from_type!(RenameCommand: Command);
+// trivial_enum_from_type!(ReturnCommand: Command);
+// trivial_enum_from_type!(RexCommand: Command);
+// trivial_enum_from_type!(SearchCommand: Command);
+// trivial_enum_from_type!(SortCommand: Command);
+// trivial_enum_from_type!(StatsCommand: Command);
+// trivial_enum_from_type!(StreamStatsCommand: Command);
+// trivial_enum_from_type!(TableCommand: Command);
+// trivial_enum_from_type!(TopCommand: Command);
+// trivial_enum_from_type!(TStatsCommand: Command);
+// trivial_enum_from_type!(WhereCommand: Command);

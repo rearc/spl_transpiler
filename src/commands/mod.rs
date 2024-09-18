@@ -168,6 +168,7 @@ macro_rules! make_command {
                 [<cmd_ $name>],
                 [<$name:camel Parser>],
                 [<$name:camel CommandRoot>],
+                [<$name:camel Command>],
                 replace!(stringify!($name), "_", ""),
                 None,
                 $attrs
@@ -181,13 +182,14 @@ macro_rules! make_command {
                 [<cmd_ $name>],
                 [<$name:camel Parser>],
                 [<$name:camel CommandRoot>],
+                [<$name:camel Command>],
                 replace!(stringify!($name), "_", ""),
                 Some(replace!(stringify!($alias), "_", "")),
                 $attrs
             );
         }
     };
-    (_, $module_name:ident, $parser_name:ident, $command_name:ident, $name:expr, $alias:expr, { $($attr_name:ident : $attr_type:ty),* }) => {
+    (_, $module_name:ident, $parser_name:ident, $command_name:ident, $spl_ast_name:ident, $name:expr, $alias:expr, { $($attr_name:ident : $attr_type:ty),* }) => {
         pub mod $module_name;
 
         #[derive(Debug, Clone, PartialEq, Hash)]
@@ -199,6 +201,12 @@ macro_rules! make_command {
         impl CommandBase for $command_name {
             const NAME: &'static str = $name;
             const ALIAS: Option<&'static str> = $alias;
+        }
+
+        impl From<$module_name::spl::$spl_ast_name> for crate::spl::ast::Command {
+            fn from(val: $module_name::spl::$spl_ast_name) -> Self {
+                crate::spl::ast::Command::$spl_ast_name(val)
+            }
         }
     };
 }
@@ -443,7 +451,7 @@ make_command!(mv_expand, {});
 // make_command!(pivot, {});
 // make_command!(predict, {});
 // make_command!(range_map, {});
-// make_command!(rare, {});
+make_command!(rare, {});
 // make_command!(redistribute, {});
 make_command!(regex, {});
 // make_command!(rel_time, {});
@@ -471,13 +479,13 @@ make_command!(search, {});
 // make_command!(si_time_chart, {});
 // make_command!(si_top, {});
 make_command!(sort, {});
-// make_command!(s_path, {});
+make_command!(s_path, {});
 make_command!(stats, {});
 // make_command!(str_cat, {});
 make_command!(stream_stats, {});
 make_command!(table, {});
 // make_command!(tags, {});
-// make_command!(tail, {});
+make_command!(tail, {});
 // make_command!(time_chart, {});
 // make_command!(time_wrap, {});
 // make_command!(to_json, {});

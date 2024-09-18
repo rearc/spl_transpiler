@@ -10,7 +10,7 @@ use pyo3::prelude::*;
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
-pub struct TopCommand {
+pub struct RareCommand {
     #[pyo3(get)]
     pub fields: Vec<Field>,
     #[pyo3(get)]
@@ -32,7 +32,7 @@ pub struct TopCommand {
     #[pyo3(get)]
     pub use_other: bool,
 }
-impl_pyclass!(TopCommand {
+impl_pyclass!(RareCommand {
     fields: Vec<Field>,
     n: u64,
     count_field: String,
@@ -45,8 +45,8 @@ impl_pyclass!(TopCommand {
 });
 
 #[derive(Debug, Default)]
-pub struct TopParser {}
-pub struct TopCommandOptions {
+pub struct RareParser {}
+pub struct RareCommandOptions {
     count_field: String,
     limit: u64,
     other_str: String,
@@ -56,16 +56,16 @@ pub struct TopCommandOptions {
     use_other: bool,
 }
 
-impl SplCommandOptions for TopCommandOptions {}
+impl SplCommandOptions for RareCommandOptions {}
 
 /*
 countfield
 Syntax: countfield=<string>
-Description: For each value returned by the top command, the results also return a count of the events that have that value. This argument specifies the name of the field that contains the count. The count is returned by default. If you do not want to return the count of events, specify showcount=false.
+Description: For each value returned by the rare command, the results also return a count of the events that have that value. This argument specifies the name of the field that contains the count. The count is returned by default. If you do not want to return the count of events, specify showcount=false.
 Default: count
 limit
 Syntax: limit=<int>
-Description: Specifies how many results to return. To return all values, specify zero ( 0 ). Specifying top limit=<int> is the same as specifying top N.
+Description: Specifies how many results to return. To return all values, specify zero ( 0 ). Specifying rare limit=<int> is the same as specifying rare N.
 Default: 10
 otherstr
 Syntax: otherstr=<string>
@@ -73,7 +73,7 @@ Description: If useother=true, a row representing all other values is added to t
 Default: OTHER
 percentfield
 Syntax: percentfield=<string>
-Description: For each value returned by the top command, the results also return a percentage of the events that have that value. This argument specifies the name of the field that contains the percentage. The percentage is returned by default. If you do not want to return the percentage of events, specify showperc=false.
+Description: For each value returned by the rare command, the results also return a percentage of the events that have that value. This argument specifies the name of the field that contains the percentage. The percentage is returned by default. If you do not want to return the percentage of events, specify showperc=false.
 Default: percent
 showcount
 Syntax: showcount=<bool>
@@ -89,7 +89,7 @@ Description: Specify whether or not to add a row that represents all values not 
 Default: false
  */
 
-impl TryFrom<ParsedCommandOptions> for TopCommandOptions {
+impl TryFrom<ParsedCommandOptions> for RareCommandOptions {
     type Error = anyhow::Error;
 
     fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
@@ -105,11 +105,11 @@ impl TryFrom<ParsedCommandOptions> for TopCommandOptions {
     }
 }
 
-impl SplCommand<TopCommand> for TopParser {
-    type RootCommand = crate::commands::TopCommandRoot;
-    type Options = TopCommandOptions;
+impl SplCommand<RareCommand> for RareParser {
+    type RootCommand = crate::commands::RareCommandRoot;
+    type Options = RareCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, TopCommand> {
+    fn parse_body(input: &str) -> IResult<&str, RareCommand> {
         map(
             tuple((
                 ws(opt(int)),
@@ -117,7 +117,7 @@ impl SplCommand<TopCommand> for TopParser {
                 ws(field_list),
                 ws(opt(preceded(ws(tag_no_case("BY")), field_list))),
             )),
-            |(n, opts, fields, by_fields)| TopCommand {
+            |(n, opts, fields, by_fields)| RareCommand {
                 fields,
                 n: n.map(|i| i.0 as u64).unwrap_or(opts.limit),
                 by: by_fields,

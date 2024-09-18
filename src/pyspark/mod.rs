@@ -939,7 +939,15 @@ mod tests {
     fn test_top_1() {
         generates(
             r#"index=main | top 5 showperc=false x"#,
-            r#"spark.table('main').groupBy(['x',]).agg(F.count().alias('count')).orderBy(F.desc(F.col('count'))).limit(5)"#,
+            r#"spark.table('main').groupBy(['x',]).agg(F.count().alias('count')).orderBy(F.col('count').desc()).limit(5)"#,
+        )
+    }
+
+    #[test]
+    fn test_rare_1() {
+        generates(
+            r#"index=main | rare 5 showperc=false x"#,
+            r#"spark.table('main').groupBy(['x',]).agg(F.count().alias('count')).orderBy(F.col('count').asc()).limit(5)"#,
         )
     }
 
@@ -1106,5 +1114,21 @@ mod tests {
                 F.max(F.col("_time")).alias("lastTime"),
             )"#,
         )
+    }
+
+    #[test]
+    fn test_spath_1() {
+        generates(
+            r#"spath input=x output=y key.subkey"#,
+            r#"spark.table("main").withColumn(
+                "y",
+                F.get_json_object(F.col("x"), "$.key.subkey")
+            )"#,
+        );
+    }
+
+    #[test]
+    fn test_tail_1() {
+        generates(r#"tail 5"#, r#"spark.table("main").tail(5)"#);
     }
 }

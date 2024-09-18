@@ -17,16 +17,19 @@ use crate::commands::cmd_map::spl::MapParser;
 use crate::commands::cmd_multi_search::spl::MultiSearchParser;
 use crate::commands::cmd_mv_combine::spl::MvCombineParser;
 use crate::commands::cmd_mv_expand::spl::MvExpandParser;
+use crate::commands::cmd_rare::spl::RareParser;
 use crate::commands::cmd_regex::spl::RegexParser;
 use crate::commands::cmd_rename::spl::RenameParser;
 use crate::commands::cmd_return::spl::ReturnParser;
 use crate::commands::cmd_rex::spl::RexParser;
+use crate::commands::cmd_s_path::spl::SPathParser;
 use crate::commands::cmd_search::spl::SearchParser;
 use crate::commands::cmd_sort::spl::SortParser;
 use crate::commands::cmd_stats::spl::StatsParser;
 use crate::commands::cmd_stream_stats::spl::StreamStatsParser;
 use crate::commands::cmd_t_stats::spl::TStatsParser;
 use crate::commands::cmd_table::spl::TableParser;
+use crate::commands::cmd_tail::spl::TailParser;
 use crate::commands::cmd_top::spl::TopParser;
 use crate::commands::cmd_where::spl::WhereParser;
 use crate::commands::spl::SplCommand;
@@ -772,38 +775,41 @@ pub fn command(input: &str) -> IResult<&str, ast::Command> {
     alt((
         // `alt` has a hard count limit, so we just break it up into sub-alts
         alt((
-            into(StatsParser::parse),
-            into(TableParser::parse),
-            into(WhereParser::parse),
-            into(InputLookupParser::parse),
+            into(AddTotalsParser::parse),
+            into(BinParser::parse),
             into(CollectParser::parse),
             into(ConvertParser::parse),
-            into(EvalParser::parse),
-            into(HeadParser::parse),
-            into(FieldsParser::parse),
-            into(SortParser::parse),
-            into(RexParser::parse),
-            into(RenameParser::parse),
-            into(RegexParser::parse),
-            into(JoinParser::parse),
-            into(ReturnParser::parse),
-            into(FillNullParser::parse),
-            into(EventStatsParser::parse),
-            into(StreamStatsParser::parse),
             into(DedupParser::parse),
-            into(LookupParser::parse),
+            into(EvalParser::parse),
+            into(EventStatsParser::parse),
+            into(FieldsParser::parse),
+            into(FillNullParser::parse),
             into(FormatParser::parse),
-        )),
-        alt((
+            into(HeadParser::parse),
+            into(InputLookupParser::parse),
+            into(JoinParser::parse),
+            into(LookupParser::parse),
+            into(MakeResultsParser::parse),
+            into(MapParser::parse),
+            into(MultiSearchParser::parse),
             into(MvCombineParser::parse),
             into(MvExpandParser::parse),
-            into(BinParser::parse),
-            into(MakeResultsParser::parse),
-            into(AddTotalsParser::parse),
-            into(MultiSearchParser::parse),
-            into(MapParser::parse),
+        )),
+        alt((
+            into(RareParser::parse),
+            into(RegexParser::parse),
+            into(RenameParser::parse),
+            into(ReturnParser::parse),
+            into(RexParser::parse),
+            into(SortParser::parse),
+            into(SPathParser::parse),
+            into(StatsParser::parse),
+            into(StreamStatsParser::parse),
+            into(TableParser::parse),
+            into(TailParser::parse),
             into(TopParser::parse),
             into(TStatsParser::parse),
+            into(WhereParser::parse),
         )),
         into(SearchParser::parse),
     ))(input)
@@ -1048,6 +1054,7 @@ mod tests {
     use crate::commands::cmd_rename::spl::{RenameCommand, RenameParser};
     use crate::commands::cmd_return::spl::{ReturnCommand, ReturnParser};
     use crate::commands::cmd_rex::spl::RexCommand;
+    use crate::commands::cmd_s_path::spl::SPathCommand;
     use crate::commands::cmd_search::spl::{SearchCommand, SearchParser};
     use crate::commands::cmd_sort::spl::{SortCommand, SortParser};
     use crate::commands::cmd_stats::spl::StatsCommand;
@@ -4284,6 +4291,47 @@ mod tests {
                         ast::Wildcard::from("*.xsl*")
                     )
                 ]
+            ))
+        );
+    }
+
+    #[test]
+    fn test_spath_1() {
+        assert_eq!(
+            SPathParser::parse(r#"spath output=myfield path=vendorProductSet.product.desc"#),
+            Ok((
+                "",
+                SPathCommand {
+                    input: "_raw".into(),
+                    output: Some("myfield".into()),
+                    path: "vendorProductSet.product.desc".into(),
+                }
+                .into()
+            ))
+        );
+        assert_eq!(
+            command(r#"spath output=myfield path=vendorProductSet.product.desc"#)
+                .unwrap()
+                .1,
+            SPathParser::parse(r#"spath output=myfield path=vendorProductSet.product.desc"#)
+                .unwrap()
+                .1
+                .into(),
+        );
+    }
+
+    #[test]
+    fn test_spath_2() {
+        assert_eq!(
+            SPathParser::parse(r#"spath input=x output=y key.subkey"#),
+            Ok((
+                "",
+                SPathCommand {
+                    input: "x".into(),
+                    output: Some("y".into()),
+                    path: "key.subkey".into(),
+                }
+                .into()
             ))
         );
     }
