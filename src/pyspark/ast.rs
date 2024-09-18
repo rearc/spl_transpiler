@@ -372,7 +372,7 @@ impl TemplateNode for DataFrame {
                 // Extra trailing comma is intentional
                 let columns: Vec<String> = columns.iter().map(|s| format!(r#"'{}',"#, s)).collect();
                 Ok(format!(
-                    "{}.groupBy({})",
+                    "{}.groupBy([{}])",
                     source.to_spark_query()?,
                     columns.join(" ")
                 ))

@@ -22,7 +22,7 @@ use pyo3::prelude::*;
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
-pub struct InputLookup {
+pub struct InputLookupCommand {
     #[pyo3(get)]
     pub append: bool,
     #[pyo3(get)]
@@ -36,7 +36,7 @@ pub struct InputLookup {
     #[pyo3(get)]
     pub where_expr: Option<Expr>,
 }
-impl_pyclass!(InputLookup { append: bool, strict: bool, start: i64, max: i64, table_name: String, where_expr: Option<Expr> });
+impl_pyclass!(InputLookupCommand { append: bool, strict: bool, start: i64, max: i64, table_name: String, where_expr: Option<Expr> });
 
 #[derive(Debug, Default)]
 pub struct InputLookupParser {}
@@ -62,18 +62,18 @@ impl TryFrom<ParsedCommandOptions> for InputLookupCommandOptions {
     }
 }
 
-impl SplCommand<InputLookup> for InputLookupParser {
+impl SplCommand<InputLookupCommand> for InputLookupParser {
     type RootCommand = crate::commands::InputLookupCommandRoot;
     type Options = InputLookupCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, InputLookup> {
+    fn parse_body(input: &str) -> IResult<&str, InputLookupCommand> {
         map(
             tuple((
                 Self::Options::match_options,
                 ws(token),
                 ws(opt(preceded(ws(tag_no_case("where")), expr))),
             )),
-            |(options, table_name, where_options)| InputLookup {
+            |(options, table_name, where_options)| InputLookupCommand {
                 append: options.append,
                 strict: options.strict,
                 start: options.start,

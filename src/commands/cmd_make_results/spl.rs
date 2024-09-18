@@ -17,7 +17,7 @@ use pyo3::prelude::*;
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
-pub struct MakeResults {
+pub struct MakeResultsCommand {
     #[pyo3(get)]
     pub count: i64,
     #[pyo3(get)]
@@ -27,7 +27,7 @@ pub struct MakeResults {
     #[pyo3(get)]
     pub server_group: Option<String>,
 }
-impl_pyclass!(MakeResults { count: i64, annotate: bool, server: String, server_group: Option<String> });
+impl_pyclass!(MakeResultsCommand { count: i64, annotate: bool, server: String, server_group: Option<String> });
 
 #[derive(Debug, Default)]
 pub struct MakeResultsParser {}
@@ -53,12 +53,12 @@ impl TryFrom<ParsedCommandOptions> for MakeResultsCommandOptions {
     }
 }
 
-impl SplCommand<MakeResults> for MakeResultsParser {
+impl SplCommand<MakeResultsCommand> for MakeResultsParser {
     type RootCommand = crate::commands::MakeResultsCommandRoot;
     type Options = MakeResultsCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, MakeResults> {
-        map(Self::Options::match_options, |options| MakeResults {
+    fn parse_body(input: &str) -> IResult<&str, MakeResultsCommand> {
+        map(Self::Options::match_options, |options| MakeResultsCommand {
             count: options.count,
             annotate: options.annotate,
             server: options.server,

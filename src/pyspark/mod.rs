@@ -47,7 +47,7 @@ mod tests {
     fn test_01() {
         generates(
             r#"n>2 | stats count() by valid"#,
-            r#"spark.table("main").where((F.col("n") > F.lit(2))).groupBy("valid").agg(F.count(F.lit(1)).alias("count"))"#,
+            r#"spark.table("main").where((F.col("n") > F.lit(2))).groupBy(["valid",]).agg(F.count(F.lit(1)).alias("count"))"#,
         );
     }
 
@@ -79,7 +79,7 @@ mod tests {
     fn test_03() {
         generates(
             r#"n>2 | stats sum(n) by valid"#,
-            r#"spark.table('main').where((F.col('n') > F.lit(2))).groupBy('valid').agg(F.sum(F.col('n')).alias('sum'))"#,
+            r#"spark.table('main').where((F.col('n') > F.lit(2))).groupBy(['valid',]).agg(F.sum(F.col('n')).alias('sum'))"#,
         );
     }
     //
@@ -110,7 +110,7 @@ mod tests {
         generates(
             // r#"eval n=23 | stats sum(*) by valid"#,
             r#"eval n=23 | stats sum(n) by valid"#,
-            r#"spark.table('main').withColumn('n', F.lit(23)).groupBy('valid').agg(F.sum(F.col('n')).alias('sum'))"#,
+            r#"spark.table('main').withColumn('n', F.lit(23)).groupBy(['valid',]).agg(F.sum(F.col('n')).alias('sum'))"#,
         );
     }
 
@@ -127,7 +127,7 @@ mod tests {
     fn test_06() {
         generates(
             r#"n>2 | stats sum(n)"#,
-            r#"spark.table('main').where((F.col('n') > F.lit(2))).groupBy().agg(F.sum(F.col('n')).alias('sum'))"#,
+            r#"spark.table('main').where((F.col('n') > F.lit(2))).groupBy([]).agg(F.sum(F.col('n')).alias('sum'))"#,
         );
     }
 
@@ -144,7 +144,7 @@ mod tests {
     fn test_07() {
         generates(
             r#"n>2 | stats sum(n) AS total_sum"#,
-            r#"spark.table('main').where((F.col('n') > F.lit(2))).groupBy().agg(F.sum(F.col('n')).alias('total_sum'))"#,
+            r#"spark.table('main').where((F.col('n') > F.lit(2))).groupBy([]).agg(F.sum(F.col('n')).alias('total_sum'))"#,
         );
     }
     //
@@ -159,7 +159,7 @@ mod tests {
     fn test_08() {
         generates(
             r#"stats values(d) as set"#,
-            r#"spark.table('main').groupBy().agg(F.collect_set(F.col('d')).alias('set'))"#,
+            r#"spark.table('main').groupBy([]).agg(F.collect_set(F.col('d')).alias('set'))"#,
         );
     }
     //
@@ -175,7 +175,7 @@ mod tests {
     fn test_09() {
         generates(
             r#"stats latest(d) as latest"#,
-            r#"spark.table('main').orderBy(F.col('_time').asc()).groupBy().agg(F.last(F.col('d'), True).alias('latest'))"#,
+            r#"spark.table('main').orderBy(F.col('_time').asc()).groupBy([]).agg(F.last(F.col('d'), True).alias('latest'))"#,
         );
     }
     //
@@ -191,7 +191,7 @@ mod tests {
     fn test_10() {
         generates(
             r#"stats earliest(d) as earliest"#,
-            r#"spark.table('main').orderBy(F.col('_time').asc()).groupBy().agg(F.first(F.col('d'), True).alias('earliest'))"#,
+            r#"spark.table('main').orderBy(F.col('_time').asc()).groupBy([]).agg(F.first(F.col('d'), True).alias('earliest'))"#,
         );
     }
     //
@@ -586,10 +586,25 @@ mod tests {
     //         |""".stripMargin)
     //   }
     #[test]
-    fn test_33() {
+    fn test_ipv4_cidrmatch_as_eq() {
         generates(
             r#"src_ip = 10.0.0.0/16"#,
             r#"spark.table('main').where(F.expr("cidr_match('10.0.0.0/16', src_ip)"))"#,
+        );
+    }
+
+    //
+    //   test("src_ip = 10.0.0.0/16") {
+    //     generates("src_ip = 10.0.0.0/16",
+    //       """(spark.table('main')
+    //         |.where(F.expr("cidr_match('10.0.0.0/16', src_ip)")))
+    //         |""".stripMargin)
+    //   }
+    #[test]
+    fn test_wildcard_as_eq() {
+        generates(
+            r#"src_ip = "x*""#,
+            r#"spark.table('main').where(F.col("src_ip").like("x%"))"#,
         );
     }
 
@@ -924,7 +939,7 @@ mod tests {
     fn test_top_1() {
         generates(
             r#"index=main | top 5 showperc=false x"#,
-            r#"spark.table('main').groupBy('x').agg(F.count().alias('count')).orderBy(F.desc(F.col('count'))).limit(5)"#,
+            r#"spark.table('main').groupBy(['x',]).agg(F.count().alias('count')).orderBy(F.desc(F.col('count'))).limit(5)"#,
         )
     }
 
@@ -1048,8 +1063,47 @@ mod tests {
     fn test_percentile_fn_1() {
         generates(
             r#"index=alt | stats percentile99(a) AS x"#,
-            r#"spark.table("alt").groupBy().agg(
+            r#"spark.table("alt").groupBy([]).agg(
                 F.percentile_approx(F.col("a"), 0.99).alias("x")
+            )"#,
+        )
+    }
+
+    #[test]
+    fn test_xsl_script_execution_with_wmic_1() {
+        generates(
+            r#"tstats
+            summariesonly=false allow_old_summaries=true fillnull_value=null
+            count min(_time) as firstTime max(_time) as lastTime
+            from datamodel=Endpoint.Processes
+            where (Processes.process_name=wmic.exe OR Processes.original_file_name=wmic.exe) Processes.process = "*os get*" Processes.process="*/format:*" Processes.process = "*.xsl*"
+            by Processes.parent_process_name Processes.parent_process Processes.process_name Processes.process_id Processes.process Processes.dest Processes.user"#,
+            r#"spark.table("Endpoint.Processes").where(
+                (
+                    (
+                        (
+                            (
+                                (F.col("Processes.process_name") == F.lit("wmic.exe"))
+                                | (F.col("Processes.original_file_name") == F.lit("wmic.exe"))
+                            )
+                            & F.col("Processes.process").like("%os get%")
+                        )
+                        & F.col("Processes.process").like("%/format:%")
+                    )
+                    & F.col("Processes.process").like("%.xsl%")
+                )
+            ).groupBy([
+                "Processes.parent_process_name",
+                "Processes.parent_process",
+                "Processes.process_name",
+                "Processes.process_id",
+                "Processes.process",
+                "Processes.dest",
+                "Processes.user",
+            ]).agg(
+                F.count(F.lit(1)).alias("count"),
+                F.min(F.col("_time")).alias("firstTime"),
+                F.max(F.col("_time")).alias("lastTime"),
             )"#,
         )
     }

@@ -44,13 +44,13 @@ fn spl_transpiler(m: &Bound<'_, PyModule>) -> PyResult<()> {
         Ok(code)
     }
 
-    #[pyfn(m)]
-    #[pyo3(signature = (spl_code, format=true))]
-    /// Converts SPL query code directly into equivalent PySpark query code, if possible.
-    fn convert_spl_to_pyspark(spl_code: &str, format: bool) -> PyResult<String> {
-        let pipeline: spl::ast::Pipeline = parse(spl_code)?;
-        render_pyspark(&pipeline, format)
-    }
+    // #[pyfn(m)]
+    // #[pyo3(signature = (spl_code, format=true))]
+    // /// Converts SPL query code directly into equivalent PySpark query code, if possible.
+    // fn convert_spl_to_pyspark(spl_code: &str, format: bool) -> PyResult<String> {
+    //     let pipeline: spl::ast::Pipeline = parse(spl_code)?;
+    //     render_pyspark(&pipeline, format)
+    // }
 
     m.add_class::<spl::macros::MacroCall>()?;
 

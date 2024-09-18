@@ -25,14 +25,16 @@ use crate::commands::cmd_search::spl::SearchParser;
 use crate::commands::cmd_sort::spl::SortParser;
 use crate::commands::cmd_stats::spl::StatsParser;
 use crate::commands::cmd_stream_stats::spl::StreamStatsParser;
+use crate::commands::cmd_t_stats::spl::TStatsParser;
 use crate::commands::cmd_table::spl::TableParser;
 use crate::commands::cmd_top::spl::TopParser;
 use crate::commands::cmd_where::spl::WhereParser;
 use crate::commands::spl::SplCommand;
 use crate::spl::operators::OperatorSymbolTrait;
 use crate::spl::{ast, operators, operators::OperatorSymbol};
-use nom::bytes::complete::{tag_no_case, take_while};
-use nom::character::complete::{alphanumeric1, anychar, multispace0, multispace1};
+use log::error;
+use nom::bytes::complete::{tag_no_case, take_while, take_while1};
+use nom::character::complete::{alphanumeric1, anychar, multispace0, multispace1, one_of};
 use nom::combinator::{all_consuming, into, map_parser, verify};
 use nom::error::ParseError;
 use nom::multi::{many0, separated_list0, separated_list1};
@@ -63,6 +65,16 @@ where
 {
     map(
         verify(inner, |res| res.is_ok()),
+        |res| res.unwrap(), // This is safe at this point since we checked is_ok
+    )
+}
+
+pub fn unwrapped_option<'a, O, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, O, E>
+where
+    F: Parser<&'a str, Option<O>, E>,
+{
+    map(
+        verify(inner, |res| res.is_some()),
         |res| res.unwrap(), // This is safe at this point since we checked is_ok
     )
 }
@@ -227,7 +239,18 @@ pub fn _token_not_t_f(input: &str) -> IResult<&str, &str> {
 
 //   def field[_: P]: P[Field] = token.filter(!Seq("t", "f").contains(_)) map Field
 pub fn field(input: &str) -> IResult<&str, ast::Field> {
-    map(_token_not_t_f, |v: &str| ast::Field(v.into()))(input)
+    // map(_token_not_t_f, |v: &str| ast::Field(v.into()))(input)
+    map(
+        recognize(separated_list1(tag("."), _token_not_t_f)),
+        |v: &str| ast::Field(v.into()),
+    )(input)
+}
+
+pub fn string(input: &str) -> IResult<&str, &str> {
+    alt((
+        double_quoted,
+        recognize(many1(alt((token, recognize(one_of(".")))))),
+    ))(input)
 }
 
 //   def variable[_: P]: P[Variable] =
@@ -303,6 +326,23 @@ pub fn double(input: &str) -> IResult<&str, ast::DoubleValue> {
 
 //   def constant[_: P]: P[Constant] = cidr | wildcard | strValue | variable |
 //       relativeTime | timeSpan | double | int | field | bool
+pub fn literal(input: &str) -> IResult<&str, ast::Constant> {
+    alt((
+        map(cidr, ast::Constant::IPv4CIDR),
+        map(wildcard, ast::Constant::Wildcard),
+        map(str_value, ast::Constant::Str),
+        map(variable, ast::Constant::Variable),
+        map(relative_time, ast::Constant::SnapTime),
+        map(time_span, |v| {
+            ast::Constant::SplSpan(ast::SplSpan::TimeSpan(v))
+        }),
+        map(double, ast::Constant::Double),
+        map(int, ast::Constant::Int),
+        map(bool_, ast::Constant::Bool),
+        map(string, |s| ast::Constant::Str(s.into())),
+    ))(input)
+}
+
 pub fn constant(input: &str) -> IResult<&str, ast::Constant> {
     alt((
         map(cidr, ast::Constant::IPv4CIDR),
@@ -394,20 +434,15 @@ pub fn filename(input: &str) -> IResult<&str, &str> {
 #[allow(dead_code)]
 //   def term[_: P]: P[String] = CharsWhile(!" ".contains(_)).!
 pub fn term(input: &str) -> IResult<&str, &str> {
-    recognize(take_while(|c: char| c != ' '))(input)
+    recognize(take_while1(|c: char| c != ' '))(input)
 }
 
 //   private def ALL[_: P]: P[OperatorSymbol] = (Or.P | And.P | LessThan.P | GreaterThan.P
 //     | GreaterEquals.P | LessEquals.P | Equals.P | NotEquals.P | InList.P | Add.P | Subtract.P
 //     | Multiply.P | Divide.P | Concatenate.P)
-pub fn all(input: &str) -> IResult<&str, OperatorSymbol> {
+/// Matches any operator that compares two expressions
+pub fn comparison_operator(input: &str) -> IResult<&str, OperatorSymbol> {
     alt((
-        map(operators::Or::pattern, |_| {
-            OperatorSymbol::Or(operators::Or {})
-        }),
-        map(operators::And::pattern, |_| {
-            OperatorSymbol::And(operators::And {})
-        }),
         map(operators::LessEquals::pattern, |_| {
             OperatorSymbol::LessEquals(operators::LessEquals {})
         }),
@@ -429,9 +464,29 @@ pub fn all(input: &str) -> IResult<&str, OperatorSymbol> {
         map(operators::NotEquals::pattern, |_| {
             OperatorSymbol::NotEquals(operators::NotEquals {})
         }),
+    ))(input)
+}
+
+/// Matches any operator that combines two expressions into a logical/boolean result
+pub fn logical_operator(input: &str) -> IResult<&str, OperatorSymbol> {
+    alt((
+        comparison_operator,
+        map(operators::Or::pattern, |_| {
+            OperatorSymbol::Or(operators::Or {})
+        }),
+        map(operators::And::pattern, |_| {
+            OperatorSymbol::And(operators::And {})
+        }),
         map(operators::InList::pattern, |_| {
             OperatorSymbol::InList(operators::InList {})
         }),
+    ))(input)
+}
+
+/// Matches any operator that combines two expressions into a new expression
+pub fn operator(input: &str) -> IResult<&str, OperatorSymbol> {
+    alt((
+        logical_operator,
         map(operators::Add::pattern, |_| {
             OperatorSymbol::Add(operators::Add {})
         }),
@@ -524,16 +579,16 @@ pub fn climb(left: ast::Expr, rights: Vec<(OperatorSymbol, ast::Expr)>, prec: i3
 pub fn field_in(input: &str) -> IResult<&str, ast::FieldIn> {
     map(
         separated_pair(
-            token,
-            delimited(multispace1, tag_no_case("IN"), multispace0),
+            field,
+            ws(tag_no_case("IN")),
             delimited(
                 ws(tag("(")),
                 separated_list0(ws(tag(",")), constant),
                 ws(tag(")")),
             ),
         ),
-        |(token, constants)| ast::FieldIn {
-            field: token.into(),
+        |(field, constants)| ast::FieldIn {
+            field: field.0,
             exprs: constants
                 .into_iter()
                 .map(|c| ast::Expr::Leaf(ast::LeafExpr::Constant(c)))
@@ -609,7 +664,7 @@ pub fn primary(input: &str) -> IResult<&str, ast::Expr> {
 //   def expr[_: P]: P[Expr] = binaryOf(primary, ALL)
 pub fn expr(input: &str) -> IResult<&str, ast::Expr> {
     map(
-        pair(primary, many0(pair(ws(all), primary))),
+        pair(primary, many0(pair(ws(operator), primary))),
         |(expr, tuples)| climb(expr, tuples, 100),
     )(input)
 }
@@ -748,8 +803,9 @@ pub fn command(input: &str) -> IResult<&str, ast::Command> {
             into(MultiSearchParser::parse),
             into(MapParser::parse),
             into(TopParser::parse),
-            into(SearchParser::parse),
+            into(TStatsParser::parse),
         )),
+        into(SearchParser::parse),
     ))(input)
 }
 //
@@ -773,10 +829,205 @@ pub fn pipeline(input: &str) -> IResult<&str, ast::Pipeline> {
     )(input)
 }
 
+// <expression>
+// Syntax: <logical-expression> | <time-opts> | <search-modifier> | NOT <logical-expression> | <index-expression> | <comparison-expression> | <logical-expression> [OR] <logical-expression>
+// pub fn search_expression(input: &str) -> IResult<&str, ast::Expr> {
+//     logical_expression(input)
+// }
+
+pub fn combine_all_expressions(exprs: Vec<ast::Expr>, symbol: impl ToString) -> Option<ast::Expr> {
+    let mut final_expr = None;
+
+    exprs.into_iter().for_each(|expr| {
+        final_expr = match (final_expr.clone(), expr) {
+            (None, expr) => Some(expr),
+            (Some(final_expr), expr) => Some(ast::Expr::Binary(ast::Binary {
+                left: Box::new(final_expr),
+                symbol: symbol.to_string(),
+                right: Box::new(expr),
+            })),
+        }
+    });
+
+    final_expr
+}
+
+// <logical-expression> | <time-opts> | <search-modifier> | NOT <logical-expression> | <index-expression> | <comparison-expression> | <logical-expression> [OR] <logical-expression>
+pub fn logical_expression(input: &str) -> IResult<&str, ast::Expr> {
+    map(
+        separated_list1(
+            delimited(multispace1, tag_no_case("OR"), multispace1),
+            logical_expression_term,
+        ),
+        |exprs| combine_all_expressions(exprs, operators::Or::SYMBOL).unwrap(),
+    )(input)
+}
+
+pub fn logical_expression_term(input: &str) -> IResult<&str, ast::Expr> {
+    error!("logical_expression: {}", input);
+    alt((
+        delimited(ws(tag("(")), logical_expression, ws(tag(")"))),
+        preceded(
+            pair(tag_no_case("NOT"), multispace1),
+            logical_expression_term,
+        ),
+        map(time_opts, |opts| {
+            combine_all_expressions(opts, operators::Or::SYMBOL).unwrap()
+        }),
+        comparison_expression,
+        search_modifier,
+        // index_expression,
+    ))(input)
+}
+
+// <comparison-expression>
+// Syntax: <field><comparison-operator><value> | <field> IN (<value-list>)
+pub fn comparison_expression(input: &str) -> IResult<&str, ast::Expr> {
+    error!("comparison_expression: {}", input);
+    alt((
+        map(
+            tuple((field, ws(comparison_operator), literal)),
+            |(left, symbol, right)| {
+                ast::Expr::Binary(ast::Binary {
+                    left: Box::new(left.into()),
+                    symbol: symbol.symbol_string().into(),
+                    right: Box::new(right.into()),
+                })
+            },
+        ),
+        into(field_in),
+    ))(input)
+}
+
+// <index-expression>
+// Syntax: "<string>" | <term> | <search-modifier>
+#[allow(dead_code)]
+pub fn index_expression(input: &str) -> IResult<&str, ast::Expr> {
+    error!("index_expression: {}", input);
+    alt((
+        map(double_quoted, |t| ast::StrValue::from(t).into()),
+        map(term, |t| ast::StrValue::from(t).into()),
+        search_modifier,
+    ))(input)
+}
+
+// <search-modifier>
+// Syntax: <sourcetype-specifier> | <host-specifier> | <hosttag-specifier> | <source-specifier> | <savedsplunk-specifier> | <eventtype-specifier> | <eventtypetag-specifier> | <splunk_server-specifier>
+// <sourcetype-specifier>
+// Syntax: sourcetype=<string>
+// Description: Search for events from the specified sourcetype field.
+// <host-specifier>
+// Syntax: host=<string>
+// Description: Search for events from the specified host field.
+// <hosttag-specifier>
+// Syntax: hosttag=<string>
+// Description: Search for events that have hosts that are tagged by the string.
+// <eventtype-specifier>
+// Syntax: eventtype=<string>
+// Description: Search for events that match the specified event type.
+// <eventtypetag-specifier>
+// Syntax: eventtypetag=<string>
+// Description: Search for events that would match all eventtypes tagged by the string.
+// <savedsplunk-specifier>
+// Syntax: savedsearch=<string> | savedsplunk=<string>
+// Description: Search for events that would be found by the specified saved search.
+// <source-specifier>
+// Syntax: source=<string>
+// Description: Search for events from the specified source field.
+// <splunk_server-specifier>
+// Syntax: splunk_server=<string>
+// Description: Search for events from a specific server. Use "local" to refer to the search head.
+pub fn search_modifier(input: &str) -> IResult<&str, ast::Expr> {
+    error!("search_modifier: {}", input);
+    alt((
+        // sourcetype_specifier,
+        map(preceded(tag_no_case("sourcetype="), string), |s| {
+            ast::SearchModifier::SourceType(s.into()).into()
+        }),
+        // host_specifier,
+        map(preceded(tag_no_case("host="), string), |s| {
+            ast::SearchModifier::Host(s.into()).into()
+        }),
+        // hosttag_specifier,
+        map(preceded(tag_no_case("hosttag="), string), |s| {
+            ast::SearchModifier::HostTag(s.into()).into()
+        }),
+        // eventtype_specifier,
+        map(preceded(tag_no_case("eventtype="), string), |s| {
+            ast::SearchModifier::EventType(s.into()).into()
+        }),
+        // eventtypetag_specifier,
+        map(preceded(tag_no_case("eventtypetag="), string), |s| {
+            ast::SearchModifier::EventTypeTag(s.into()).into()
+        }),
+        // savedsplunk_specifier,
+        map(
+            preceded(
+                alt((tag_no_case("savedsearch="), tag_no_case("savedsplunk="))),
+                string,
+            ),
+            |s| ast::SearchModifier::SavedSplunk(s.into()).into(),
+        ),
+        // source_specifier,
+        map(preceded(tag_no_case("source="), string), |s| {
+            ast::SearchModifier::Source(s.into()).into()
+        }),
+        // splunk_server_specifier,
+        map(preceded(tag_no_case("splunk_server="), string), |s| {
+            ast::SearchModifier::SplunkServer(s.into()).into()
+        }),
+    ))(input)
+}
+
+// <time-opts>
+// Syntax: [<timeformat>] (<time-modifier>)...
+pub fn time_opts(input: &str) -> IResult<&str, Vec<ast::Expr>> {
+    error!("time_opts: {}", input);
+    map(
+        pair(time_format, separated_list1(multispace1, time_modifier)),
+        |(fmt, mods)| {
+            mods.into_iter()
+                .map(|time_mod| ast::Expr::TimeModifier(fmt.into(), time_mod))
+                .collect()
+        },
+    )(input)
+}
+
+// <timeformat>
+// Syntax: timeformat=<string>
+// Default: timeformat=%m/%d/%Y:%H:%M:%S.
+pub fn time_format(input: &str) -> IResult<&str, &str> {
+    error!("time_format: {}", input);
+    map(
+        opt(preceded(tag_no_case("timeformat="), double_quoted)),
+        |fmt| fmt.unwrap_or("%m/%d/%Y:%H:%M:%S."),
+    )(input)
+}
+
+// <time-modifier>
+// Syntax: starttime=<string> | endtime=<string> | earliest=<time_modifier> | latest=<time_modifier>
+pub fn time_modifier(input: &str) -> IResult<&str, ast::TimeModifier> {
+    error!("time_modifier: {}", input);
+    alt((
+        map(preceded(tag_no_case("starttime="), double_quoted), |v| {
+            ast::TimeModifier::StartTime(v.into())
+        }),
+        map(preceded(tag_no_case("endtime="), double_quoted), |v| {
+            ast::TimeModifier::EndTime(v.into())
+        }),
+        map(preceded(tag_no_case("earliest="), relative_time), |v| {
+            ast::TimeModifier::Earliest(v)
+        }),
+        map(preceded(tag_no_case("latest="), relative_time), |v| {
+            ast::TimeModifier::Latest(v)
+        }),
+    ))(input)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::cmd_add_totals::spl::AddTotals;
+    use crate::commands::cmd_add_totals::spl::AddTotalsCommand;
     use crate::commands::cmd_bin::spl::BinCommand;
     use crate::commands::cmd_collect::spl::CollectCommand;
     use crate::commands::cmd_convert::spl::{ConvertCommand, ConvertParser, FieldConversion};
@@ -787,10 +1038,10 @@ mod tests {
     use crate::commands::cmd_fill_null::spl::{FillNullCommand, FillNullParser};
     use crate::commands::cmd_format::spl::{FormatCommand, FormatParser};
     use crate::commands::cmd_head::spl::{HeadCommand, HeadParser};
-    use crate::commands::cmd_input_lookup::spl::{InputLookup, InputLookupParser};
+    use crate::commands::cmd_input_lookup::spl::{InputLookupCommand, InputLookupParser};
     use crate::commands::cmd_join::spl::{JoinCommand, JoinParser};
     use crate::commands::cmd_lookup::spl::{LookupCommand, LookupOutput, LookupParser};
-    use crate::commands::cmd_make_results::spl::MakeResults;
+    use crate::commands::cmd_make_results::spl::MakeResultsCommand;
     use crate::commands::cmd_map::spl::{MapCommand, MapParser};
     use crate::commands::cmd_mv_combine::spl::{MvCombineCommand, MvCombineParser};
     use crate::commands::cmd_regex::spl::{RegexCommand, RegexParser};
@@ -800,6 +1051,7 @@ mod tests {
     use crate::commands::cmd_search::spl::{SearchCommand, SearchParser};
     use crate::commands::cmd_sort::spl::{SortCommand, SortParser};
     use crate::commands::cmd_stats::spl::StatsCommand;
+    use crate::commands::cmd_t_stats::spl::TStatsCommand;
     use crate::commands::cmd_table::spl::TableCommand;
     use crate::commands::cmd_where::spl::WhereCommand;
 
@@ -3307,7 +3559,7 @@ mod tests {
             InputLookupParser::parse(r#"inputlookup append=t strict=f myTable where test_id=11"#),
             Ok((
                 "",
-                InputLookup {
+                InputLookupCommand {
                     append: true,
                     strict: false,
                     start: 0,
@@ -3336,7 +3588,7 @@ mod tests {
             InputLookupParser::parse(r#"inputlookup myTable"#),
             Ok((
                 "",
-                InputLookup {
+                InputLookupCommand {
                     append: false,
                     strict: false,
                     start: 0,
@@ -3509,7 +3761,7 @@ mod tests {
             command(r#"makeresults"#),
             Ok((
                 "",
-                MakeResults {
+                MakeResultsCommand {
                     count: 1,
                     annotate: false,
                     server: "local".into(),
@@ -3534,7 +3786,7 @@ mod tests {
             command(r#"makeresults count=10 annotate=t splunk_server_group=group0"#),
             Ok((
                 "",
-                MakeResults {
+                MakeResultsCommand {
                     count: 10,
                     annotate: true,
                     server: "local".into(),
@@ -3562,7 +3814,7 @@ mod tests {
             command(r#"addtotals row=t col=f fieldname=num_total num_1 num_2"#),
             Ok((
                 "",
-                AddTotals {
+                AddTotalsCommand {
                     fields: vec![ast::Field::from("num_1"), ast::Field::from("num_2")],
                     row: true,
                     col: false,
@@ -3823,6 +4075,215 @@ mod tests {
                     fields: vec![(ast::Field::from("description"), _call_ast.into())],
                 }
                 .into()
+            ))
+        );
+    }
+
+    #[test]
+    fn test_xsl_script_execution_with_wmic_1() {
+        assert_eq!(
+            all_consuming(TStatsParser::parse)(
+                r#"tstats summariesonly=false allow_old_summaries=true fillnull_value=null
+                count min(_time) as firstTime max(_time) as lastTime
+                from datamodel=Endpoint.Processes
+                where (Processes.process_name=wmic.exe OR Processes.original_file_name=wmic.exe) Processes.process = "*os get*" Processes.process="*/format:*" Processes.process = "*.xsl*"
+                by Processes.parent_process_name Processes.parent_process Processes.process_name Processes.process_id Processes.process Processes.dest Processes.user"#
+            ),
+            Ok((
+                "",
+                TStatsCommand {
+                    prestats: false,
+                    local: false,
+                    append: false,
+                    summaries_only: false,
+                    include_reduced_buckets: false,
+                    allow_old_summaries: true,
+                    chunk_size: 10000000,
+                    fillnull_value: Some("null".into()),
+                    exprs: vec![
+                        _call!(count()).into(),
+                        _alias("firstTime", _call!(min(ast::Field::from("_time")))).into(),
+                        _alias("lastTime", _call!(max(ast::Field::from("_time")))).into(),
+                    ],
+                    datamodel: Some("Endpoint.Processes".into()),
+                    nodename: None,
+                    where_condition: Some(
+                        _and(
+                            _and(
+                                _and(
+                                    _or(
+                                        _eq(
+                                            ast::Field::from("Processes.process_name"),
+                                            ast::StrValue::from("wmic.exe")
+                                        ),
+                                        _eq(
+                                            ast::Field::from("Processes.original_file_name"),
+                                            ast::StrValue::from("wmic.exe")
+                                        )
+                                    ),
+                                    _eq(
+                                        ast::Field::from("Processes.process"),
+                                        ast::Wildcard::from("*os get*")
+                                    ),
+                                ),
+                                _eq(
+                                    ast::Field::from("Processes.process"),
+                                    ast::Wildcard::from("*/format:*")
+                                ),
+                            ),
+                            _eq(
+                                ast::Field::from("Processes.process"),
+                                ast::Wildcard::from("*.xsl*")
+                            )
+                        )
+                        .into()
+                    ),
+                    by_fields: Some(vec![
+                        ast::Field::from("Processes.parent_process_name"),
+                        ast::Field::from("Processes.parent_process"),
+                        ast::Field::from("Processes.process_name"),
+                        ast::Field::from("Processes.process_id"),
+                        ast::Field::from("Processes.process"),
+                        ast::Field::from("Processes.dest"),
+                        ast::Field::from("Processes.user"),
+                    ]),
+                    by_prefix: None,
+                    span: None,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_logical_expression_1() {
+        assert_eq!(
+            field(r#"Processes.process_name=wmic.exe"#),
+            Ok(("=wmic.exe", ast::Field::from("Processes.process_name")))
+        );
+        assert_eq!(
+            literal(r#"wmic.exe"#),
+            Ok(("", ast::StrValue::from("wmic.exe").into()))
+        );
+        assert_eq!(
+            comparison_expression(r#"Processes.process_name=wmic.exe"#),
+            Ok((
+                "",
+                _eq(
+                    ast::Field::from("Processes.process_name"),
+                    ast::StrValue::from("wmic.exe")
+                )
+            ))
+        );
+        assert_eq!(
+            logical_expression(r#"Processes.process_name=wmic.exe"#),
+            Ok((
+                "",
+                _eq(
+                    ast::Field::from("Processes.process_name"),
+                    ast::StrValue::from("wmic.exe")
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_logical_expression_2() {
+        assert_eq!(
+            logical_expression(
+                r#"Processes.process_name=wmic.exe OR Processes.original_file_name=wmic.exe"#
+            ),
+            Ok((
+                "",
+                _or(
+                    _eq(
+                        ast::Field::from("Processes.process_name"),
+                        ast::StrValue::from("wmic.exe")
+                    ),
+                    _eq(
+                        ast::Field::from("Processes.original_file_name"),
+                        ast::StrValue::from("wmic.exe")
+                    )
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_logical_expression_3() {
+        assert_eq!(
+            logical_expression(r#"Processes.process = "*os get*""#),
+            Ok((
+                "",
+                _eq(
+                    ast::Field::from("Processes.process"),
+                    ast::Wildcard::from("*os get*")
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_logical_expression_4() {
+        assert_eq!(
+            logical_expression(
+                r#"Processes.process_name=wmic.exe OR Processes.original_file_name=wmic.exe"#
+            ),
+            logical_expression(
+                r#"(Processes.process_name=wmic.exe OR Processes.original_file_name=wmic.exe)"#
+            ),
+        );
+        assert_eq!(
+            logical_expression(
+                r#"(Processes.process_name=wmic.exe OR Processes.original_file_name=wmic.exe)"#
+            ),
+            Ok((
+                "",
+                _or(
+                    _eq(
+                        ast::Field::from("Processes.process_name"),
+                        ast::StrValue::from("wmic.exe")
+                    ),
+                    _eq(
+                        ast::Field::from("Processes.original_file_name"),
+                        ast::StrValue::from("wmic.exe")
+                    )
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_logical_expression_5() {
+        assert_eq!(
+            many1(ws(logical_expression))(
+                r#"(Processes.process_name=wmic.exe OR Processes.original_file_name=wmic.exe) Processes.process = "*os get*" Processes.process="*/format:*" Processes.process = "*.xsl*""#
+            ),
+            Ok((
+                "",
+                vec![
+                    _or(
+                        _eq(
+                            ast::Field::from("Processes.process_name"),
+                            ast::StrValue::from("wmic.exe")
+                        ),
+                        _eq(
+                            ast::Field::from("Processes.original_file_name"),
+                            ast::StrValue::from("wmic.exe")
+                        )
+                    ),
+                    _eq(
+                        ast::Field::from("Processes.process"),
+                        ast::Wildcard::from("*os get*")
+                    ),
+                    _eq(
+                        ast::Field::from("Processes.process"),
+                        ast::Wildcard::from("*/format:*")
+                    ),
+                    _eq(
+                        ast::Field::from("Processes.process"),
+                        ast::Wildcard::from("*.xsl*")
+                    )
+                ]
             ))
         );
     }

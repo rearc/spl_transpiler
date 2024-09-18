@@ -486,7 +486,7 @@ make_command!(top, {});
 // make_command!(transpose, {});
 // make_command!(trend_line, {});
 // make_command!(ts_collect, {});
-// make_command!(t_stats, {});
+make_command!(t_stats, {});
 // make_command!(type_ahead, {});
 // make_command!(type_learner, {});
 // make_command!(typer, {});

@@ -1,7 +1,7 @@
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 
-impl PipelineTransformer for super::spl::MultiSearch {
+impl PipelineTransformer for super::spl::MultiSearchCommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
         if self.pipelines.is_empty() {
             return Ok(state);

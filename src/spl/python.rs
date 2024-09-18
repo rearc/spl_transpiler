@@ -194,14 +194,14 @@ pub fn ast(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<crate::commands::cmd_event_stats::spl::EventStatsCommand>()?;
     m.add_class::<crate::commands::cmd_stream_stats::spl::StreamStatsCommand>()?;
     m.add_class::<crate::commands::cmd_dedup::spl::DedupCommand>()?;
-    m.add_class::<crate::commands::cmd_input_lookup::spl::InputLookup>()?;
+    m.add_class::<crate::commands::cmd_input_lookup::spl::InputLookupCommand>()?;
     m.add_class::<crate::commands::cmd_format::spl::FormatCommand>()?;
     m.add_class::<crate::commands::cmd_mv_combine::spl::MvCombineCommand>()?;
     m.add_class::<crate::commands::cmd_mv_expand::spl::MvExpandCommand>()?;
-    m.add_class::<crate::commands::cmd_make_results::spl::MakeResults>()?;
-    m.add_class::<crate::commands::cmd_add_totals::spl::AddTotals>()?;
+    m.add_class::<crate::commands::cmd_make_results::spl::MakeResultsCommand>()?;
+    m.add_class::<crate::commands::cmd_add_totals::spl::AddTotalsCommand>()?;
     m.add_class::<crate::commands::cmd_bin::spl::BinCommand>()?;
-    m.add_class::<crate::commands::cmd_multi_search::spl::MultiSearch>()?;
+    m.add_class::<crate::commands::cmd_multi_search::spl::MultiSearchCommand>()?;
     m.add_class::<crate::commands::cmd_map::spl::MapCommand>()?;
     m.add_class::<ast::Pipeline>()?;
 

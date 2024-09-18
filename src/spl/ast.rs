@@ -192,7 +192,7 @@ case class MapCommand(search: Pipeline, maxSearches: Int) extends Command
 
 case class Pipeline(commands: Seq[Command])
  */
-use crate::commands::cmd_add_totals::spl::AddTotals;
+use crate::commands::cmd_add_totals::spl::AddTotalsCommand;
 use crate::commands::cmd_bin::spl::BinCommand;
 use crate::commands::cmd_collect::spl::CollectCommand;
 use crate::commands::cmd_convert::spl::{ConvertCommand, FieldConversion};
@@ -203,12 +203,12 @@ use crate::commands::cmd_fields::spl::FieldsCommand;
 use crate::commands::cmd_fill_null::spl::FillNullCommand;
 use crate::commands::cmd_format::spl::FormatCommand;
 use crate::commands::cmd_head::spl::HeadCommand;
-use crate::commands::cmd_input_lookup::spl::InputLookup;
+use crate::commands::cmd_input_lookup::spl::InputLookupCommand;
 use crate::commands::cmd_join::spl::JoinCommand;
 use crate::commands::cmd_lookup::spl::LookupCommand;
-use crate::commands::cmd_make_results::spl::MakeResults;
+use crate::commands::cmd_make_results::spl::MakeResultsCommand;
 use crate::commands::cmd_map::spl::MapCommand;
-use crate::commands::cmd_multi_search::spl::MultiSearch;
+use crate::commands::cmd_multi_search::spl::MultiSearchCommand;
 use crate::commands::cmd_mv_combine::spl::MvCombineCommand;
 use crate::commands::cmd_mv_expand::spl::MvExpandCommand;
 use crate::commands::cmd_regex::spl::RegexCommand;
@@ -219,6 +219,7 @@ use crate::commands::cmd_search::spl::SearchCommand;
 use crate::commands::cmd_sort::spl::SortCommand;
 use crate::commands::cmd_stats::spl::StatsCommand;
 use crate::commands::cmd_stream_stats::spl::StreamStatsCommand;
+use crate::commands::cmd_t_stats::spl::TStatsCommand;
 use crate::commands::cmd_table::spl::TableCommand;
 use crate::commands::cmd_top::spl::TopCommand;
 use crate::commands::cmd_where::spl::WhereCommand;
@@ -537,6 +538,15 @@ pub struct Alias {
     pub name: String,
 }
 
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub enum TimeModifier {
+    StartTime(String),
+    EndTime(String),
+    Earliest(SnapTime),
+    Latest(SnapTime),
+}
+
 /// A pipeline is a chain of commands where data is passed and processed by each command in turn.
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
@@ -578,6 +588,19 @@ pub enum LeafExpr {
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
+pub enum SearchModifier {
+    SourceType(String),
+    Host(String),
+    HostTag(String),
+    EventType(String),
+    EventTypeTag(String),
+    SavedSplunk(String),
+    Source(String),
+    SplunkServer(String),
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
 pub enum Expr {
     Leaf(LeafExpr),
     AliasedField(AliasedField),
@@ -587,6 +610,8 @@ pub enum Expr {
     FieldIn(FieldIn),
     Alias(Alias),
     FieldConversion(FieldConversion),
+    TimeModifier(String, TimeModifier),
+    SearchModifier(SearchModifier),
 }
 
 impl From<TimeSpan> for Constant {
@@ -640,14 +665,19 @@ impl From<IPv4CIDR> for Constant {
     }
 }
 
+impl From<Constant> for Expr {
+    fn from(val: Constant) -> Self {
+        Expr::Leaf(LeafExpr::Constant(val))
+    }
+}
 impl From<TimeSpan> for Expr {
     fn from(val: TimeSpan) -> Self {
-        Expr::Leaf(LeafExpr::Constant(val.into()))
+        <TimeSpan as Into<Constant>>::into(val).into()
     }
 }
 impl From<BoolValue> for Expr {
     fn from(val: BoolValue) -> Self {
-        Expr::Leaf(LeafExpr::Constant(val.into()))
+        <BoolValue as Into<Constant>>::into(val).into()
     }
 }
 impl From<IntValue> for Expr {
@@ -740,6 +770,11 @@ impl From<FieldConversion> for Expr {
         Expr::FieldConversion(val)
     }
 }
+impl From<SearchModifier> for Expr {
+    fn from(val: SearchModifier) -> Self {
+        Expr::SearchModifier(val)
+    }
+}
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
@@ -793,27 +828,25 @@ impl From<Alias> for FieldOrAlias {
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub enum Command {
-    AddTotals(AddTotals),
+    AddTotalsCommand(AddTotalsCommand),
     BinCommand(BinCommand),
     CollectCommand(CollectCommand),
     ConvertCommand(ConvertCommand),
     DedupCommand(DedupCommand),
     EvalCommand(EvalCommand),
     EventStatsCommand(EventStatsCommand),
-    FieldConversion(FieldConversion),
     FieldsCommand(FieldsCommand),
     FillNullCommand(FillNullCommand),
     FormatCommand(FormatCommand),
     HeadCommand(HeadCommand),
-    InputLookup(InputLookup),
+    InputLookupCommand(InputLookupCommand),
     JoinCommand(JoinCommand),
     LookupCommand(LookupCommand),
-    MakeResults(MakeResults),
+    MakeResultsCommand(MakeResultsCommand),
     MapCommand(MapCommand),
-    MultiSearch(MultiSearch),
+    MultiSearchCommand(MultiSearchCommand),
     MvCombineCommand(MvCombineCommand),
     MvExpandCommand(MvExpandCommand),
-    Pipeline(Pipeline),
     RegexCommand(RegexCommand),
     RenameCommand(RenameCommand),
     ReturnCommand(ReturnCommand),
@@ -824,166 +857,49 @@ pub enum Command {
     StreamStatsCommand(StreamStatsCommand),
     TableCommand(TableCommand),
     TopCommand(TopCommand),
+    TStatsCommand(TStatsCommand),
     WhereCommand(WhereCommand),
+    // Pipeline(Pipeline),
 }
 
-impl From<SearchCommand> for Command {
-    fn from(val: SearchCommand) -> Self {
-        Command::SearchCommand(val)
-    }
+macro_rules! trivial_enum_from_type {
+    ($cls:ident : $enum_tp:ident) => {
+        impl From<$cls> for $enum_tp {
+            fn from(val: $cls) -> Self {
+                $enum_tp::$cls(val)
+            }
+        }
+    };
 }
-impl From<EvalCommand> for Command {
-    fn from(val: EvalCommand) -> Self {
-        Command::EvalCommand(val)
-    }
-}
-impl From<FieldConversion> for Command {
-    fn from(val: FieldConversion) -> Self {
-        Command::FieldConversion(val)
-    }
-}
-impl From<ConvertCommand> for Command {
-    fn from(val: ConvertCommand) -> Self {
-        Command::ConvertCommand(val)
-    }
-}
-impl From<LookupCommand> for Command {
-    fn from(val: LookupCommand) -> Self {
-        Command::LookupCommand(val)
-    }
-}
-impl From<CollectCommand> for Command {
-    fn from(val: CollectCommand) -> Self {
-        Command::CollectCommand(val)
-    }
-}
-impl From<WhereCommand> for Command {
-    fn from(val: WhereCommand) -> Self {
-        Command::WhereCommand(val)
-    }
-}
-impl From<TableCommand> for Command {
-    fn from(val: TableCommand) -> Self {
-        Command::TableCommand(val)
-    }
-}
-impl From<TopCommand> for Command {
-    fn from(val: TopCommand) -> Self {
-        Command::TopCommand(val)
-    }
-}
-impl From<HeadCommand> for Command {
-    fn from(val: HeadCommand) -> Self {
-        Command::HeadCommand(val)
-    }
-}
-impl From<FieldsCommand> for Command {
-    fn from(val: FieldsCommand) -> Self {
-        Command::FieldsCommand(val)
-    }
-}
-impl From<SortCommand> for Command {
-    fn from(val: SortCommand) -> Self {
-        Command::SortCommand(val)
-    }
-}
-impl From<StatsCommand> for Command {
-    fn from(val: StatsCommand) -> Self {
-        Command::StatsCommand(val)
-    }
-}
-impl From<RexCommand> for Command {
-    fn from(val: RexCommand) -> Self {
-        Command::RexCommand(val)
-    }
-}
-impl From<RenameCommand> for Command {
-    fn from(val: RenameCommand) -> Self {
-        Command::RenameCommand(val)
-    }
-}
-impl From<RegexCommand> for Command {
-    fn from(val: RegexCommand) -> Self {
-        Command::RegexCommand(val)
-    }
-}
-impl From<JoinCommand> for Command {
-    fn from(val: JoinCommand) -> Self {
-        Command::JoinCommand(val)
-    }
-}
-impl From<ReturnCommand> for Command {
-    fn from(val: ReturnCommand) -> Self {
-        Command::ReturnCommand(val)
-    }
-}
-impl From<FillNullCommand> for Command {
-    fn from(val: FillNullCommand) -> Self {
-        Command::FillNullCommand(val)
-    }
-}
-impl From<EventStatsCommand> for Command {
-    fn from(val: EventStatsCommand) -> Self {
-        Command::EventStatsCommand(val)
-    }
-}
-impl From<StreamStatsCommand> for Command {
-    fn from(val: StreamStatsCommand) -> Self {
-        Command::StreamStatsCommand(val)
-    }
-}
-impl From<DedupCommand> for Command {
-    fn from(val: DedupCommand) -> Self {
-        Command::DedupCommand(val)
-    }
-}
-impl From<InputLookup> for Command {
-    fn from(val: InputLookup) -> Self {
-        Command::InputLookup(val)
-    }
-}
-impl From<FormatCommand> for Command {
-    fn from(val: FormatCommand) -> Self {
-        Command::FormatCommand(val)
-    }
-}
-impl From<MvCombineCommand> for Command {
-    fn from(val: MvCombineCommand) -> Self {
-        Command::MvCombineCommand(val)
-    }
-}
-impl From<MvExpandCommand> for Command {
-    fn from(val: MvExpandCommand) -> Self {
-        Command::MvExpandCommand(val)
-    }
-}
-impl From<MakeResults> for Command {
-    fn from(val: MakeResults) -> Self {
-        Command::MakeResults(val)
-    }
-}
-impl From<AddTotals> for Command {
-    fn from(val: AddTotals) -> Self {
-        Command::AddTotals(val)
-    }
-}
-impl From<BinCommand> for Command {
-    fn from(val: BinCommand) -> Self {
-        Command::BinCommand(val)
-    }
-}
-impl From<MultiSearch> for Command {
-    fn from(val: MultiSearch) -> Self {
-        Command::MultiSearch(val)
-    }
-}
-impl From<MapCommand> for Command {
-    fn from(val: MapCommand) -> Self {
-        Command::MapCommand(val)
-    }
-}
-impl From<Pipeline> for Command {
-    fn from(val: Pipeline) -> Self {
-        Command::Pipeline(val)
-    }
-}
+
+trivial_enum_from_type!(AddTotalsCommand: Command);
+trivial_enum_from_type!(BinCommand: Command);
+trivial_enum_from_type!(CollectCommand: Command);
+trivial_enum_from_type!(ConvertCommand: Command);
+trivial_enum_from_type!(DedupCommand: Command);
+trivial_enum_from_type!(EvalCommand: Command);
+trivial_enum_from_type!(EventStatsCommand: Command);
+trivial_enum_from_type!(FieldsCommand: Command);
+trivial_enum_from_type!(FillNullCommand: Command);
+trivial_enum_from_type!(FormatCommand: Command);
+trivial_enum_from_type!(HeadCommand: Command);
+trivial_enum_from_type!(InputLookupCommand: Command);
+trivial_enum_from_type!(JoinCommand: Command);
+trivial_enum_from_type!(LookupCommand: Command);
+trivial_enum_from_type!(MakeResultsCommand: Command);
+trivial_enum_from_type!(MapCommand: Command);
+trivial_enum_from_type!(MultiSearchCommand: Command);
+trivial_enum_from_type!(MvCombineCommand: Command);
+trivial_enum_from_type!(MvExpandCommand: Command);
+trivial_enum_from_type!(RegexCommand: Command);
+trivial_enum_from_type!(RenameCommand: Command);
+trivial_enum_from_type!(ReturnCommand: Command);
+trivial_enum_from_type!(RexCommand: Command);
+trivial_enum_from_type!(SearchCommand: Command);
+trivial_enum_from_type!(SortCommand: Command);
+trivial_enum_from_type!(StatsCommand: Command);
+trivial_enum_from_type!(StreamStatsCommand: Command);
+trivial_enum_from_type!(TableCommand: Command);
+trivial_enum_from_type!(TopCommand: Command);
+trivial_enum_from_type!(TStatsCommand: Command);
+trivial_enum_from_type!(WhereCommand: Command);

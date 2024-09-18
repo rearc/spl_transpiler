@@ -22,7 +22,7 @@ use pyo3::prelude::*;
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
-pub struct AddTotals {
+pub struct AddTotalsCommand {
     #[pyo3(get)]
     pub fields: Vec<Field>,
     #[pyo3(get)]
@@ -36,7 +36,7 @@ pub struct AddTotals {
     #[pyo3(get)]
     pub label: String,
 }
-impl_pyclass!(AddTotals {
+impl_pyclass!(AddTotalsCommand {
     fields: Vec<Field>,
     row: bool,
     col: bool,
@@ -71,14 +71,14 @@ impl TryFrom<ParsedCommandOptions> for AddTotalsCommandOptions {
     }
 }
 
-impl SplCommand<AddTotals> for AddTotalsParser {
+impl SplCommand<AddTotalsCommand> for AddTotalsParser {
     type RootCommand = crate::commands::AddTotalsCommandRoot;
     type Options = AddTotalsCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, AddTotals> {
+    fn parse_body(input: &str) -> IResult<&str, AddTotalsCommand> {
         map(
             pair(Self::Options::match_options, many0(ws(field))),
-            |(options, fields)| AddTotals {
+            |(options, fields)| AddTotalsCommand {
                 fields,
                 row: options.row,
                 col: options.col,

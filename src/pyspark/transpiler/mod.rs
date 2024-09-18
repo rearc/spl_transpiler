@@ -15,8 +15,9 @@ pub trait PipelineTransformer {
 
 impl PipelineTransformer for ast::Command {
     fn transform(&self, state: PipelineTransformState) -> Result<PipelineTransformState> {
+        #[allow(unreachable_patterns)]
         match self {
-            ast::Command::AddTotals(command) => command.transform(state),
+            ast::Command::AddTotalsCommand(command) => command.transform(state),
             ast::Command::BinCommand(command) => command.transform(state),
             ast::Command::CollectCommand(command) => command.transform(state),
             ast::Command::ConvertCommand(command) => command.transform(state),
@@ -27,12 +28,12 @@ impl PipelineTransformer for ast::Command {
             ast::Command::FillNullCommand(command) => command.transform(state),
             ast::Command::FormatCommand(command) => command.transform(state),
             ast::Command::HeadCommand(command) => command.transform(state),
-            ast::Command::InputLookup(command) => command.transform(state),
+            ast::Command::InputLookupCommand(command) => command.transform(state),
             ast::Command::JoinCommand(command) => command.transform(state),
             ast::Command::LookupCommand(command) => command.transform(state),
-            ast::Command::MakeResults(command) => command.transform(state),
+            ast::Command::MakeResultsCommand(command) => command.transform(state),
             ast::Command::MapCommand(command) => command.transform(state),
-            ast::Command::MultiSearch(command) => command.transform(state),
+            ast::Command::MultiSearchCommand(command) => command.transform(state),
             ast::Command::MvCombineCommand(command) => command.transform(state),
             ast::Command::MvExpandCommand(command) => command.transform(state),
             ast::Command::RegexCommand(command) => command.transform(state),
@@ -45,6 +46,7 @@ impl PipelineTransformer for ast::Command {
             ast::Command::StreamStatsCommand(command) => command.transform(state),
             ast::Command::TableCommand(command) => command.transform(state),
             ast::Command::TopCommand(command) => command.transform(state),
+            ast::Command::TStatsCommand(command) => command.transform(state),
             ast::Command::WhereCommand(command) => command.transform(state),
             _ => Err(anyhow!("Unsupported command in pipeline: {:?}", self)),
         }

@@ -22,21 +22,37 @@ impl TryFrom<ast::Expr> for Expr {
                 left,
                 symbol,
                 right,
-            }) => match (*left, symbol.as_str(), *right) {
-                // src_ip = 10.0.0.0/16 -> F.expr("cidr_match('10.0.0.0/16', src_ip)",
+            }) => match (
+                *left,
+                SIMPLE_OP_MAP
+                    .get(symbol.as_str())
+                    .cloned()
+                    .unwrap_or(symbol.as_str()),
+                *right,
+            ) {
+                // src_ip = 10.0.0.0/16 -> F.expr("cidr_match('10.0.0.0/16', src_ip)")
                 (
                     ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(col)))),
-                    "=",
+                    "==",
                     ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::IPv4CIDR(
                         ast::IPv4CIDR(cidr),
                     ))),
-                ) => Ok(
-                    column_like!(expr([py_lit(format!("cidr_match('{}', {})", cidr, col))])).into(),
-                ),
+                ) => Ok(column_like!(expr("cidr_match('{}', {})", cidr, col)).into()),
+                // src_ip = "x*" -> F.like(F.col("src_ip"), "x%"),
+                (
+                    lhs,
+                    "==",
+                    ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Wildcard(
+                        ast::Wildcard(pattern),
+                    ))),
+                ) => {
+                    let lhs: Expr = lhs.try_into()?;
+                    Ok(column_like!([lhs].like([py_lit(pattern.replace("*", "%"))])).into())
+                }
                 // a [op] b -> a [op] b
                 (left, op, right) => Ok(ColumnLike::BinaryOp {
                     left: Box::new(left.try_into()?),
-                    op: SIMPLE_OP_MAP.get(op).cloned().unwrap_or(op).to_string(),
+                    op: op.to_string(),
                     right: Box::new(right.try_into()?),
                 }
                 .into()),

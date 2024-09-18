@@ -39,7 +39,7 @@ def test_convert_to_pyspark():
     ).strip()
 
     converted_code = render_pyspark(parse(spl_code))
-    direct_converted_code = convert_spl_to_pyspark(spl_code)
+    direct_converted_code = convert_spl_to_pyspark(spl_code, format=True)
 
     assert converted_code == expected_pyspark_code
     assert direct_converted_code == expected_pyspark_code

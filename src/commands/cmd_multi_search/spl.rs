@@ -14,11 +14,11 @@ pub fn multi_search(input: &str) -> IResult<&str, MultiSearch> {
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
-pub struct MultiSearch {
+pub struct MultiSearchCommand {
     #[pyo3(get)]
     pub pipelines: Vec<Pipeline>,
 }
-impl_pyclass!(MultiSearch {
+impl_pyclass!(MultiSearchCommand {
     pipelines: Vec<Pipeline>
 });
 
@@ -36,13 +36,13 @@ impl TryFrom<ParsedCommandOptions> for MultiSearchCommandOptions {
     }
 }
 
-impl SplCommand<MultiSearch> for MultiSearchParser {
+impl SplCommand<MultiSearchCommand> for MultiSearchParser {
     type RootCommand = crate::commands::MultiSearchCommandRoot;
     type Options = MultiSearchCommandOptions;
 
-    fn parse_body(input: &str) -> IResult<&str, MultiSearch> {
+    fn parse_body(input: &str) -> IResult<&str, MultiSearchCommand> {
         map(many_m_n(2, usize::MAX, ws(sub_search)), |pipelines| {
-            MultiSearch { pipelines }
+            MultiSearchCommand { pipelines }
         })(input)
     }
 }

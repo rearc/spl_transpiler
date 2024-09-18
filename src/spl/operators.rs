@@ -1,5 +1,7 @@
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
+use nom::character::complete::{multispace0, multispace1};
+use nom::sequence::delimited;
 use nom::IResult;
 
 pub trait OperatorSymbolTrait {
@@ -45,6 +47,10 @@ pub struct Concatenate;
 impl OperatorSymbolTrait for Concatenate {
     const SYMBOL: &'static str = ".";
     const PRECEDENCE: i32 = 5;
+
+    fn pattern(input: &str) -> IResult<&str, &str> {
+        delimited(multispace0, tag("."), multispace1)(input)
+    }
 }
 #[derive(Debug, PartialEq, Clone)]
 pub struct Add;

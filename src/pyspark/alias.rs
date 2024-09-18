@@ -69,7 +69,8 @@ impl ColumnLike {
 //         ColumnLike::Aliased {
 //             col: Box::new(self.unaliased()),
 //             name,
-//         }.into()
+//         }
+//         .into()
 //     }
 //
 //     pub fn maybe_with_alias(&self, name: Option<String>) -> Self {
@@ -79,6 +80,22 @@ impl ColumnLike {
 //         }
 //     }
 // }
+
+impl ast::Expr {
+    pub fn with_alias(&self, name: String) -> Self {
+        ast::Expr::Alias(ast::Alias {
+            expr: Box::new(self.clone()),
+            name,
+        })
+    }
+
+    pub fn maybe_with_alias(&self, name: Option<String>) -> Self {
+        match name {
+            Some(n) => self.with_alias(n),
+            None => self.clone(),
+        }
+    }
+}
 
 impl Aliasable for String {
     fn unaliased_with_name(&self) -> (Self, Option<String>) {

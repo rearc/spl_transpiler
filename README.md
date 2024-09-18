@@ -112,154 +112,157 @@ Support status can be one of the following:
   supported. _This library is still early in its development, and commands might get marked as `Complete` while still
   having unknown bugs or limitations._
 
-| Command            | Support | Target |
-|--------------------|---------|--------|
-| `abstract`         | None    |        |
-| `accum`            | None    |        |
-| `addcoltotals`     | None    |        |
-| `addinfo`          | None    |        |
-| `addtotals`        | Partial | Yes    |
-| `analyzefields`    | None    |        |
-| `anomalies`        | None    |        |
-| `anomalousvalue`   | None    |        |
-| `anomalydetection` | None    |        |
-| `append`           | None    |        |
-| `appendcols`       | None    |        |
-| `appendpipe`       | None    |        |
-| `arules`           | None    |        |
-| `associate`        | None    |        |
-| `autoregress`      | None    |        |
-| `bin` (`bucket`)   | Partial | Yes    |
-| `bucketdir`        | None    |        |
-| `chart`            | None    | Yes    |
-| `cluster`          | None    |        |
-| `cofilter`         | None    |        |
-| `collect`          | Parser  | Yes    |
-| `concurrency`      | None    |        |
-| `contingency`      | None    |        |
-| `convert`          | Partial | Yes    |
-| `correlate`        | None    |        |
-| `datamodel`        | None    |        |
-| `dbinspect`        | None    |        |
-| `dedup`            | Parser  | Yes    |
-| `delete`           | None    |        |
-| `delta`            | None    |        |
-| `diff`             | None    |        |
-| `erex`             | None    |        |
-| `eval`             | Partial | Yes    |
-| `eventcount`       | None    |        |
-| `eventstats`       | Partial | Yes    |
-| `extract` (`kv`)   | None    |        |
-| `fieldformat`      | None    |        |
-| `fields`           | Partial | Yes    |
-| `fieldsummary`     | None    |        |
-| `filldown`         | None    |        |
-| `fillnull`         | Parser  | Yes    |
-| `findtypes`        | None    |        |
-| `folderize`        | None    |        |
-| `foreach`          | None    |        |
-| `format`           | Parser  | Yes    |
-| `from`             | None    |        |
-| `gauge`            | None    |        |
-| `gentimes`         | None    |        |
-| `geom`             | None    |        |
-| `geomfilter`       | None    |        |
-| `geostats`         | None    |        |
-| `head`             | Partial | Yes    |
-| `highlight`        | None    |        |
-| `history`          | None    |        |
-| `iconify`          | None    |        |
-| `inputcsv`         | None    |        |
-| `inputlookup`      | Parser  | Yes    |
-| `iplocation`       | None    |        |
-| `join`             | Parser  | Yes    |
-| `kmeans`           | None    |        |
-| `kvform`           | None    |        |
-| `loadjob`          | None    |        |
-| `localize`         | None    |        |
-| `localop`          | None    |        |
-| `lookup`           | Parser  | Yes    |
-| `makecontinuous`   | None    |        |
-| `makemv`           | None    |        |
-| `makeresults`      | Parser  | Yes    |
-| `map`              | Parser  | Yes    |
-| `mcollect`         | None    |        |
-| `metadata`         | None    |        |
-| `metasearch`       | None    |        |
-| `meventcollect`    | None    |        |
-| `mpreview`         | None    |        |
-| `msearch`          | None    |        |
-| `mstats`           | None    | Yes    |
-| `multikv`          | None    |        |
-| `multisearch`      | Partial | Yes    |
-| `mvcombine`        | Parser  |        |
-| `mvexpand`         | Parser  | Yes    |
-| `nomv`             | None    |        |
-| `outlier`          | None    |        |
-| `outputcsv`        | None    |        |
-| `outputlookup`     | None    |        |
-| `outputtext`       | None    |        |
-| `overlap`          | None    |        |
-| `pivot`            | None    |        |
-| `predict`          | None    |        |
-| `rangemap`         | None    |        |
-| `rare`             | None    | Yes    |
-| `redistribute`     | None    |        |
-| `regex`            | Partial | Yes    |
-| `reltime`          | None    |        |
-| `rename`           | Partial | Yes    |
-| `replace`          | None    |        |
-| `require`          | None    |        |
-| `rest`             | None    |        |
-| `return`           | Parser  | Yes    |
-| `reverse`          | None    |        |
-| `rex`              | Partial | Yes    |
-| `rtorder`          | None    |        |
-| `savedsearch`      | None    |        |
-| `script` (`run`)   | None    |        |
-| `scrub`            | None    |        |
-| `search`           | Partial | Yes    |
-| `searchtxn`        | None    |        |
-| `selfjoin`         | None    |        |
-| `sendalert`        | None    |        |
-| `sendemail`        | None    |        |
-| `set`              | None    |        |
-| `setfields`        | None    |        |
-| `sichart`          | None    |        |
-| `sirare`           | None    |        |
-| `sistats`          | None    |        |
-| `sitimechart`      | None    |        |
-| `sitop`            | None    |        |
-| `sort`             | Partial | Yes    |
-| `spath`            | None    |        |
-| `stats`            | Partial | Yes    |
-| `strcat`           | None    |        |
-| `streamstats`      | Parser  | Yes    |
-| `table`            | Partial | Yes    |
-| `tags`             | None    |        |
-| `tail`             | None    | Yes    |
-| `timechart`        | None    |        |
-| `timewrap`         | None    |        |
-| `tojson`           | None    |        |
-| `top`              | Partial | Yes    |
-| `transaction`      | None    | Yes    |
-| `transpose`        | None    |        |
-| `trendline`        | None    |        |
-| `tscollect`        | None    |        |
-| `tstats`           | None    |        |
-| `typeahead`        | None    |        |
-| `typelearner`      | None    |        |
-| `typer`            | None    |        |
-| `union`            | None    |        |
-| `uniq`             | None    |        |
-| `untable`          | None    |        |
-| `walklex`          | None    |        |
-| `where`            | Partial | Yes    |
-| `x11`              | None    |        |
-| `xmlkv`            | None    |        |
-| `xmlunescape`      | None    |        |
-| `xpath`            | None    |        |
-| `xyseries`         | None    |        |
+| Command               | Support |
+|-----------------------|---------|
+| **High Priority**     |         |
+| `bin` (`bucket`)      | Partial |
+| `convert`             | Partial |
+| `dedup`               | Parser  |
+| `eval`                | Partial |
+| `eventstats`          | Partial |
+| `fields`              | Partial |
+| `fillnull`            | Parser  |
+| `head`                | Partial |
+| `inputlookup`         | Parser  |
+| `iplocation`          | None    |
+| `join`                | Parser  |
+| `lookup`              | Parser  |
+| `mstats`              | None    |
+| `multisearch`         | Partial |
+| `mvexpand`            | Parser  |
+| `outputlookup`        | None    |
+| `rare`                | None    |
+| `regex`               | Partial |
+| `rename`              | Partial |
+| `rex`                 | Partial |
+| `search`              | Partial |
+| `sort`                | Partial |
+| `spath`               | None    |
+| `stats`               | Partial |
+| `streamstats`         | Parser  |
+| `table`               | Partial |
+| `tail`                | None    |
+| `top`                 | Partial |
+| `tstats`              | Partial |
+| `where`               | Partial |
+| **Planned/Supported** |         |
+| `addtotals`           | Partial |
+| `anomalydetection`    | None    |
+| `append`              | None    |
+| `appendpipe`          | None    |
+| `chart`               | None    |
+| `collect`             | Parser  |
+| `extract` (`kv`)      | None    |
+| `foreach`             | None    |
+| `format`              | Parser  |
+| `from`                | None    |
+| `makecontinuous`      | None    |
+| `makemv`              | None    |
+| `makeresults`         | Parser  |
+| `map`                 | Parser  |
+| `multikv`             | None    |
+| `replace`             | None    |
+| `return`              | Parser  |
+| `transaction`         | None    |
+| `xmlkv`               | None    |
+| **Unsupported**       |         |
+| `abstract`            | None    |
+| `accum`               | None    |
+| `addcoltotals`        | None    |
+| `addinfo`             | None    |
+| `analyzefields`       | None    |
+| `anomalies`           | None    |
+| `anomalousvalue`      | None    |
+| `appendcols`          | None    |
+| `arules`              | None    |
+| `associate`           | None    |
+| `autoregress`         | None    |
+| `bucketdir`           | None    |
+| `cluster`             | None    |
+| `cofilter`            | None    |
+| `concurrency`         | None    |
+| `contingency`         | None    |
+| `correlate`           | None    |
+| `datamodel`           | None    |
+| `dbinspect`           | None    |
+| `delete`              | None    |
+| `delta`               | None    |
+| `diff`                | None    |
+| `erex`                | None    |
+| `eventcount`          | None    |
+| `fieldformat`         | None    |
+| `fieldsummary`        | None    |
+| `filldown`            | None    |
+| `findtypes`           | None    |
+| `folderize`           | None    |
+| `gauge`               | None    |
+| `gentimes`            | None    |
+| `geom`                | None    |
+| `geomfilter`          | None    |
+| `geostats`            | None    |
+| `highlight`           | None    |
+| `history`             | None    |
+| `iconify`             | None    |
+| `inputcsv`            | None    |
+| `kmeans`              | None    |
+| `kvform`              | None    |
+| `loadjob`             | None    |
+| `localize`            | None    |
+| `localop`             | None    |
+| `mcollect`            | None    |
+| `metadata`            | None    |
+| `metasearch`          | None    |
+| `meventcollect`       | None    |
+| `mpreview`            | None    |
+| `msearch`             | None    |
+| `mvcombine`           | Parser  |
+| `nomv`                | None    |
+| `outlier`             | None    |
+| `outputcsv`           | None    |
+| `outputtext`          | None    |
+| `overlap`             | None    |
+| `pivot`               | None    |
+| `predict`             | None    |
+| `rangemap`            | None    |
+| `redistribute`        | None    |
+| `reltime`             | None    |
+| `require`             | None    |
+| `rest`                | None    |
+| `reverse`             | None    |
+| `rtorder`             | None    |
+| `savedsearch`         | None    |
+| `script` (`run`)      | None    |
+| `scrub`               | None    |
+| `searchtxn`           | None    |
+| `selfjoin`            | None    |
+| `sendalert`           | None    |
+| `sendemail`           | None    |
+| `set`                 | None    |
+| `setfields`           | None    |
+| `sichart`             | None    |
+| `sirare`              | None    |
+| `sistats`             | None    |
+| `sitimechart`         | None    |
+| `sitop`               | None    |
+| `strcat`              | None    |
+| `tags`                | None    |
+| `timechart`           | None    |
+| `timewrap`            | None    |
+| `tojson`              | None    |
+| `transpose`           | None    |
+| `trendline`           | None    |
+| `tscollect`           | None    |
+| `typeahead`           | None    |
+| `typelearner`         | None    |
+| `typer`               | None    |
+| `union`               | None    |
+| `uniq`                | None    |
+| `untable`             | None    |
+| `walklex`             | None    |
+| `x11`                 | None    |
+| `xmlunescape`         | None    |
+| `xpath`               | None    |
+| `xyseries`            | None    |
 
 ## Functions
 
@@ -419,3 +422,13 @@ However, there is no goal at this time to support all Splunk functions.
 
 \* Pyspark output depends on custom UDFs instead of native Spark functions. Some of these may be provided by this
 package, some may be provided by Databricks Sirens.
+
+# Prioritized TODO list
+
+- [x] Support macro syntax (separate pre-processing function?)
+- [ ] Incorporate [standard macros that come with CIM](https://docs.splunk.com/Documentation/CIM/5.3.2/User/UsetheCIMFiltersmacrostoexcludedata)
+- [ ] Support custom Python UDFs (in `spl_transpiler` for now)
+- [ ] Use sample queries to create prioritized list of remaining commands
+- [ ] Support re-using intermediate results (saving off as tables or variables, `.cache()`)
+- [ ] Support Scala UDFs
+- [ ] Support SQL output
