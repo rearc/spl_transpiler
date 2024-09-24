@@ -1,11 +1,10 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Expr, ParsedCommandOptions};
-use crate::spl::parser::{expr, int, ws};
+use crate::spl::parser::{comma_separated_list1, expr, int, ws};
 use crate::spl::python::impl_pyclass;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
-use nom::multi::separated_list1;
 use nom::sequence::{pair, preceded, tuple};
 use nom::IResult;
 use pyo3::prelude::*;
@@ -66,10 +65,10 @@ impl SplCommand<SortCommand> for SortParser {
         map(
             tuple((
                 opt(preceded(opt(ws(tag_no_case("limit="))), ws(int))),
-                separated_list1(
-                    ws(tag(",")),
-                    pair(opt(map(alt((tag("+"), tag("-"))), String::from)), expr),
-                ),
+                comma_separated_list1(pair(
+                    opt(map(alt((tag("+"), tag("-"))), String::from)),
+                    expr,
+                )),
                 opt(ws(tag_no_case("desc"))),
             )),
             |(count, fields_to_sort, desc)| SortCommand {

@@ -67,3 +67,37 @@ impl SplCommand<EventStatsCommand> for EventStatsParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+    use crate::spl::parser::command;
+    use crate::spl::utils::test::*;
+
+    //
+    //   test("eventstats min(n) by gender") {
+    //     p(command(_), EventStatsCommand(
+    //       allNum = false,
+    //       funcs = Seq(
+    //         Call("min", Seq(Field("n")))
+    //       ),
+    //       by = Seq(Field("gender"))
+    //     ))
+    //   }
+    #[test]
+    fn test_command_eventstats_1() {
+        assert_eq!(
+            command(r#"eventstats min(n) by gender"#),
+            Ok((
+                "",
+                EventStatsCommand {
+                    all_num: false,
+                    funcs: vec![_call!(min(ast::Field::from("n"))).into()],
+                    by: vec![ast::Field::from("gender")],
+                }
+                .into()
+            ))
+        )
+    }
+}

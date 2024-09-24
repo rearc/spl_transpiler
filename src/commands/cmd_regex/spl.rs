@@ -58,3 +58,69 @@ impl SplCommand<RegexCommand> for RegexParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+
+    //
+    //   test("regex _raw=\"(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)\"") {
+    //     p(_regex(_), RegexCommand(
+    //       Some((Field("_raw"), "=")),
+    //       "(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)"))
+    //   }
+    #[test]
+    fn test_regex_1() {
+        assert_eq!(
+            RegexParser::parse(r#"regex _raw="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
+            Ok((
+                "",
+                RegexCommand {
+                    item: Some((ast::Field::from("_raw"), "=".into())),
+                    regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
+                }
+            ))
+        )
+    }
+
+    //
+    //   test("regex _raw!=\"(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)\"") {
+    //     p(_regex(_), RegexCommand(
+    //       Some((Field("_raw"), "!=")),
+    //       "(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)"))
+    //   }
+    #[test]
+    fn test_regex_2() {
+        assert_eq!(
+            RegexParser::parse(r#"regex _raw!="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
+            Ok((
+                "",
+                RegexCommand {
+                    item: Some((ast::Field::from("_raw"), "!=".into())),
+                    regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
+                }
+            ))
+        )
+    }
+
+    //
+    //   test("regex \"(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)\"") {
+    //     p(_regex(_), RegexCommand(
+    //       None,
+    //       "(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)"))
+    //   }
+    #[test]
+    fn test_regex_3() {
+        assert_eq!(
+            RegexParser::parse(r#"regex "(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
+            Ok((
+                "",
+                RegexCommand {
+                    item: None,
+                    regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
+                }
+            ))
+        )
+    }
+}

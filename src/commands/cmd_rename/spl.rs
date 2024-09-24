@@ -1,10 +1,8 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Alias, ParsedCommandOptions};
-use crate::spl::parser::{aliased_field, ws};
+use crate::spl::parser::{aliased_field, comma_separated_list1};
 use crate::spl::python::impl_pyclass;
-use nom::bytes::complete::tag;
 use nom::combinator::map;
-use nom::multi::separated_list1;
 use nom::IResult;
 use pyo3::prelude::*;
 //
@@ -40,8 +38,124 @@ impl SplCommand<RenameCommand> for RenameParser {
     type Options = RenameCommandOptions;
 
     fn parse_body(input: &str) -> IResult<&str, RenameCommand> {
-        map(separated_list1(ws(tag(",")), aliased_field), |alias| {
+        map(comma_separated_list1(aliased_field), |alias| {
             RenameCommand { alias }
         })(input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+    use crate::spl::utils::test::*;
+
+    //
+    //   test("rename _ip AS IPAddress") {
+    //     p(rename(_),
+    //       RenameCommand(
+    //         Seq(Alias(
+    //           Field("_ip"),
+    //           "IPAddress"
+    //         )))
+    //     )
+    //   }
+    #[test]
+    fn test_rename_1() {
+        assert_eq!(
+            RenameParser::parse(r#"rename _ip AS IPAddress"#),
+            Ok((
+                "",
+                RenameCommand {
+                    alias: vec![_alias("IPAddress", ast::Field::from("_ip"))],
+                }
+                .into()
+            ))
+        )
+    }
+
+    //
+    //   test("rename _ip AS IPAddress, _host AS host, _port AS port") {
+    //     p(rename(_),
+    //       RenameCommand(Seq(
+    //         Alias(
+    //           Field("_ip"),
+    //           "IPAddress"
+    //         ),
+    //         Alias(
+    //           Field("_host"),
+    //           "host"
+    //         ),
+    //         Alias(
+    //           Field("_port"),
+    //           "port"
+    //         )))
+    //     )
+    //   }
+    #[test]
+    fn test_rename_2() {
+        assert_eq!(
+            RenameParser::parse(r#"rename _ip AS IPAddress, _host AS host, _port AS port"#),
+            Ok((
+                "",
+                RenameCommand {
+                    alias: vec![
+                        _alias("IPAddress", ast::Field::from("_ip")),
+                        _alias("host", ast::Field::from("_host")),
+                        _alias("port", ast::Field::from("_port")),
+                    ],
+                }
+                .into()
+            ))
+        )
+    }
+
+    //
+    //   // Regex not taken into account
+    //   test("rename foo* AS bar*") {
+    //     p(rename(_),
+    //       RenameCommand(
+    //         Seq(Alias(
+    //           Field("foo*"),
+    //           "bar*"
+    //         )))
+    //     )
+    //   }
+    #[test]
+    fn test_rename_3() {
+        assert_eq!(
+            RenameParser::parse(r#"rename foo* AS bar*"#),
+            Ok((
+                "",
+                RenameCommand {
+                    alias: vec![_alias("bar*", ast::Field::from("foo*"))],
+                }
+                .into()
+            ))
+        )
+    }
+
+    //
+    //   test("rename count AS \"Count of Events\"") {
+    //     p(rename(_),
+    //       RenameCommand(
+    //         Seq(Alias(
+    //           Field("count"),
+    //           "Count of Events"
+    //         )))
+    //     )
+    //   }
+    #[test]
+    fn test_rename_4() {
+        assert_eq!(
+            RenameParser::parse(r#"rename count AS "Count of Events""#),
+            Ok((
+                "",
+                RenameCommand {
+                    alias: vec![_alias("Count of Events", ast::Field::from("count"))],
+                }
+                .into()
+            ))
+        )
     }
 }

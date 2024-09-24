@@ -19,3 +19,19 @@ impl PipelineTransformer for SPathCommand {
         Ok(PipelineTransformState { df })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::pyspark::utils::test::generates;
+
+    #[test]
+    fn test_spath_1() {
+        generates(
+            r#"spath input=x output=y key.subkey"#,
+            r#"spark.table("main").withColumn(
+                "y",
+                F.get_json_object(F.col("x"), "$.key.subkey")
+            )"#,
+        );
+    }
+}

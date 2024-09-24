@@ -190,11 +190,41 @@ impl TryInto<ColumnLike> for Expr {
     }
 }
 
+#[derive(Debug, PartialEq, Clone, Hash)]
+pub enum ColumnOrName {
+    Column(ColumnLike),
+    Name(String),
+}
+
+impl From<String> for ColumnOrName {
+    fn from(val: String) -> Self {
+        ColumnOrName::Name(val)
+    }
+}
+
+impl From<ColumnLike> for ColumnOrName {
+    fn from(val: ColumnLike) -> Self {
+        ColumnOrName::Column(val)
+    }
+}
+
+impl TemplateNode for ColumnOrName {
+    fn to_spark_query(&self) -> Result<String> {
+        match self {
+            ColumnOrName::Column(col) => col.to_spark_query(),
+            ColumnOrName::Name(name) => Ok(format!("\"{}\"", name)),
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone, Hash)]
 pub enum DataFrame {
     Source {
         name: String,
+    },
+    RawSource {
+        code: String,
     },
     Named {
         source: Box<DataFrame>,
@@ -210,7 +240,7 @@ pub enum DataFrame {
     },
     GroupBy {
         source: Box<DataFrame>,
-        columns: Vec<String>,
+        columns: Vec<ColumnOrName>,
     },
     Aggregation {
         source: Box<DataFrame>,
@@ -261,6 +291,11 @@ impl DataFrame {
             name: name.to_string(),
         }
     }
+    pub fn raw_source(code: impl ToString) -> DataFrame {
+        DataFrame::RawSource {
+            code: code.to_string(),
+        }
+    }
     pub fn named(&self, name: impl ToString) -> DataFrame {
         DataFrame::Named {
             source: Box::new(self.clone()),
@@ -279,10 +314,10 @@ impl DataFrame {
             condition: condition.into().unaliased(),
         }
     }
-    pub fn group_by(&self, columns: Vec<String>) -> DataFrame {
+    pub fn group_by(&self, columns: Vec<impl Into<ColumnOrName>>) -> DataFrame {
         Self::GroupBy {
             source: Box::new(self.clone()),
-            columns,
+            columns: columns.into_iter().map(Into::into).collect(),
         }
     }
     pub fn agg(&self, columns: Vec<ColumnLike>) -> DataFrame {
@@ -358,6 +393,7 @@ impl TemplateNode for DataFrame {
     fn to_spark_query(&self) -> Result<String> {
         match self {
             DataFrame::Source { name } => Ok(format!("spark.table('{}')", name)),
+            DataFrame::RawSource { code } => Ok(code.clone()),
             DataFrame::Named { source, name } => Ok(format!(
                 "{}.write.saveAsTable('{}')\n\n{}",
                 source.to_spark_query()?,
@@ -380,11 +416,14 @@ impl TemplateNode for DataFrame {
             )),
             DataFrame::GroupBy { source, columns } => {
                 // Extra trailing comma is intentional
-                let columns: Vec<String> = columns.iter().map(|s| format!(r#"'{}',"#, s)).collect();
+                let columns: Result<Vec<String>> = columns
+                    .iter()
+                    .map(|s| s.to_spark_query().map(|s| format!("{}, ", s)))
+                    .collect();
                 Ok(format!(
                     "{}.groupBy([{}])",
                     source.to_spark_query()?,
-                    columns.join(" ")
+                    columns?.join("")
                 ))
             }
             DataFrame::Aggregation { source, columns } => {

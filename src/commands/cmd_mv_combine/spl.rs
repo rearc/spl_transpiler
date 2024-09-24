@@ -58,3 +58,51 @@ impl SplCommand<MvCombineCommand> for MvCombineParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+
+    //
+    //   test("mvcombine host") {
+    //     p(mvcombine(_), MvCombineCommand(
+    //       None,
+    //       Field("host")
+    //     ))
+    //   }
+    #[test]
+    fn test_mvcombine_1() {
+        assert_eq!(
+            MvCombineParser::parse(r#"mvcombine host"#),
+            Ok((
+                "",
+                MvCombineCommand {
+                    delim: None,
+                    field: ast::Field::from("host"),
+                }
+            ))
+        )
+    }
+
+    //
+    //   test("mvcombine delim=\",\" host") {
+    //     p(mvcombine(_), MvCombineCommand(
+    //       Some(","),
+    //       Field("host")
+    //     ))
+    //   }
+    #[test]
+    fn test_mvcombine_2() {
+        assert_eq!(
+            MvCombineParser::parse(r#"mvcombine delim="," host"#),
+            Ok((
+                "",
+                MvCombineCommand {
+                    delim: Some(",".into()),
+                    field: ast::Field::from("host"),
+                }
+            ))
+        )
+    }
+}

@@ -88,3 +88,82 @@ impl SplCommand<RexCommand> for RexParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+    use crate::spl::parser::pipeline;
+
+    //
+    //   test("rex field=savedsearch_id max_match=10 " +
+    //     "\"(?<user>\\w+);(?<app>\\w+);(?<SavedSearchName>\\w+)\"") {
+    //     p(pipeline(_), Pipeline(Seq(
+    //       RexCommand(
+    //         Some("savedsearch_id"),
+    //         10,
+    //         None,
+    //         None,
+    //         "(?<user>\\w+);(?<app>\\w+);(?<SavedSearchName>\\w+)"
+    //       )
+    //     )))
+    //   }
+    #[test]
+    fn test_pipeline_rex_1() {
+        assert_eq!(double_quoted(r#""\d""#), Ok(("", r#"\d"#)));
+        assert_eq!(
+            double_quoted(r#""(?<user>\w+);(?<app>\w+);(?<SavedSearchName>\w+)""#),
+            Ok(("", r#"(?<user>\w+);(?<app>\w+);(?<SavedSearchName>\w+)"#))
+        );
+        assert_eq!(
+            pipeline(
+                r#"rex field=savedsearch_id max_match=10 "(?<user>\w+);(?<app>\w+);(?<SavedSearchName>\w+)""#
+            ),
+            Ok((
+                "",
+                ast::Pipeline {
+                    commands: vec![RexCommand {
+                        field: "savedsearch_id".to_string(),
+                        max_match: 10,
+                        offset_field: None,
+                        mode: None,
+                        regex: "(?<user>\\w+);(?<app>\\w+);(?<SavedSearchName>\\w+)".to_string()
+                    }
+                    .into()],
+                }
+            ))
+        )
+    }
+
+    //
+    //   test("rex mode=sed \"s/(\\d{4}-){3}/XXXX-XXXX-XXXX-/g\"") {
+    //     p(pipeline(_), Pipeline(Seq(
+    //       RexCommand(
+    //         None,
+    //         1,
+    //         None,
+    //         Some("sed"),
+    //         "s/(\\d{4}-){3}/XXXX-XXXX-XXXX-/g"
+    //       )
+    //     )))
+    //   }
+    #[test]
+    fn test_pipeline_rex_2() {
+        assert_eq!(
+            pipeline(r#"rex mode=sed "s/(\d{4}-){3}/XXXX-XXXX-XXXX-/g""#),
+            Ok((
+                "",
+                ast::Pipeline {
+                    commands: vec![RexCommand {
+                        field: "_raw".to_string(),
+                        max_match: 1,
+                        offset_field: None,
+                        mode: Some("sed".to_string()),
+                        regex: "s/(\\d{4}-){3}/XXXX-XXXX-XXXX-/g".to_string()
+                    }
+                    .into()],
+                }
+            ))
+        )
+    }
+}

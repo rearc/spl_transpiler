@@ -32,10 +32,10 @@ fn _resolve_expr(e: ast::Expr) -> Result<ColumnLike> {
             Ok(column_like!(col(name)))
         }
         ast::Expr::Call(ast::Call { name, .. }) => match name.as_str() {
-            "auto" => unimplemented!(),
-            "ip" => unimplemented!(),
-            "num" => unimplemented!(),
-            "str" => unimplemented!(),
+            "auto" => bail!("UNIMPLEMENTED"),
+            "ip" => bail!("UNIMPLEMENTED"),
+            "num" => bail!("UNIMPLEMENTED"),
+            "str" => bail!("UNIMPLEMENTED"),
             _ => bail!("Unsupported sort function: {}", name),
         },
         _ => bail!("Unsupported sort expression: {:?}", e),

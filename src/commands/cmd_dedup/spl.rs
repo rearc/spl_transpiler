@@ -131,3 +131,97 @@ impl SplCommand<DedupCommand> for DedupParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    //
+    //   test("dedup 10 keepevents=true keepempty=false consecutive=true host ip port") {
+    //     p(dedup(_), DedupCommand(
+    //       10,
+    //       Seq(
+    //         Field("host"),
+    //         Field("ip"),
+    //         Field("port")
+    //       ),
+    //       keepEvents = true,
+    //       keepEmpty = false,
+    //       consecutive = true,
+    //       SortCommand(Seq((Some("+"), Field("_no"))))
+    //     ))
+    //   }
+    #[test]
+    fn test_dedup_1() {
+        assert_eq!(
+            DedupParser::parse(
+                r#"dedup 10 keepevents=true keepempty=false consecutive=true host ip port"#
+            ),
+            Ok((
+                "",
+                DedupCommand {
+                    num_results: 10,
+                    fields: vec![
+                        ast::Field::from("host"),
+                        ast::Field::from("ip"),
+                        ast::Field::from("port"),
+                    ],
+                    keep_events: true,
+                    keep_empty: false,
+                    consecutive: true,
+                    sort_by: SortCommand::new_simple(vec![(
+                        Some("+".into()),
+                        ast::Field::from("_no").into()
+                    )]),
+                }
+                .into()
+            ))
+        )
+    }
+
+    //
+    //   test("dedup 10 keepevents=true host ip port sortby +host -ip") {
+    //     p(dedup(_), DedupCommand(
+    //       10,
+    //       Seq(
+    //         Field("host"),
+    //         Field("ip"),
+    //         Field("port")
+    //       ),
+    //       keepEvents = true,
+    //       keepEmpty = false,
+    //       consecutive = false,
+    //       SortCommand(
+    //         Seq(
+    //           (Some("+"), Field("host")),
+    //           (Some("-"), Field("ip"))
+    //         )
+    //       )
+    //     ))
+    //   }
+    #[test]
+    fn test_dedup_2() {
+        assert_eq!(
+            DedupParser::parse(r#"dedup 10 keepevents=true host ip port sortby +host -ip"#),
+            Ok((
+                "",
+                DedupCommand {
+                    num_results: 10,
+                    fields: vec![
+                        ast::Field::from("host"),
+                        ast::Field::from("ip"),
+                        ast::Field::from("port"),
+                    ],
+                    keep_events: true,
+                    keep_empty: false,
+                    consecutive: false,
+                    sort_by: SortCommand::new_simple(vec![
+                        (Some("+".into()), ast::Field::from("host").into()),
+                        (Some("-".into()), ast::Field::from("ip").into()),
+                    ]),
+                }
+                .into()
+            ))
+        )
+    }
+}

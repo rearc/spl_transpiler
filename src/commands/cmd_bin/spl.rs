@@ -95,3 +95,49 @@ impl SplCommand<BinCommand> for BinParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::parser::command;
+    use crate::spl::utils::test::*;
+
+    //
+    //   test("bin span=30m minspan=5m bins=20 start=0 end=20 aligntime=latest foo AS bar") {
+    //     p(command(_), BinCommand(
+    //       Alias(Field("foo"), "bar"),
+    //       Some(TimeSpan(30, "minutes")),
+    //       Some(TimeSpan(5, "minutes")),
+    //       Some(20),
+    //       Some(0),
+    //       Some(20),
+    //       Some("latest")))
+    //   }
+    #[test]
+    fn test_command_bin_1() {
+        assert_eq!(
+            command(
+                r#"bin span=30m minspan=5m bins=20 start=0 end=20 aligntime=latest foo AS bar"#
+            ),
+            Ok((
+                "",
+                BinCommand {
+                    field: _alias("bar", ast::Field::from("foo")).into(),
+                    span: Some(ast::TimeSpan {
+                        value: 30,
+                        scale: "minutes".into()
+                    }),
+                    min_span: Some(ast::TimeSpan {
+                        value: 5,
+                        scale: "minutes".into()
+                    }),
+                    bins: Some(20),
+                    start: Some(0),
+                    end: Some(20),
+                    align_time: Some("latest".into()),
+                }
+                .into()
+            ))
+        )
+    }
+}

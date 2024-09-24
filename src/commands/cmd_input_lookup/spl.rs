@@ -84,3 +84,73 @@ impl SplCommand<InputLookupCommand> for InputLookupParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+    use crate::spl::utils::test::*;
+
+    //
+    //   test("inputlookup append=t strict=f myTable where test_id=11") {
+    //     p(inputLookup(_), InputLookup(
+    //       append = true,
+    //       strict = false,
+    //       start = 0,
+    //       max = 1000000000,
+    //       "myTable",
+    //       Some(
+    //         Binary(
+    //           Field("test_id"),
+    //           Equals,
+    //           IntValue(11)
+    //         )
+    //     )))
+    //   }
+    #[test]
+    fn test_input_lookup_1() {
+        assert_eq!(
+            InputLookupParser::parse(r#"inputlookup append=t strict=f myTable where test_id=11"#),
+            Ok((
+                "",
+                InputLookupCommand {
+                    append: true,
+                    strict: false,
+                    start: 0,
+                    max: 1000000000,
+                    table_name: "myTable".into(),
+                    where_expr: Some(_eq(ast::Field::from("test_id"), ast::IntValue(11),)),
+                }
+            ))
+        )
+    }
+
+    //
+    //   test("inputlookup myTable") {
+    //     p(inputLookup(_), InputLookup(
+    //       append = false,
+    //       strict = false,
+    //       start = 0,
+    //       max = 1000000000,
+    //       "myTable",
+    //       None
+    //     ))
+    //   }
+    #[test]
+    fn test_input_lookup_2() {
+        assert_eq!(
+            InputLookupParser::parse(r#"inputlookup myTable"#),
+            Ok((
+                "",
+                InputLookupCommand {
+                    append: false,
+                    strict: false,
+                    start: 0,
+                    max: 1000000000,
+                    table_name: "myTable".into(),
+                    where_expr: None,
+                }
+            ))
+        )
+    }
+}

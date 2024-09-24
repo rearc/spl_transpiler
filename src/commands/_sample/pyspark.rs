@@ -9,7 +9,7 @@ impl PipelineTransformer for SAMPLECommand {
     fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
 
-        unimplemented!();
+        bail!("UNIMPLEMENTED");
 
         Ok(PipelineTransformState { df })
     }

@@ -38,10 +38,10 @@ use crate::spl::{ast, operators, operators::OperatorSymbol};
 use log::error;
 use nom::bytes::complete::{tag_no_case, take_while, take_while1};
 use nom::character::complete::{alphanumeric1, anychar, multispace0, multispace1, one_of};
-use nom::combinator::{all_consuming, into, map_parser, verify};
+use nom::combinator::{all_consuming, eof, into, map_parser, peek, verify};
 use nom::error::ParseError;
 use nom::multi::{many0, separated_list0, separated_list1};
-use nom::sequence::{delimited, preceded, separated_pair};
+use nom::sequence::{delimited, preceded, separated_pair, terminated};
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -51,7 +51,9 @@ use nom::{
     sequence::{pair, tuple},
     IResult, Parser,
 };
+use paste::paste;
 use std::fmt::Debug;
+use std::net::Ipv6Addr;
 
 // https://github.com/rust-bakery/nom/blob/main/doc/nom_recipes.md#wrapper-combinators-that-eat-whitespace-before-and-after-a-parser
 pub fn ws<'a, O, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, O, E>
@@ -81,6 +83,33 @@ where
         |res| res.unwrap(), // This is safe at this point since we checked is_ok
     )
 }
+
+macro_rules! make_specialized_separated_list {
+    ($name:ident, $separator:expr) => { paste! {
+        #[allow(dead_code)]
+        pub fn [<$name 1>]<'a, O, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, Vec<O>, E>
+        where
+            F: Parser<&'a str, O, E>,
+        {
+            separated_list1($separator, inner)
+        }
+
+        #[allow(dead_code)]
+        pub fn [<$name 0>]<'a, O, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, Vec<O>, E>
+        where
+            F: Parser<&'a str, O, E>,
+        {
+            separated_list0($separator, inner)
+        }
+    }};
+}
+
+make_specialized_separated_list!(comma_separated_list, ws(tag(",")));
+make_specialized_separated_list!(space_separated_list, multispace1);
+make_specialized_separated_list!(
+    comma_or_space_separated_list,
+    alt((ws(tag(",")), multispace1))
+);
 
 macro_rules! unit_normalizer_alt_list {
     ($name: literal) => { tag_no_case($name) };
@@ -180,18 +209,21 @@ pub fn relative_time(input: &str) -> IResult<&str, ast::SnapTime> {
 
 //   def token[_: P]: P[String] = ("_"|"*"|letter|digit).repX(1).!
 pub fn token(input: &str) -> IResult<&str, &str> {
-    recognize(many1(alt((tag("_"), tag("*"), alphanumeric1))))(input)
+    recognize(many1(alt((recognize(one_of("_*:/-")), alphanumeric1))))(input)
 }
 
 // Boolean parser
 pub fn bool_(input: &str) -> IResult<&str, ast::BoolValue> {
     map(
-        alt((
-            map(tag("true"), |_| true),
-            map(tag("t"), |_| true),
-            map(tag("false"), |_| false),
-            map(tag("f"), |_| false),
-        )),
+        terminated(
+            alt((
+                map(tag_no_case("true"), |_| true),
+                map(tag_no_case("t"), |_| true),
+                map(tag_no_case("false"), |_| false),
+                map(tag_no_case("f"), |_| false),
+            )),
+            peek(alt((eof, multispace1, recognize(one_of("().:"))))),
+        ),
         ast::BoolValue::from,
     )(input)
 }
@@ -252,7 +284,7 @@ pub fn field(input: &str) -> IResult<&str, ast::Field> {
 pub fn string(input: &str) -> IResult<&str, &str> {
     alt((
         double_quoted,
-        recognize(many1(alt((token, recognize(one_of(".")))))),
+        recognize(many1(alt((token, tag("."), tag(":"))))),
     ))(input)
 }
 
@@ -270,20 +302,33 @@ pub fn byte(input: &str) -> IResult<&str, &str> {
 }
 
 //   def cidr[_: P]: P[IPv4CIDR] = (byte.rep(sep = ".", exactly = 4) ~ "/" ~ byte).! map IPv4CIDR
-pub fn cidr(input: &str) -> IResult<&str, ast::IPv4CIDR> {
+pub fn ipv4_addr(input: &str) -> IResult<&str, &str> {
+    recognize(tuple((
+        byte,
+        tag("."),
+        byte,
+        tag("."),
+        byte,
+        tag("."),
+        byte,
+    )))(input)
+}
+
+pub fn ipv4_cidr(input: &str) -> IResult<&str, ast::IPv4CIDR> {
     map(
-        recognize(tuple((
-            byte,
-            tag("."),
-            byte,
-            tag("."),
-            byte,
-            tag("."),
-            byte,
-            ws(tag("/")),
-            byte,
-        ))),
+        recognize(separated_pair(ipv4_addr, ws(tag("/")), byte)),
         |v: &str| ast::IPv4CIDR(v.into()),
+    )(input)
+}
+
+pub fn ipv6_addr(input: &str) -> IResult<&str, &str> {
+    verify(
+        recognize(separated_list1(
+            tag(":"),
+            opt(unwrapped(map(digit1, str::parse::<u16>))),
+        )),
+        // Check that Rust's built-in IPv6 parser recognizes it
+        |v: &str| v.parse::<Ipv6Addr>().is_ok(),
     )(input)
 }
 
@@ -331,7 +376,9 @@ pub fn double(input: &str) -> IResult<&str, ast::DoubleValue> {
 //       relativeTime | timeSpan | double | int | field | bool
 pub fn literal(input: &str) -> IResult<&str, ast::Constant> {
     alt((
-        map(cidr, ast::Constant::IPv4CIDR),
+        map(ipv4_cidr, ast::Constant::IPv4CIDR),
+        map(ipv4_addr, |s| ast::Constant::Str(s.into())),
+        map(ipv6_addr, |s| ast::Constant::Str(s.into())),
         map(wildcard, ast::Constant::Wildcard),
         map(str_value, ast::Constant::Str),
         map(variable, ast::Constant::Variable),
@@ -348,7 +395,9 @@ pub fn literal(input: &str) -> IResult<&str, ast::Constant> {
 
 pub fn constant(input: &str) -> IResult<&str, ast::Constant> {
     alt((
-        map(cidr, ast::Constant::IPv4CIDR),
+        map(ipv4_cidr, ast::Constant::IPv4CIDR),
+        map(ipv4_addr, |s| ast::Constant::Str(s.into())),
+        map(ipv6_addr, |s| ast::Constant::Str(s.into())),
         map(wildcard, ast::Constant::Wildcard),
         map(str_value, ast::Constant::Str),
         map(variable, ast::Constant::Variable),
@@ -425,7 +474,7 @@ pub fn command_options(input: &str) -> IResult<&str, ast::CommandOptions> {
 
 //   def fieldList[_: P]: P[Seq[Field]] = field.rep(sep = ",")
 pub fn field_list(input: &str) -> IResult<&str, Vec<ast::Field>> {
-    separated_list0(tag(","), ws(field))(input)
+    comma_separated_list0(field).parse(input)
 }
 
 #[allow(dead_code)]
@@ -584,11 +633,7 @@ pub fn field_in(input: &str) -> IResult<&str, ast::FieldIn> {
         separated_pair(
             field,
             ws(tag_no_case("IN")),
-            delimited(
-                ws(tag("(")),
-                separated_list0(ws(tag(",")), constant),
-                ws(tag(")")),
-            ),
+            delimited(ws(tag("(")), comma_separated_list0(constant), ws(tag(")"))),
         ),
         |(field, constants)| ast::FieldIn {
             field: field.0,
@@ -605,7 +650,7 @@ pub fn call(input: &str) -> IResult<&str, ast::Call> {
     map(
         pair(
             token,
-            delimited(tag("("), separated_list0(ws(tag(",")), expr), tag(")")),
+            delimited(tag("("), comma_separated_list0(expr), tag(")")),
         ),
         |(token, exprs)| ast::Call {
             name: token.into(),
@@ -658,7 +703,7 @@ pub fn primary(input: &str) -> IResult<&str, ast::Expr> {
                 })
             },
         ),
-        map(field_in, ast::Expr::FieldIn),
+        into(field_in),
         parens,
         argu,
     ))(input)
@@ -687,26 +732,6 @@ pub fn aliased_field(input: &str) -> IResult<&str, ast::Alias> {
         },
     )(input)
 }
-//   def fieldRep[_: P]: P[Seq[FieldLike]] = (aliasedField | field).filter {
-//     case Alias(Field(field), _) => field.toLowerCase() != "output"
-//     case Field(v) => v.toLowerCase(Locale.ROOT) != "output"
-//     case _ => false
-//   }.rep(1)
-pub fn field_rep(input: &str) -> IResult<&str, Vec<ast::FieldLike>> {
-    separated_list1(
-        multispace1,
-        alt((
-            map(
-                verify(aliased_field, |v| v.name.to_ascii_lowercase() != "output"),
-                ast::FieldLike::Alias,
-            ),
-            map(
-                verify(field, |v| v.0.to_ascii_lowercase() != "output"),
-                ast::FieldLike::Field,
-            ),
-        )),
-    )(input)
-}
 
 //   def aliasedCall[_: P]: P[Alias] = call ~ W("as") ~ token map Alias.tupled
 pub fn aliased_call(input: &str) -> IResult<&str, ast::Alias> {
@@ -722,23 +747,21 @@ pub fn aliased_call(input: &str) -> IResult<&str, ast::Alias> {
 //   def statsCall[_: P]: P[Seq[Expr with Product with Serializable]] = (aliasedCall | call |
 //     token.filter(!_.toLowerCase(Locale.ROOT).equals("by")).map(Call(_))).rep(1, ",".?)
 pub fn stats_call(input: &str) -> IResult<&str, Vec<ast::Expr>> {
-    separated_list1(
-        alt((ws(tag(",")), multispace1)),
-        alt((
-            map(aliased_call, |v| v.into()),
-            map(call, |v| v.into()),
-            map(
-                verify(token, |v: &str| v.to_ascii_lowercase() != "by"),
-                |v| {
-                    ast::Call {
-                        name: v.into(),
-                        args: vec![],
-                    }
-                    .into()
-                },
-            ),
-        )),
-    )(input)
+    comma_or_space_separated_list1(alt((
+        map(aliased_call, |v| v.into()),
+        map(call, |v| v.into()),
+        map(
+            verify(token, |v: &str| v.to_ascii_lowercase() != "by"),
+            |v| {
+                ast::Call {
+                    name: v.into(),
+                    args: vec![],
+                }
+                .into()
+            },
+        ),
+    )))
+    .parse(input)
 }
 
 //
@@ -860,22 +883,31 @@ pub fn combine_all_expressions(exprs: Vec<ast::Expr>, symbol: impl ToString) -> 
 
 // <logical-expression> | <time-opts> | <search-modifier> | NOT <logical-expression> | <index-expression> | <comparison-expression> | <logical-expression> [OR] <logical-expression>
 pub fn logical_expression(input: &str) -> IResult<&str, ast::Expr> {
-    map(
-        separated_list1(
-            delimited(multispace1, tag_no_case("OR"), multispace1),
-            logical_expression_term,
+    alt((
+        map(
+            separated_list1(ws(tag_no_case("OR")), logical_expression_term),
+            |exprs| combine_all_expressions(exprs, operators::Or::SYMBOL).unwrap(),
         ),
-        |exprs| combine_all_expressions(exprs, operators::Or::SYMBOL).unwrap(),
-    )(input)
+        map(
+            separated_list1(ws(tag_no_case("AND")), logical_expression_term),
+            |exprs| combine_all_expressions(exprs, operators::And::SYMBOL).unwrap(),
+        ),
+    ))(input)
 }
 
 pub fn logical_expression_term(input: &str) -> IResult<&str, ast::Expr> {
     error!("logical_expression: {}", input);
     alt((
         delimited(ws(tag("(")), logical_expression, ws(tag(")"))),
-        preceded(
-            pair(tag_no_case("NOT"), multispace1),
-            logical_expression_term,
+        map(
+            preceded(ws(tag_no_case("NOT ")), logical_expression_term),
+            |expr| {
+                ast::Unary {
+                    symbol: operators::UnaryNot::SYMBOL.into(),
+                    right: Box::new(expr),
+                }
+                .into()
+            },
         ),
         map(time_opts, |opts| {
             combine_all_expressions(opts, operators::Or::SYMBOL).unwrap()
@@ -990,7 +1022,7 @@ pub fn search_modifier(input: &str) -> IResult<&str, ast::Expr> {
 pub fn time_opts(input: &str) -> IResult<&str, Vec<ast::Expr>> {
     error!("time_opts: {}", input);
     map(
-        pair(time_format, separated_list1(multispace1, time_modifier)),
+        pair(time_format, space_separated_list1(time_modifier)),
         |(fmt, mods)| {
             mods.into_iter()
                 .map(|time_mod| ast::Expr::TimeModifier(fmt.into(), time_mod))
@@ -1033,134 +1065,12 @@ pub fn time_modifier(input: &str) -> IResult<&str, ast::TimeModifier> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::cmd_add_totals::spl::AddTotalsCommand;
-    use crate::commands::cmd_bin::spl::BinCommand;
     use crate::commands::cmd_collect::spl::CollectCommand;
-    use crate::commands::cmd_convert::spl::{ConvertCommand, ConvertParser, FieldConversion};
-    use crate::commands::cmd_dedup::spl::{DedupCommand, DedupParser};
     use crate::commands::cmd_eval::spl::{EvalCommand, EvalParser};
-    use crate::commands::cmd_event_stats::spl::EventStatsCommand;
     use crate::commands::cmd_fields::spl::{FieldsCommand, FieldsParser};
-    use crate::commands::cmd_fill_null::spl::{FillNullCommand, FillNullParser};
-    use crate::commands::cmd_format::spl::{FormatCommand, FormatParser};
-    use crate::commands::cmd_head::spl::{HeadCommand, HeadParser};
-    use crate::commands::cmd_input_lookup::spl::{InputLookupCommand, InputLookupParser};
-    use crate::commands::cmd_join::spl::{JoinCommand, JoinParser};
-    use crate::commands::cmd_lookup::spl::{LookupCommand, LookupOutput, LookupParser};
-    use crate::commands::cmd_make_results::spl::MakeResultsCommand;
-    use crate::commands::cmd_map::spl::{MapCommand, MapParser};
-    use crate::commands::cmd_mv_combine::spl::{MvCombineCommand, MvCombineParser};
-    use crate::commands::cmd_regex::spl::{RegexCommand, RegexParser};
-    use crate::commands::cmd_rename::spl::{RenameCommand, RenameParser};
-    use crate::commands::cmd_return::spl::{ReturnCommand, ReturnParser};
-    use crate::commands::cmd_rex::spl::RexCommand;
-    use crate::commands::cmd_s_path::spl::SPathCommand;
-    use crate::commands::cmd_search::spl::{SearchCommand, SearchParser};
+    use crate::commands::cmd_search::spl::SearchCommand;
     use crate::commands::cmd_sort::spl::{SortCommand, SortParser};
-    use crate::commands::cmd_stats::spl::StatsCommand;
-    use crate::commands::cmd_t_stats::spl::TStatsCommand;
-    use crate::commands::cmd_table::spl::TableCommand;
-    use crate::commands::cmd_where::spl::WhereCommand;
-
-    fn _field_equals(field: &str, value: ast::Constant) -> ast::Expr {
-        ast::Expr::Binary(ast::Binary {
-            left: Box::new(ast::Expr::Leaf(ast::LeafExpr::Constant(
-                ast::Constant::Field(ast::Field(field.into())),
-            ))),
-            symbol: operators::Equals::SYMBOL.into(),
-            right: Box::new(ast::Expr::Leaf(ast::LeafExpr::Constant(value))),
-        })
-    }
-
-    fn _binop<Op: OperatorSymbolTrait>(
-        left: impl Into<ast::Expr>,
-        right: impl Into<ast::Expr>,
-    ) -> ast::Expr {
-        ast::Expr::Binary(ast::Binary {
-            left: Box::new(left.into()),
-            symbol: Op::SYMBOL.into(),
-            right: Box::new(right.into()),
-        })
-    }
-
-    fn _or(left: impl Into<ast::Expr>, right: impl Into<ast::Expr>) -> ast::Expr {
-        _binop::<operators::Or>(left, right)
-    }
-
-    fn _and(left: impl Into<ast::Expr>, right: impl Into<ast::Expr>) -> ast::Expr {
-        _binop::<operators::And>(left, right)
-    }
-
-    fn _eq(left: impl Into<ast::Expr>, right: impl Into<ast::Expr>) -> ast::Expr {
-        _binop::<operators::Equals>(left, right)
-    }
-
-    fn _neq(left: impl Into<ast::Expr>, right: impl Into<ast::Expr>) -> ast::Expr {
-        _binop::<operators::NotEquals>(left, right)
-    }
-    fn _lt(left: impl Into<ast::Expr>, right: impl Into<ast::Expr>) -> ast::Expr {
-        _binop::<operators::LessThan>(left, right)
-    }
-    fn _gt(left: impl Into<ast::Expr>, right: impl Into<ast::Expr>) -> ast::Expr {
-        _binop::<operators::GreaterThan>(left, right)
-    }
-    fn _gte(left: impl Into<ast::Expr>, right: impl Into<ast::Expr>) -> ast::Expr {
-        _binop::<operators::GreaterEquals>(left, right)
-    }
-    fn _lte(left: impl Into<ast::Expr>, right: impl Into<ast::Expr>) -> ast::Expr {
-        _binop::<operators::LessEquals>(left, right)
-    }
-    fn _not(right: impl Into<ast::Expr>) -> ast::Expr {
-        ast::Unary {
-            symbol: operators::UnaryNot::SYMBOL.into(),
-            right: Box::new(right.into()),
-        }
-        .into()
-    }
-
-    fn _alias(name: impl ToString, expr: impl Into<ast::Expr>) -> ast::Alias {
-        ast::Alias {
-            name: name.to_string(),
-            expr: Box::new(expr.into()),
-        }
-    }
-
-    // fn _call(name: impl ToString, args: Vec<ast::Expr>) -> ast::Call {
-    //     ast::Call {
-    //         name: name.to_string(),
-    //         args,
-    //     }
-    // }
-    // macro_rules! unit_normalizer_alt_list {
-    //     ($name: literal) => { tag_no_case($name) };
-    //     ($($remaining: literal),+) => {
-    //         ($( unit_normalizer_alt_list!($remaining) ),+)
-    //     }
-    // }
-
-    macro_rules! _call_args {
-        // () => {};
-        ($arg: expr) => {
-            $arg.into()
-        }; // ($arg: expr, $($rest: expr),+) => {
-           //
-           // };
-    }
-
-    macro_rules! _call {
-        ($func: ident ()) => {
-            ast::Call {
-                name: stringify!($func).to_string(),
-                args: vec![],
-            }
-        };
-        ($func: ident ($($args: expr),*)) => {
-            ast::Call {
-                name: stringify!($func).to_string(),
-                args: vec![$( _call_args!($args) ),*],
-            }
-        };
-    }
+    use crate::spl::utils::test::*;
 
     #[test]
     fn test_time_span() {
@@ -1311,37 +1221,6 @@ mod tests {
                             value: ast::Constant::Field(ast::Field("baz".into()))
                         }
                     ]
-                }
-            ))
-        );
-    }
-
-    //   test("search index=dummy host=$host_var$") {
-    //     p(search(_), SearchCommand(
-    //       Binary(
-    //         Binary(
-    //           Field("index"),
-    //           Equals,
-    //           Field("dummy")
-    //         ),
-    //         And,
-    //         Binary(
-    //           Field("host"),
-    //           Equals,
-    //           Variable("host_var")
-    //         )
-    //       )]
-    #[test]
-    fn test_search() {
-        assert_eq!(
-            SearchParser::parse("search index=dummy host=$host_var$"),
-            Ok((
-                "",
-                SearchCommand {
-                    expr: _and(
-                        _eq(ast::Field::from("index"), ast::Field::from("dummy")),
-                        _eq(ast::Field::from("host"), ast::Variable::from("host_var"))
-                    )
                 }
             ))
         );
@@ -1822,335 +1701,9 @@ mod tests {
         )
     }
 
-    //   test("a=b b=c (c=f OR d=t)") {
-    //     p(impliedSearch(_), SearchCommand(Binary(
-    //       Binary(
-    //         Binary(
-    //           Field("a"),
-    //           Equals,
-    //           Field("b")
-    //         ),
-    //         And,
-    //         Binary(
-    //           Field("b"),
-    //           Equals,
-    //           Field("c")
-    //         )
-    //       ),
-    //       And,
-    //       Binary(
-    //         Binary(
-    //           Field("c"),
-    //           Equals,
-    //           Bool(false)
-    //         ),
-    //         Or,
-    //         Binary(
-    //           Field("d"),
-    //           Equals,
-    //           Bool(true)
-    //         )
-    //       )
-    //     )))
-    //   }
-    #[test]
-    fn test_implied_search_1() {
-        assert_eq!(
-            SearchParser::parse("a=b b=c (c=f OR d=t)"),
-            Ok((
-                "",
-                SearchCommand {
-                    expr: _and(
-                        _and(
-                            _field_equals("a", ast::Field("b".to_string()).into()),
-                            _field_equals("b", ast::Field("c".to_string()).into())
-                        ),
-                        _or(
-                            _field_equals("c", ast::BoolValue(false).into()),
-                            _field_equals("d", ast::BoolValue(true).into())
-                        )
-                    )
-                }
-            ))
-        )
-    }
-
-    //   test("code IN(4*, 5*)") {
-    //     p(impliedSearch(_), SearchCommand(
-    //       FieldIn("code", Seq(
-    //         Wildcard("4*"),
-    //         Wildcard("5*")
-    //       ))))
-    //   }
-    #[test]
-    fn test_implied_search_in_1() {
-        assert_eq!(
-            SearchParser::parse("code IN(4*, 5*)"),
-            Ok((
-                "",
-                SearchCommand {
-                    expr: ast::FieldIn {
-                        field: "code".into(),
-                        exprs: vec![
-                            ast::Wildcard("4*".to_string()).into(),
-                            ast::Wildcard("5*".to_string()).into(),
-                        ],
-                    }
-                    .into()
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("var_5 IN (str_2 str_3)") {
-    //     p(impliedSearch(_), SearchCommand(
-    //       FieldIn("var_5", Seq(
-    //         Field("str_2"),
-    //         Field("str_3")
-    //       ))))
-    //   }
-    #[test]
-    fn test_implied_search_in_2() {
-        assert_eq!(
-            field_in("var_5 IN (str_2, str_3)"),
-            Ok((
-                "",
-                ast::FieldIn {
-                    field: "var_5".into(),
-                    exprs: vec![
-                        ast::Field("str_2".to_string()).into(),
-                        ast::Field("str_3".to_string()).into(),
-                    ],
-                }
-            ))
-        );
-        assert_eq!(
-            SearchParser::parse("var_5 IN (str_2, str_3)"),
-            Ok((
-                "",
-                SearchCommand {
-                    expr: ast::FieldIn {
-                        field: "var_5".into(),
-                        exprs: vec![
-                            ast::Field("str_2".to_string()).into(),
-                            ast::Field("str_3".to_string()).into(),
-                        ],
-                    }
-                    .into()
-                }
-            ))
-        );
-    }
-
-    //
-    //   test("NOT code IN(4*, 5*)") {
-    //     p(impliedSearch(_), SearchCommand(
-    //       Unary(UnaryNot,
-    //         FieldIn("code", Seq(
-    //           Wildcard("4*"),
-    //           Wildcard("5*"))))
-    //     ))
-    //   }
     #[test]
     fn test_not() {
         assert_eq!(expr("NOT x"), Ok(("", _not(ast::Field::from("x")))));
-    }
-
-    #[test]
-    fn test_implied_search_not_in_1() {
-        assert_eq!(
-            SearchParser::parse("NOT code IN(4*, 5*)"),
-            Ok((
-                "",
-                SearchCommand {
-                    expr: _not(ast::FieldIn {
-                        field: "code".into(),
-                        exprs: vec![
-                            ast::Wildcard("4*".to_string()).into(),
-                            ast::Wildcard("5*".to_string()).into(),
-                        ],
-                    }),
-                }
-            ))
-        );
-    }
-
-    //
-    //   test("code IN(10, 29, 43) host!=\"localhost\" xqp>5") {
-    //     p(impliedSearch(_), SearchCommand(
-    //       Binary(
-    //         Binary(
-    //           FieldIn("code", Seq(
-    //             IntValue(10),
-    //             IntValue(29),
-    //             IntValue(43))),
-    //           And,
-    //           Binary(
-    //             Field("host"),
-    //             NotEquals,
-    //             StrValue("localhost")
-    //           )
-    //         ),
-    //         And,
-    //         Binary(
-    //           Field("xqp"),
-    //           GreaterThan,
-    //           IntValue(5)
-    //         )
-    //       )
-    //     ))
-    //   }
-    #[test]
-    fn test_implied_search_complex_1() {
-        assert_eq!(
-            SearchParser::parse("code IN(10, 29, 43) host!=\"localhost\" xqp>5"),
-            Ok((
-                "",
-                SearchCommand {
-                    expr: _and(
-                        _and(
-                            ast::FieldIn {
-                                field: "code".into(),
-                                exprs: vec![
-                                    ast::IntValue(10).into(),
-                                    ast::IntValue(29).into(),
-                                    ast::IntValue(43).into(),
-                                ],
-                            },
-                            _neq(
-                                ast::Field("host".to_string()),
-                                ast::StrValue("localhost".to_string()),
-                            )
-                        ),
-                        _gt(ast::Field("xqp".to_string()), ast::IntValue(5),)
-                    )
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("head 20") {
-    //     p(head(_),
-    //       HeadCommand(
-    //         IntValue(20),
-    //         Bool(false),
-    //         Bool(false)
-    //       )
-    //     )
-    //   }
-    #[test]
-    fn test_head_limit_1() {
-        assert_eq!(
-            HeadParser::parse("head 20"),
-            Ok((
-                "",
-                HeadCommand {
-                    eval_expr: ast::IntValue(20).into(),
-                    keep_last: ast::BoolValue(false),
-                    null_option: ast::BoolValue(false),
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("head limit=400") {
-    //     p(head(_),
-    //       HeadCommand(
-    //         IntValue(400),
-    //         Bool(false),
-    //         Bool(false))
-    //     )
-    //   }
-    #[test]
-    fn test_head_limit_2() {
-        assert_eq!(
-            HeadParser::parse("head limit=400"),
-            Ok((
-                "",
-                HeadCommand {
-                    eval_expr: ast::IntValue(400).into(),
-                    keep_last: ast::BoolValue(false),
-                    null_option: ast::BoolValue(false),
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("head limit=400 keeplast=true null=false") {
-    //     p(head(_),
-    //       HeadCommand(
-    //         IntValue(400),
-    //         Bool(true),
-    //         Bool(false)
-    //       )
-    //     )
-    //   }
-    #[test]
-    fn test_head_limit_3() {
-        assert_eq!(
-            HeadParser::parse("head limit=400 keeplast=true null=false"),
-            Ok((
-                "",
-                HeadCommand {
-                    eval_expr: ast::IntValue(400).into(),
-                    keep_last: ast::BoolValue(true),
-                    null_option: ast::BoolValue(false),
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("head count>10") {
-    //     p(head(_),
-    //       HeadCommand(
-    //         Binary(
-    //           Field("count"),
-    //           GreaterThan,
-    //           IntValue(10)
-    //         ),
-    //         Bool(false),
-    //         Bool(false)
-    //       )
-    //     )
-    //   }
-    #[test]
-    fn test_head_count_greater_than_10() {
-        assert_eq!(
-            HeadParser::parse("head count>10"),
-            Ok((
-                "",
-                HeadCommand {
-                    eval_expr: _gt(ast::Field("count".to_string()), ast::IntValue(10),),
-                    keep_last: ast::BoolValue(false),
-                    null_option: ast::BoolValue(false),
-                }
-                .into()
-            ))
-        )
-    }
-
-    #[test]
-    fn test_head_count_greater_than_10_keeplast() {
-        assert_eq!(
-            HeadParser::parse("head count>=10 keeplast=true"),
-            Ok((
-                "",
-                HeadCommand {
-                    eval_expr: _gte(ast::Field("count".to_string()), ast::IntValue(10),),
-                    keep_last: ast::BoolValue(true),
-                    null_option: ast::BoolValue(false),
-                }
-                .into()
-            ))
-        )
     }
 
     //
@@ -2366,210 +1919,6 @@ mod tests {
     }
 
     //
-    //   test("eval mitre_category=\"Discovery\"") {
-    //     p(eval(_), EvalCommand(Seq(
-    //       (Field("mitre_category"), StrValue("Discovery"))
-    //     )))
-    //   }
-    #[test]
-    fn test_eval_1() {
-        assert_eq!(
-            EvalParser::parse("eval mitre_category=\"Discovery\""),
-            Ok((
-                "",
-                EvalCommand {
-                    fields: vec![(
-                        ast::Field::from("mitre_category"),
-                        ast::StrValue::from("Discovery").into()
-                    ),],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("eval email_lower=lower(email)") {
-    //     p(eval(_), EvalCommand(Seq(
-    //       (Field("email_lower"), Call("lower", Seq(Field("email"))))
-    //     )))
-    //   }
-    #[test]
-    fn test_eval_2() {
-        assert_eq!(
-            EvalParser::parse("eval email_lower=lower(email)"),
-            Ok((
-                "",
-                EvalCommand {
-                    fields: vec![(
-                        ast::Field::from("email_lower"),
-                        _call!(lower(ast::Field::from("email"))).into(),
-                    ),],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("eval replaced=replace(email, \"@.+\", \"\")") {
-    //     p(eval(_), EvalCommand(Seq(
-    //       (Field("replaced"),
-    //         Call("replace", Seq(Field("email"), StrValue("@.+"), StrValue(""))))
-    //     )))
-    //   }
-    #[test]
-    fn test_eval_3_args() {
-        assert_eq!(
-            call("replace(email, \"@.+\", \"\")"),
-            Ok((
-                "",
-                _call!(replace(
-                    ast::Field::from("email"),
-                    ast::StrValue::from("@.+"),
-                    ast::StrValue::from("")
-                ))
-            ))
-        );
-        assert_eq!(
-            expr("replace(email, \"@.+\", \"\")"),
-            Ok((
-                "",
-                _call!(replace(
-                    ast::Field::from("email"),
-                    ast::StrValue::from("@.+"),
-                    ast::StrValue::from("")
-                ))
-                .into()
-            ))
-        );
-    }
-
-    #[test]
-    fn test_eval_3() {
-        assert_eq!(
-            EvalParser::parse("eval replaced=replace(email, \"@.+\", \"\")"),
-            Ok((
-                "",
-                EvalCommand {
-                    fields: vec![(
-                        ast::Field::from("replaced"),
-                        _call!(replace(
-                            ast::Field::from("email"),
-                            ast::StrValue::from("@.+"),
-                            ast::StrValue::from("")
-                        ))
-                        .into()
-                    ),],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("eval hash_sha256= lower(hash_sha256), b=c") {
-    //     p(eval(_), EvalCommand(Seq(
-    //       (Field("hash_sha256"), Call("lower", Seq(Field("hash_sha256")))),
-    //       (Field("b"), Field("c"))
-    //     )))
-    //   }
-    #[test]
-    fn test_eval_4() {
-        assert_eq!(
-            EvalParser::parse("eval hash_sha256= lower(hash_sha256), b=c"),
-            Ok((
-                "",
-                EvalCommand {
-                    fields: vec![
-                        (
-                            ast::Field::from("hash_sha256"),
-                            _call!(lower(ast::Field::from("hash_sha256"))).into(),
-                        ),
-                        (ast::Field::from("b"), ast::Field::from("c").into()),
-                    ],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("convert ctime(indextime)") {
-    //     p(convert(_), ConvertCommand(convs = Seq(
-    //       FieldConversion("ctime", Field("indextime"), None)
-    //     )))
-    //   }
-    #[test]
-    fn test_convert_1() {
-        assert_eq!(
-            ConvertParser::parse("convert ctime(indextime)"),
-            Ok((
-                "",
-                ConvertCommand {
-                    timeformat: "%m/%d/%Y %H:%M:%S".to_string(),
-                    convs: vec![FieldConversion {
-                        func: "ctime".into(),
-                        field: ast::Field::from("indextime"),
-                        alias: None,
-                    },],
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("collect index=threathunting addtime=f x, y,  z") {
-    //     p(pipeline(_), Pipeline(Seq(
-    //       CollectCommand(
-    //         index = "threathunting",
-    //         fields = Seq(
-    //           Field("x"),
-    //           Field("y"),
-    //           Field("z")
-    //         ),
-    //         addTime = false,
-    //         file = null,
-    //         host = null,
-    //         marker = null,
-    //         outputFormat = "raw",
-    //         runInPreview = false,
-    //         spool = true,
-    //         source = null,
-    //         sourceType = null,
-    //         testMode = false
-    //       )
-    //     )))
-    //   }
-    #[test]
-    fn test_pipeline_collect_3() {
-        assert_eq!(
-            pipeline("collect index=threathunting addtime=f x, y,  z"),
-            Ok((
-                "",
-                ast::Pipeline {
-                    commands: vec![CollectCommand {
-                        index: "threathunting".to_string(),
-                        fields: vec![
-                            ast::Field("x".into()),
-                            ast::Field("y".into()),
-                            ast::Field("z".into()),
-                        ],
-                        add_time: false,
-                        file: None,
-                        host: None,
-                        marker: None,
-                        output_format: "raw".to_string(),
-                        run_in_preview: false,
-                        spool: true,
-                        source: None,
-                        source_type: None,
-                        test_mode: false,
-                    }
-                    .into()],
-                }
-            ))
-        )
-    }
-
-    //
     //   test("index=foo bar=baz | eval foo=bar | collect index=newer") {
     //     p(pipeline(_), Pipeline(Seq(
     //       SearchCommand(
@@ -2646,133 +1995,6 @@ mod tests {
         )
     }
 
-    //
-    //   test("lookup process_create_whitelist a b output reason") {
-    //     p(pipeline(_), Pipeline(Seq(
-    //       LookupCommand(
-    //         "process_create_whitelist",
-    //         Seq(
-    //           Field("a"),
-    //           Field("b")
-    //         ),
-    //         Some(
-    //           LookupOutput(
-    //             "output",
-    //             Seq(
-    //               Field("reason")
-    //             )
-    //           )
-    //         )
-    //       )
-    //     )))
-    //   }
-    #[test]
-    fn test_pipeline_lookup_5() {
-        let _lookup_cmd = LookupCommand {
-            dataset: "process_create_whitelist".to_string(),
-            fields: vec![ast::Field::from("a").into(), ast::Field::from("b").into()],
-            output: Some(LookupOutput {
-                kv: "output".to_string(),
-                fields: vec![ast::Field::from("reason").into()],
-            }),
-        };
-        assert_eq!(
-            LookupParser::parse("lookup process_create_whitelist a b output reason"),
-            Ok(("", _lookup_cmd.clone()))
-        );
-        assert_eq!(
-            pipeline("lookup process_create_whitelist a b output reason"),
-            Ok((
-                "",
-                ast::Pipeline {
-                    commands: vec![_lookup_cmd.clone().into()],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("where isnull(reason)") {
-    //     p(pipeline(_), Pipeline(Seq(
-    //       WhereCommand(
-    //         Call(
-    //           "isnull",Seq(
-    //             Field("reason")
-    //           )
-    //         )
-    //       )
-    //     )))
-    //   }
-    #[test]
-    fn test_pipeline_where_6() {
-        assert_eq!(
-            pipeline("where isnull(reason)"),
-            Ok((
-                "",
-                ast::Pipeline {
-                    commands: vec![WhereCommand {
-                        expr: _call!(isnull(ast::Field::from("reason"))).into()
-                    }
-                    .into()],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("table foo bar baz*") {
-    //     p(pipeline(_), Pipeline(Seq(
-    //       TableCommand(Seq(
-    //         Field("foo"),
-    //         Field("bar"),
-    //         Field("baz*")
-    //       ))
-    //     )))
-    //   }
-    #[test]
-    fn test_pipeline_table_7() {
-        assert_eq!(
-            pipeline("table foo bar baz*"),
-            Ok((
-                "",
-                ast::Pipeline {
-                    commands: vec![TableCommand {
-                        fields: vec![
-                            ast::Field::from("foo"),
-                            ast::Field::from("bar"),
-                            ast::Field::from("baz*")
-                        ]
-                    }
-                    .into()],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("stats first(startTime) AS startTime, last(histID) AS lastPassHistId BY testCaseId") {
-    //     p(pipeline(_), Pipeline(Seq(
-    //       StatsCommand(
-    //         partitions = 1,
-    //         allNum = false,
-    //         delim = " ",
-    //         funcs = Seq(
-    //           Alias(
-    //             Call("first", Seq(
-    //               Field("startTime")
-    //             )),
-    //             "startTime"),
-    //           Alias(
-    //             Call("last", Seq(
-    //               Field("histID")
-    //             )),
-    //             "lastPassHistId")
-    //         ),
-    //         by = Seq(
-    //           Field("testCaseId")
-    //         ))
-    //     )))
-    //   }
     #[test]
     fn test_aliased_call() {
         assert_eq!(
@@ -2794,1261 +2016,6 @@ mod tests {
                     _alias("startTime", _call!(first(ast::Field::from("startTime")))).into(),
                     _alias("lastPassHistId", _call!(last(ast::Field::from("histID")))).into(),
                 ]
-            ))
-        )
-    }
-
-    #[test]
-    fn test_pipeline_stats_8() {
-        assert_eq!(
-            pipeline(
-                "stats first(startTime) AS startTime, last(histID) AS lastPassHistId BY testCaseId"
-            ),
-            Ok((
-                "",
-                ast::Pipeline {
-                    commands: vec![StatsCommand {
-                        partitions: 1,
-                        all_num: false,
-                        delim: " ".to_string(),
-                        funcs: vec![
-                            _alias("startTime", _call!(first(ast::Field::from("startTime"))))
-                                .into(),
-                            _alias("lastPassHistId", _call!(last(ast::Field::from("histID"))))
-                                .into(),
-                        ],
-                        by: vec![ast::Field::from("testCaseId")],
-                        dedup_split_vals: false
-                    }
-                    .into()],
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("stats count(eval(status=404))") {
-    //     p(pipeline(_), Pipeline(Seq(
-    //       StatsCommand(
-    //         partitions = 1,
-    //         allNum = false,
-    //         delim = " ",
-    //         funcs = Seq(
-    //           Call("count", Seq(
-    //             Call("eval", Seq(
-    //               Binary(
-    //                 Field("status"),
-    //                 Equals,
-    //                 IntValue(404)
-    //               )
-    //             ))
-    //           ))
-    //         )
-    //       ))
-    //     ))
-    //   }
-    #[test]
-    fn test_pipeline_stats_9() {
-        assert_eq!(
-            pipeline("stats count(eval(status=404))"),
-            Ok((
-                "",
-                ast::Pipeline {
-                    commands: vec![StatsCommand {
-                        partitions: 1,
-                        all_num: false,
-                        delim: " ".to_string(),
-                        funcs: vec![_call!(count(_call!(eval(_eq(
-                            ast::Field::from("status"),
-                            ast::IntValue(404)
-                        )))))
-                        .into()],
-                        by: vec![],
-                        dedup_split_vals: false
-                    }
-                    .into()],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("no-comma stats") {
-    //     val query =
-    //       """stats allnum=f delim=":" partitions=10 count
-    //         |earliest(_time) as earliest latest(_time) as latest
-    //         |values(var_2) as var_2
-    //         |by var_1
-    //         |""".stripMargin
-    //     parses(query, stats(_), StatsCommand(
-    //       partitions = 10,
-    //       allNum = false,
-    //       delim = ":",
-    //       Seq(
-    //         Call("count"),
-    //         Alias(Call("earliest", Seq(Field("_time"))), "earliest"),
-    //         Alias(Call("latest", Seq(Field("_time"))), "latest"),
-    //         Alias(Call("values", Seq(Field("var_2"))), "var_2")
-    //       ),
-    //       Seq(
-    //         Field("var_1")
-    //       )
-    //     ))
-    //   }
-    #[test]
-    fn test_no_comma_stats() {
-        assert_eq!(
-            pipeline(
-                r#"stats allnum=f delim=":" partitions=10 count earliest(_time) as earliest latest(_time) as latest values(var_2) as var_2 by var_1"#
-            ),
-            Ok((
-                "",
-                ast::Pipeline {
-                    commands: vec![StatsCommand {
-                        partitions: 10,
-                        all_num: false,
-                        delim: ":".to_string(),
-                        funcs: vec![
-                            _call!(count()).into(),
-                            _alias("earliest", _call!(earliest(ast::Field::from("_time")))).into(),
-                            _alias("latest", _call!(latest(ast::Field::from("_time")))).into(),
-                            _alias("var_2", _call!(values(ast::Field::from("var_2")))).into(),
-                        ],
-                        by: vec![ast::Field::from("var_1")],
-                        dedup_split_vals: false
-                    }
-                    .into()],
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("rex field=savedsearch_id max_match=10 " +
-    //     "\"(?<user>\\w+);(?<app>\\w+);(?<SavedSearchName>\\w+)\"") {
-    //     p(pipeline(_), Pipeline(Seq(
-    //       RexCommand(
-    //         Some("savedsearch_id"),
-    //         10,
-    //         None,
-    //         None,
-    //         "(?<user>\\w+);(?<app>\\w+);(?<SavedSearchName>\\w+)"
-    //       )
-    //     )))
-    //   }
-    #[test]
-    fn test_pipeline_rex_1() {
-        assert_eq!(double_quoted(r#""\d""#), Ok(("", r#"\d"#)));
-        assert_eq!(
-            double_quoted(r#""(?<user>\w+);(?<app>\w+);(?<SavedSearchName>\w+)""#),
-            Ok(("", r#"(?<user>\w+);(?<app>\w+);(?<SavedSearchName>\w+)"#))
-        );
-        assert_eq!(
-            pipeline(
-                r#"rex field=savedsearch_id max_match=10 "(?<user>\w+);(?<app>\w+);(?<SavedSearchName>\w+)""#
-            ),
-            Ok((
-                "",
-                ast::Pipeline {
-                    commands: vec![RexCommand {
-                        field: "savedsearch_id".to_string(),
-                        max_match: 10,
-                        offset_field: None,
-                        mode: None,
-                        regex: "(?<user>\\w+);(?<app>\\w+);(?<SavedSearchName>\\w+)".to_string()
-                    }
-                    .into()],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("rex mode=sed \"s/(\\d{4}-){3}/XXXX-XXXX-XXXX-/g\"") {
-    //     p(pipeline(_), Pipeline(Seq(
-    //       RexCommand(
-    //         None,
-    //         1,
-    //         None,
-    //         Some("sed"),
-    //         "s/(\\d{4}-){3}/XXXX-XXXX-XXXX-/g"
-    //       )
-    //     )))
-    //   }
-    #[test]
-    fn test_pipeline_rex_2() {
-        assert_eq!(
-            pipeline(r#"rex mode=sed "s/(\d{4}-){3}/XXXX-XXXX-XXXX-/g""#),
-            Ok((
-                "",
-                ast::Pipeline {
-                    commands: vec![RexCommand {
-                        field: "_raw".to_string(),
-                        max_match: 1,
-                        offset_field: None,
-                        mode: Some("sed".to_string()),
-                        regex: "s/(\\d{4}-){3}/XXXX-XXXX-XXXX-/g".to_string()
-                    }
-                    .into()],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("rename _ip AS IPAddress") {
-    //     p(rename(_),
-    //       RenameCommand(
-    //         Seq(Alias(
-    //           Field("_ip"),
-    //           "IPAddress"
-    //         )))
-    //     )
-    //   }
-    #[test]
-    fn test_rename_1() {
-        assert_eq!(
-            RenameParser::parse(r#"rename _ip AS IPAddress"#),
-            Ok((
-                "",
-                RenameCommand {
-                    alias: vec![_alias("IPAddress", ast::Field::from("_ip"))],
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("rename _ip AS IPAddress, _host AS host, _port AS port") {
-    //     p(rename(_),
-    //       RenameCommand(Seq(
-    //         Alias(
-    //           Field("_ip"),
-    //           "IPAddress"
-    //         ),
-    //         Alias(
-    //           Field("_host"),
-    //           "host"
-    //         ),
-    //         Alias(
-    //           Field("_port"),
-    //           "port"
-    //         )))
-    //     )
-    //   }
-    #[test]
-    fn test_rename_2() {
-        assert_eq!(
-            RenameParser::parse(r#"rename _ip AS IPAddress, _host AS host, _port AS port"#),
-            Ok((
-                "",
-                RenameCommand {
-                    alias: vec![
-                        _alias("IPAddress", ast::Field::from("_ip")),
-                        _alias("host", ast::Field::from("_host")),
-                        _alias("port", ast::Field::from("_port")),
-                    ],
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   // Regex not taken into account
-    //   test("rename foo* AS bar*") {
-    //     p(rename(_),
-    //       RenameCommand(
-    //         Seq(Alias(
-    //           Field("foo*"),
-    //           "bar*"
-    //         )))
-    //     )
-    //   }
-    #[test]
-    fn test_rename_3() {
-        assert_eq!(
-            RenameParser::parse(r#"rename foo* AS bar*"#),
-            Ok((
-                "",
-                RenameCommand {
-                    alias: vec![_alias("bar*", ast::Field::from("foo*"))],
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("rename count AS \"Count of Events\"") {
-    //     p(rename(_),
-    //       RenameCommand(
-    //         Seq(Alias(
-    //           Field("count"),
-    //           "Count of Events"
-    //         )))
-    //     )
-    //   }
-    #[test]
-    fn test_rename_4() {
-        assert_eq!(
-            RenameParser::parse(r#"rename count AS "Count of Events""#),
-            Ok((
-                "",
-                RenameCommand {
-                    alias: vec![_alias("Count of Events", ast::Field::from("count"))],
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("join product_id [search vendors]") {
-    //     p(join(_),
-    //       JoinCommand(
-    //         joinType = "inner",
-    //         useTime = false,
-    //         earlier = true,
-    //         overwrite = false,
-    //         max = 1,
-    //         Seq(Field("product_id")),
-    //         Pipeline(Seq(
-    //           SearchCommand(Field("vendors"))))
-    //       )
-    //     )
-    //   }
-    #[test]
-    fn test_join_1() {
-        assert_eq!(
-            JoinParser::parse(r#"join product_id [search vendors]"#),
-            Ok((
-                "",
-                JoinCommand {
-                    join_type: "inner".to_string(),
-                    use_time: false,
-                    earlier: true,
-                    overwrite: false,
-                    max: 1,
-                    fields: vec![ast::Field::from("product_id")],
-                    sub_search: ast::Pipeline {
-                        commands: vec![SearchCommand {
-                            expr: ast::Field::from("vendors").into()
-                        }
-                        .into()],
-                    }
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("join type=left usetime=true earlier=false " +
-    //     "overwrite=false product_id, host, name [search vendors]") {
-    //     p(join(_),
-    //       JoinCommand(
-    //         joinType = "left",
-    //         useTime = true,
-    //         earlier = false,
-    //         overwrite = false,
-    //         max = 1,
-    //         Seq(
-    //           Field("product_id"),
-    //           Field("host"),
-    //           Field("name")
-    //         ),
-    //         Pipeline(Seq(
-    //           SearchCommand(Field("vendors"))))
-    //       )
-    //     )
-    //   }
-    #[test]
-    fn test_join_2() {
-        assert_eq!(
-            JoinParser::parse(
-                r#"join type=left usetime=true earlier=false overwrite=false product_id, host, name [search vendors]"#
-            ),
-            Ok((
-                "",
-                JoinCommand {
-                    join_type: "left".to_string(),
-                    use_time: true,
-                    earlier: false,
-                    overwrite: false,
-                    max: 1,
-                    fields: vec![
-                        ast::Field::from("product_id"),
-                        ast::Field::from("host"),
-                        ast::Field::from("name")
-                    ],
-                    sub_search: ast::Pipeline {
-                        commands: vec![SearchCommand {
-                            expr: ast::Field::from("vendors").into()
-                        }
-                        .into()],
-                    }
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("join product_id [search vendors | rename pid AS product_id]") {
-    //     p(join(_),
-    //       JoinCommand(
-    //         joinType = "inner",
-    //         useTime = false,
-    //         earlier = true,
-    //         overwrite = false,
-    //         max = 1,
-    //         Seq(Field("product_id")),
-    //         Pipeline(Seq(
-    //           SearchCommand(Field("vendors")),
-    //           RenameCommand(Seq(
-    //             Alias(
-    //               Field("pid"),
-    //               "product_id"
-    //             )))
-    //         ))
-    //       )
-    //     )
-    //   }
-    #[test]
-    fn test_join_3() {
-        assert_eq!(
-            JoinParser::parse(r#"join product_id [search vendors | rename pid AS product_id]"#),
-            Ok((
-                "",
-                JoinCommand {
-                    join_type: "inner".to_string(),
-                    use_time: false,
-                    earlier: true,
-                    overwrite: false,
-                    max: 1,
-                    fields: vec![ast::Field::from("product_id")],
-                    sub_search: ast::Pipeline {
-                        commands: vec![
-                            SearchCommand {
-                                expr: ast::Field::from("vendors").into()
-                            }
-                            .into(),
-                            RenameCommand {
-                                alias: vec![_alias("product_id", ast::Field::from("pid"))],
-                            }
-                            .into()
-                        ],
-                    }
-                    .into()
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("regex _raw=\"(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)\"") {
-    //     p(_regex(_), RegexCommand(
-    //       Some((Field("_raw"), "=")),
-    //       "(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)"))
-    //   }
-    #[test]
-    fn test_regex_1() {
-        assert_eq!(
-            RegexParser::parse(r#"regex _raw="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
-            Ok((
-                "",
-                RegexCommand {
-                    item: Some((ast::Field::from("_raw"), "=".into())),
-                    regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("regex _raw!=\"(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)\"") {
-    //     p(_regex(_), RegexCommand(
-    //       Some((Field("_raw"), "!=")),
-    //       "(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)"))
-    //   }
-    #[test]
-    fn test_regex_2() {
-        assert_eq!(
-            RegexParser::parse(r#"regex _raw!="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
-            Ok((
-                "",
-                RegexCommand {
-                    item: Some((ast::Field::from("_raw"), "!=".into())),
-                    regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("regex \"(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)\"") {
-    //     p(_regex(_), RegexCommand(
-    //       None,
-    //       "(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)"))
-    //   }
-    #[test]
-    fn test_regex_3() {
-        assert_eq!(
-            RegexParser::parse(r#"regex "(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
-            Ok((
-                "",
-                RegexCommand {
-                    item: None,
-                    regex: r#"(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)"#.into()
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("return 10 $test $env") {
-    //     p(_return(_), ReturnCommand(
-    //       IntValue(10),
-    //       Seq(
-    //         Field("test"),
-    //         Field("env")
-    //       )
-    //     ))
-    //   }
-    #[test]
-    fn test_return_1() {
-        assert_eq!(
-            ReturnParser::parse(r#"return 10 $test $env"#),
-            Ok((
-                "",
-                ReturnCommand {
-                    count: ast::IntValue(10),
-                    fields: vec![
-                        ast::Field::from("test").into(),
-                        ast::Field::from("env").into(),
-                    ],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("return 10 ip src host port") {
-    //     p(_return(_), ReturnCommand(
-    //       IntValue(10),
-    //       Seq(
-    //         Field("ip"),
-    //         Field("src"),
-    //         Field("host"),
-    //         Field("port")
-    //       )
-    //     ))
-    //   }
-    #[test]
-    fn test_return_2() {
-        assert_eq!(
-            ReturnParser::parse(r#"return 10 ip src host port"#),
-            Ok((
-                "",
-                ReturnCommand {
-                    count: ast::IntValue(10),
-                    fields: vec![
-                        ast::Field::from("ip").into(),
-                        ast::Field::from("src").into(),
-                        ast::Field::from("host").into(),
-                        ast::Field::from("port").into(),
-                    ],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("return 10 ip=src host=port") {
-    //     p(_return(_), ReturnCommand(
-    //       IntValue(10),
-    //       Seq(
-    //         Alias(Field("src"), "ip"),
-    //         Alias(Field("port"), "host")
-    //       )
-    //     ))
-    //   }
-    #[test]
-    fn test_return_3() {
-        assert_eq!(
-            ReturnParser::parse(r#"return 10 ip=src host=port"#),
-            Ok((
-                "",
-                ReturnCommand {
-                    count: ast::IntValue(10),
-                    fields: vec![
-                        _alias("ip", ast::Field::from("src")).into(),
-                        _alias("host", ast::Field::from("port")).into(),
-                    ],
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("fillnull") {
-    //     p(fillNull(_), FillNullCommand(None, None))
-    //   }
-    #[test]
-    fn test_fill_null_1() {
-        assert_eq!(
-            FillNullParser::parse(r#"fillnull"#),
-            Ok((
-                "",
-                FillNullCommand {
-                    value: None,
-                    fields: None,
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("fillnull value=NA") {
-    //     p(fillNull(_), FillNullCommand(Some("NA"), None))
-    //   }
-    #[test]
-    fn test_fill_null_2() {
-        assert_eq!(
-            FillNullParser::parse(r#"fillnull value="NA""#),
-            Ok((
-                "",
-                FillNullCommand {
-                    value: Some("NA".into()),
-                    fields: None,
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("fillnull value=\"NULL\" host port") {
-    //     p(fillNull(_), FillNullCommand(
-    //       Some("NULL"),
-    //       Some(Seq(
-    //         Field("host"),
-    //         Field("port")
-    //       ))))
-    //   }
-    #[test]
-    fn test_fill_null_3() {
-        assert_eq!(
-            FillNullParser::parse(r#"fillnull value="NULL" host port"#),
-            Ok((
-                "",
-                FillNullCommand {
-                    value: Some("NULL".into()),
-                    fields: Some(vec![ast::Field::from("host"), ast::Field::from("port"),].into()),
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("dedup 10 keepevents=true keepempty=false consecutive=true host ip port") {
-    //     p(dedup(_), DedupCommand(
-    //       10,
-    //       Seq(
-    //         Field("host"),
-    //         Field("ip"),
-    //         Field("port")
-    //       ),
-    //       keepEvents = true,
-    //       keepEmpty = false,
-    //       consecutive = true,
-    //       SortCommand(Seq((Some("+"), Field("_no"))))
-    //     ))
-    //   }
-    #[test]
-    fn test_dedup_1() {
-        assert_eq!(
-            DedupParser::parse(
-                r#"dedup 10 keepevents=true keepempty=false consecutive=true host ip port"#
-            ),
-            Ok((
-                "",
-                DedupCommand {
-                    num_results: 10,
-                    fields: vec![
-                        ast::Field::from("host"),
-                        ast::Field::from("ip"),
-                        ast::Field::from("port"),
-                    ],
-                    keep_events: true,
-                    keep_empty: false,
-                    consecutive: true,
-                    sort_by: SortCommand::new_simple(vec![(
-                        Some("+".into()),
-                        ast::Field::from("_no").into()
-                    )]),
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("dedup 10 keepevents=true host ip port sortby +host -ip") {
-    //     p(dedup(_), DedupCommand(
-    //       10,
-    //       Seq(
-    //         Field("host"),
-    //         Field("ip"),
-    //         Field("port")
-    //       ),
-    //       keepEvents = true,
-    //       keepEmpty = false,
-    //       consecutive = false,
-    //       SortCommand(
-    //         Seq(
-    //           (Some("+"), Field("host")),
-    //           (Some("-"), Field("ip"))
-    //         )
-    //       )
-    //     ))
-    //   }
-    #[test]
-    fn test_dedup_2() {
-        assert_eq!(
-            DedupParser::parse(r#"dedup 10 keepevents=true host ip port sortby +host -ip"#),
-            Ok((
-                "",
-                DedupCommand {
-                    num_results: 10,
-                    fields: vec![
-                        ast::Field::from("host"),
-                        ast::Field::from("ip"),
-                        ast::Field::from("port"),
-                    ],
-                    keep_events: true,
-                    keep_empty: false,
-                    consecutive: false,
-                    sort_by: SortCommand::new_simple(vec![
-                        (Some("+".into()), ast::Field::from("host").into()),
-                        (Some("-".into()), ast::Field::from("ip").into()),
-                    ]),
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("inputlookup append=t strict=f myTable where test_id=11") {
-    //     p(inputLookup(_), InputLookup(
-    //       append = true,
-    //       strict = false,
-    //       start = 0,
-    //       max = 1000000000,
-    //       "myTable",
-    //       Some(
-    //         Binary(
-    //           Field("test_id"),
-    //           Equals,
-    //           IntValue(11)
-    //         )
-    //     )))
-    //   }
-    #[test]
-    fn test_input_lookup_1() {
-        assert_eq!(
-            InputLookupParser::parse(r#"inputlookup append=t strict=f myTable where test_id=11"#),
-            Ok((
-                "",
-                InputLookupCommand {
-                    append: true,
-                    strict: false,
-                    start: 0,
-                    max: 1000000000,
-                    table_name: "myTable".into(),
-                    where_expr: Some(_eq(ast::Field::from("test_id"), ast::IntValue(11),)),
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("inputlookup myTable") {
-    //     p(inputLookup(_), InputLookup(
-    //       append = false,
-    //       strict = false,
-    //       start = 0,
-    //       max = 1000000000,
-    //       "myTable",
-    //       None
-    //     ))
-    //   }
-    #[test]
-    fn test_input_lookup_2() {
-        assert_eq!(
-            InputLookupParser::parse(r#"inputlookup myTable"#),
-            Ok((
-                "",
-                InputLookupCommand {
-                    append: false,
-                    strict: false,
-                    start: 0,
-                    max: 1000000000,
-                    table_name: "myTable".into(),
-                    where_expr: None,
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("format maxresults=10") {
-    //     p(format(_), FormatCommand(
-    //       mvSep = "OR",
-    //       maxResults = 10,
-    //       rowPrefix = "(",
-    //       colPrefix =  "(",
-    //       colSep = "AND",
-    //       colEnd = ")",
-    //       rowSep = "OR",
-    //       rowEnd = ")"
-    //     ))
-    //   }
-    #[test]
-    fn test_format_1() {
-        assert_eq!(
-            FormatParser::parse(r#"format maxresults=10"#),
-            Ok((
-                "",
-                FormatCommand {
-                    mv_sep: "OR".into(),
-                    max_results: 10,
-                    row_prefix: "(".into(),
-                    col_prefix: "(".into(),
-                    col_sep: "AND".into(),
-                    col_end: ")".into(),
-                    row_sep: "OR".into(),
-                    row_end: ")".into(),
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("format mvsep=\"||\" \"[\" \"[\" \"&&\" \"]\" \"||\" \"]\"") {
-    //     p(format(_), FormatCommand(
-    //       mvSep = "||",
-    //       maxResults = 0,
-    //       rowPrefix = "[",
-    //       colPrefix = "[",
-    //       colSep = "&&",
-    //       colEnd = "]",
-    //       rowSep = "||",
-    //       rowEnd = "]"
-    //     ))
-    //   }
-    #[test]
-    fn test_format_2() {
-        assert_eq!(
-            FormatParser::parse(r#"format mvsep="||" "[" "[" "&&" "]" "||" "]""#),
-            Ok((
-                "",
-                FormatCommand {
-                    mv_sep: "||".into(),
-                    max_results: 0,
-                    row_prefix: "[".into(),
-                    col_prefix: "[".into(),
-                    col_sep: "&&".into(),
-                    col_end: "]".into(),
-                    row_sep: "||".into(),
-                    row_end: "]".into(),
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("mvcombine host") {
-    //     p(mvcombine(_), MvCombineCommand(
-    //       None,
-    //       Field("host")
-    //     ))
-    //   }
-    #[test]
-    fn test_mvcombine_1() {
-        assert_eq!(
-            MvCombineParser::parse(r#"mvcombine host"#),
-            Ok((
-                "",
-                MvCombineCommand {
-                    delim: None,
-                    field: ast::Field::from("host"),
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("mvcombine delim=\",\" host") {
-    //     p(mvcombine(_), MvCombineCommand(
-    //       Some(","),
-    //       Field("host")
-    //     ))
-    //   }
-    #[test]
-    fn test_mvcombine_2() {
-        assert_eq!(
-            MvCombineParser::parse(r#"mvcombine delim="," host"#),
-            Ok((
-                "",
-                MvCombineCommand {
-                    delim: Some(",".into()),
-                    field: ast::Field::from("host"),
-                }
-            ))
-        )
-    }
-
-    //
-    //   test("bin span=30m minspan=5m bins=20 start=0 end=20 aligntime=latest foo AS bar") {
-    //     p(command(_), BinCommand(
-    //       Alias(Field("foo"), "bar"),
-    //       Some(TimeSpan(30, "minutes")),
-    //       Some(TimeSpan(5, "minutes")),
-    //       Some(20),
-    //       Some(0),
-    //       Some(20),
-    //       Some("latest")))
-    //   }
-    #[test]
-    fn test_command_bin_1() {
-        assert_eq!(
-            command(
-                r#"bin span=30m minspan=5m bins=20 start=0 end=20 aligntime=latest foo AS bar"#
-            ),
-            Ok((
-                "",
-                BinCommand {
-                    field: _alias("bar", ast::Field::from("foo")).into(),
-                    span: Some(ast::TimeSpan {
-                        value: 30,
-                        scale: "minutes".into()
-                    }),
-                    min_span: Some(ast::TimeSpan {
-                        value: 5,
-                        scale: "minutes".into()
-                    }),
-                    bins: Some(20),
-                    start: Some(0),
-                    end: Some(20),
-                    align_time: Some("latest".into()),
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("makeresults") {
-    //     p(command(_), MakeResults(
-    //       count = 1,
-    //       annotate = false,
-    //       server = "local",
-    //       serverGroup = null))
-    //   }
-    #[test]
-    fn test_command_makeresults_1() {
-        assert_eq!(
-            command(r#"makeresults"#),
-            Ok((
-                "",
-                MakeResultsCommand {
-                    count: 1,
-                    annotate: false,
-                    server: "local".into(),
-                    server_group: None,
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("makeresults count=10 annotate=t splunk_server_group=group0") {
-    //     p(command(_), MakeResults(
-    //       count = 10,
-    //       annotate = true,
-    //       server = "local",
-    //       serverGroup = "group0"))
-    //   }
-    #[test]
-    fn test_command_makeresults_2() {
-        assert_eq!(
-            command(r#"makeresults count=10 annotate=t splunk_server_group=group0"#),
-            Ok((
-                "",
-                MakeResultsCommand {
-                    count: 10,
-                    annotate: true,
-                    server: "local".into(),
-                    server_group: Some("group0".into()),
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("addtotals row=t col=f fieldname=num_total num_1 num_2") {
-    //     p(command(_), AddTotals(
-    //       fields = Seq(Field("num_1"), Field("num_2")),
-    //       row = true,
-    //       col = false,
-    //       fieldName = "num_total",
-    //       labelField = null,
-    //       label = "Total"
-    //     ))
-    //   }
-    #[test]
-    fn test_command_addtotals_1() {
-        assert_eq!(
-            command(r#"addtotals row=t col=f fieldname=num_total num_1 num_2"#),
-            Ok((
-                "",
-                AddTotalsCommand {
-                    fields: vec![ast::Field::from("num_1"), ast::Field::from("num_2")],
-                    row: true,
-                    col: false,
-                    field_name: "num_total".into(),
-                    label_field: None,
-                    label: "Total".into(),
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("eventstats min(n) by gender") {
-    //     p(command(_), EventStatsCommand(
-    //       allNum = false,
-    //       funcs = Seq(
-    //         Call("min", Seq(Field("n")))
-    //       ),
-    //       by = Seq(Field("gender"))
-    //     ))
-    //   }
-    #[test]
-    fn test_command_eventstats_1() {
-        assert_eq!(
-            command(r#"eventstats min(n) by gender"#),
-            Ok((
-                "",
-                EventStatsCommand {
-                    all_num: false,
-                    funcs: vec![_call!(min(ast::Field::from("n"))).into()],
-                    by: vec![ast::Field::from("gender")],
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test("map search=\"search index=dummy host=$host_var$\" maxsearches=20") {
-    //     p(command(_), MapCommand(
-    //       Pipeline(
-    //         Seq(
-    //           SearchCommand(
-    //             Binary(
-    //               Binary(
-    //                 Field("index"),
-    //                 Equals,
-    //                 Field("dummy")
-    //               ),
-    //               And,
-    //               Binary(
-    //                 Field("host"),
-    //                 Equals,
-    //                 Variable("host_var")
-    //               )
-    //             )
-    //           )
-    //         )
-    //       ),
-    //       maxSearches = 20))
-    //   }
-    #[test]
-    fn test_command_map_1() {
-        assert_eq!(
-            command(r#"map search="search index=dummy host=$host_var$" maxsearches=20"#),
-            Ok((
-                "",
-                MapCommand {
-                    search: ast::Pipeline {
-                        commands: vec![SearchCommand {
-                            expr: _and(
-                                _eq(ast::Field::from("index"), ast::Field::from("dummy"),),
-                                _eq(ast::Field::from("host"), ast::Variable::from("host_var"),)
-                            )
-                        }
-                        .into()]
-                    },
-                    max_searches: 20,
-                }
-                .into()
-            ))
-        )
-    }
-
-    //
-    //   test(
-    //     """map search="search index=dummy host=$host_var$ | eval this=\"that\" |
-    //       |dedup 10 keepevents=true keepempty=false consecutive=true host ip port"""".stripMargin) {
-    //     p(_map(_), MapCommand(
-    //       Pipeline(
-    //         Seq(
-    //           SearchCommand(
-    //             Binary(
-    //               Binary(
-    //                 Field("index"),
-    //                 Equals,
-    //                 Field("dummy")
-    //               ),
-    //               And,
-    //               Binary(
-    //                 Field("host"),
-    //                 Equals,
-    //                 Variable("host_var")
-    //               )
-    //             )
-    //           ),
-    //           EvalCommand(Seq(
-    //             (Field("this"), StrValue("that"))
-    //           )),
-    //           DedupCommand(10,
-    //             Seq(Field("host"), Field("ip"), Field("port")),
-    //             keepEvents = true,
-    //             keepEmpty = false,
-    //             consecutive = true,
-    //             SortCommand(Seq(
-    //               (Some("+"), Field("_no"))
-    //             ))
-    //           )
-    //         )
-    //       ),
-    //       maxSearches = 10))
-    //   }
-    #[test]
-    fn test_quoted_search() {
-        assert_eq!(
-            double_quoted_alt(r#""search index=\"dummy\"""#),
-            Ok(("", r#"search index=\"dummy\""#))
-        );
-        assert_eq!(
-            quoted_search(r#"search="search index=\"dummy\"""#),
-            Ok((
-                "",
-                ast::Pipeline {
-                    commands: vec![SearchCommand {
-                        expr: _eq(ast::Field::from("index"), ast::StrValue::from("dummy"))
-                    }
-                    .into()],
-                }
-            ))
-        );
-        assert_eq!(
-            MapParser::parse(r#"map search="search index=\"dummy\"""#),
-            Ok((
-                "",
-                MapCommand {
-                    search: ast::Pipeline {
-                        commands: vec![SearchCommand {
-                            expr: _eq(ast::Field::from("index"), ast::StrValue::from("dummy"))
-                        }
-                        .into()],
-                    },
-                    max_searches: 10,
-                }
-            ))
-        );
-        assert_eq!(
-            MapParser::parse(r#"map search="search index=dummy""#),
-            Ok((
-                "",
-                MapCommand {
-                    search: ast::Pipeline {
-                        commands: vec![SearchCommand {
-                            expr: _eq(ast::Field::from("index"), ast::Field::from("dummy"))
-                        }
-                        .into()],
-                    },
-                    max_searches: 10,
-                }
-            ))
-        );
-    }
-
-    #[test]
-    fn test_map_1() {
-        let s = r#"map search="search index=dummy host=$host_var$ | eval this=\"that\" | dedup 10 keepevents=true keepempty=false consecutive=true host ip port""#;
-        let _pipeline = ast::Pipeline {
-            commands: vec![
-                SearchCommand {
-                    expr: _and(
-                        _eq(ast::Field::from("index"), ast::Field::from("dummy")),
-                        _eq(ast::Field::from("host"), ast::Variable::from("host_var")),
-                    ),
-                }
-                .into(),
-                EvalCommand {
-                    fields: vec![(ast::Field::from("this"), ast::StrValue::from("that").into())],
-                }
-                .into(),
-                DedupCommand {
-                    num_results: 10,
-                    fields: vec![
-                        ast::Field::from("host"),
-                        ast::Field::from("ip"),
-                        ast::Field::from("port"),
-                    ],
-                    keep_events: true,
-                    keep_empty: false,
-                    consecutive: true,
-                    sort_by: SortCommand::new_simple(vec![(
-                        Some("+".into()),
-                        ast::Field::from("_no").into(),
-                    )]),
-                }
-                .into(),
-            ],
-        };
-        assert_eq!(
-            pipeline(
-                r#"search index=dummy host=$host_var$ | eval this="that" | dedup 10 keepevents=true keepempty=false consecutive=true host ip port"#
-            ),
-            Ok(("", _pipeline.clone()))
-        );
-        assert!(quoted_search(r#"search="search index=dummy host=$host_var$ | eval this=\"that\" | dedup 10 keepevents=true keepempty=false consecutive=true host ip port""#).is_ok());
-        assert_eq!(
-            command(s),
-            MapParser::parse(s).map(|(remaining, result)| (remaining, result.into()))
-        );
-        assert_eq!(
-            command(s),
-            Ok((
-                "",
-                MapCommand {
-                    search: _pipeline,
-                    max_searches: 10,
-                }
-                .into()
             ))
         )
     }
@@ -4082,81 +2049,6 @@ mod tests {
                     fields: vec![(ast::Field::from("description"), _call_ast.into())],
                 }
                 .into()
-            ))
-        );
-    }
-
-    #[test]
-    fn test_xsl_script_execution_with_wmic_1() {
-        assert_eq!(
-            all_consuming(TStatsParser::parse)(
-                r#"tstats summariesonly=false allow_old_summaries=true fillnull_value=null
-                count min(_time) as firstTime max(_time) as lastTime
-                from datamodel=Endpoint.Processes
-                where (Processes.process_name=wmic.exe OR Processes.original_file_name=wmic.exe) Processes.process = "*os get*" Processes.process="*/format:*" Processes.process = "*.xsl*"
-                by Processes.parent_process_name Processes.parent_process Processes.process_name Processes.process_id Processes.process Processes.dest Processes.user"#
-            ),
-            Ok((
-                "",
-                TStatsCommand {
-                    prestats: false,
-                    local: false,
-                    append: false,
-                    summaries_only: false,
-                    include_reduced_buckets: false,
-                    allow_old_summaries: true,
-                    chunk_size: 10000000,
-                    fillnull_value: Some("null".into()),
-                    exprs: vec![
-                        _call!(count()).into(),
-                        _alias("firstTime", _call!(min(ast::Field::from("_time")))).into(),
-                        _alias("lastTime", _call!(max(ast::Field::from("_time")))).into(),
-                    ],
-                    datamodel: Some("Endpoint.Processes".into()),
-                    nodename: None,
-                    where_condition: Some(
-                        _and(
-                            _and(
-                                _and(
-                                    _or(
-                                        _eq(
-                                            ast::Field::from("Processes.process_name"),
-                                            ast::StrValue::from("wmic.exe")
-                                        ),
-                                        _eq(
-                                            ast::Field::from("Processes.original_file_name"),
-                                            ast::StrValue::from("wmic.exe")
-                                        )
-                                    ),
-                                    _eq(
-                                        ast::Field::from("Processes.process"),
-                                        ast::Wildcard::from("*os get*")
-                                    ),
-                                ),
-                                _eq(
-                                    ast::Field::from("Processes.process"),
-                                    ast::Wildcard::from("*/format:*")
-                                ),
-                            ),
-                            _eq(
-                                ast::Field::from("Processes.process"),
-                                ast::Wildcard::from("*.xsl*")
-                            )
-                        )
-                        .into()
-                    ),
-                    by_fields: Some(vec![
-                        ast::Field::from("Processes.parent_process_name"),
-                        ast::Field::from("Processes.parent_process"),
-                        ast::Field::from("Processes.process_name"),
-                        ast::Field::from("Processes.process_id"),
-                        ast::Field::from("Processes.process"),
-                        ast::Field::from("Processes.dest"),
-                        ast::Field::from("Processes.user"),
-                    ]),
-                    by_prefix: None,
-                    span: None,
-                }
             ))
         );
     }
@@ -4296,42 +2188,73 @@ mod tests {
     }
 
     #[test]
-    fn test_spath_1() {
+    fn test_logical_expression_6() {
         assert_eq!(
-            SPathParser::parse(r#"spath output=myfield path=vendorProductSet.product.desc"#),
+            logical_expression(r#"NOT x=y"#),
             Ok((
                 "",
-                SPathCommand {
-                    input: "_raw".into(),
-                    output: Some("myfield".into()),
-                    path: "vendorProductSet.product.desc".into(),
-                }
-                .into()
+                _not(_eq(ast::Field::from("x"), ast::StrValue::from("y")))
             ))
-        );
-        assert_eq!(
-            command(r#"spath output=myfield path=vendorProductSet.product.desc"#)
-                .unwrap()
-                .1,
-            SPathParser::parse(r#"spath output=myfield path=vendorProductSet.product.desc"#)
-                .unwrap()
-                .1
-                .into(),
         );
     }
 
     #[test]
-    fn test_spath_2() {
+    fn test_logical_expression_7() {
         assert_eq!(
-            SPathParser::parse(r#"spath input=x output=y key.subkey"#),
+            literal(r#"127.0.0.1"#),
+            Ok(("", ast::StrValue::from("127.0.0.1").into()))
+        );
+        assert_eq!(
+            literal(r#"10.0.0.0/8"#),
+            Ok(("", ast::IPv4CIDR::from("10.0.0.0/8").into()))
+        );
+        assert_eq!(
+            literal(r#"172.16.0.0/12"#),
+            Ok(("", ast::IPv4CIDR::from("172.16.0.0/12").into()))
+        );
+        assert_eq!(
+            literal(r#"192.168.0.0/16"#),
+            Ok(("", ast::IPv4CIDR::from("192.168.0.0/16").into()))
+        );
+        assert_eq!(
+            literal(r#"0:0:0:0:0:0:0:1"#),
+            Ok(("", ast::StrValue::from("0:0:0:0:0:0:0:1").into()))
+        );
+
+        assert_eq!(
+            logical_expression(
+                r#"All_Traffic.dest IN (127.0.0.1,10.0.0.0/8,172.16.0.0/12, 192.168.0.0/16, 0:0:0:0:0:0:0:1)"#
+            ),
             Ok((
                 "",
-                SPathCommand {
-                    input: "x".into(),
-                    output: Some("y".into()),
-                    path: "key.subkey".into(),
-                }
-                .into()
+                _isin(
+                    "All_Traffic.dest",
+                    vec![
+                        ast::StrValue::from("127.0.0.1").into(),
+                        ast::IPv4CIDR::from("10.0.0.0/8").into(),
+                        ast::IPv4CIDR::from("172.16.0.0/12").into(),
+                        ast::IPv4CIDR::from("192.168.0.0/16").into(),
+                        ast::StrValue::from("0:0:0:0:0:0:0:1").into(),
+                    ]
+                )
+            ))
+        );
+        assert_eq!(
+            logical_expression(
+                r#"NOT (All_Traffic.dest IN (127.0.0.1,10.0.0.0/8,172.16.0.0/12, 192.168.0.0/16, 0:0:0:0:0:0:0:1))"#
+            ),
+            Ok((
+                "",
+                _not(_isin(
+                    "All_Traffic.dest",
+                    vec![
+                        ast::StrValue::from("127.0.0.1").into(),
+                        ast::IPv4CIDR::from("10.0.0.0/8").into(),
+                        ast::IPv4CIDR::from("172.16.0.0/12").into(),
+                        ast::IPv4CIDR::from("192.168.0.0/16").into(),
+                        ast::StrValue::from("0:0:0:0:0:0:0:1").into(),
+                    ]
+                ))
             ))
         );
     }

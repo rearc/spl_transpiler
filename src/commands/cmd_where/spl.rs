@@ -38,3 +38,39 @@ impl SplCommand<WhereCommand> for WhereParser {
         map(expr, |v| WhereCommand { expr: v })(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+    use crate::spl::parser::pipeline;
+    use crate::spl::utils::test::*;
+
+    //
+    //   test("where isnull(reason)") {
+    //     p(pipeline(_), Pipeline(Seq(
+    //       WhereCommand(
+    //         Call(
+    //           "isnull",Seq(
+    //             Field("reason")
+    //           )
+    //         )
+    //       )
+    //     )))
+    //   }
+    #[test]
+    fn test_pipeline_where_6() {
+        assert_eq!(
+            pipeline("where isnull(reason)"),
+            Ok((
+                "",
+                ast::Pipeline {
+                    commands: vec![WhereCommand {
+                        expr: _call!(isnull(ast::Field::from("reason"))).into()
+                    }
+                    .into()],
+                }
+            ))
+        )
+    }
+}

@@ -72,3 +72,94 @@ impl SplCommand<ReturnCommand> for ReturnParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::utils::test::*;
+
+    //
+    //   test("return 10 $test $env") {
+    //     p(_return(_), ReturnCommand(
+    //       IntValue(10),
+    //       Seq(
+    //         Field("test"),
+    //         Field("env")
+    //       )
+    //     ))
+    //   }
+    #[test]
+    fn test_return_1() {
+        assert_eq!(
+            ReturnParser::parse(r#"return 10 $test $env"#),
+            Ok((
+                "",
+                ReturnCommand {
+                    count: ast::IntValue(10),
+                    fields: vec![
+                        ast::Field::from("test").into(),
+                        ast::Field::from("env").into(),
+                    ],
+                }
+            ))
+        )
+    }
+
+    //
+    //   test("return 10 ip src host port") {
+    //     p(_return(_), ReturnCommand(
+    //       IntValue(10),
+    //       Seq(
+    //         Field("ip"),
+    //         Field("src"),
+    //         Field("host"),
+    //         Field("port")
+    //       )
+    //     ))
+    //   }
+    #[test]
+    fn test_return_2() {
+        assert_eq!(
+            ReturnParser::parse(r#"return 10 ip src host port"#),
+            Ok((
+                "",
+                ReturnCommand {
+                    count: ast::IntValue(10),
+                    fields: vec![
+                        ast::Field::from("ip").into(),
+                        ast::Field::from("src").into(),
+                        ast::Field::from("host").into(),
+                        ast::Field::from("port").into(),
+                    ],
+                }
+            ))
+        )
+    }
+
+    //
+    //   test("return 10 ip=src host=port") {
+    //     p(_return(_), ReturnCommand(
+    //       IntValue(10),
+    //       Seq(
+    //         Alias(Field("src"), "ip"),
+    //         Alias(Field("port"), "host")
+    //       )
+    //     ))
+    //   }
+    #[test]
+    fn test_return_3() {
+        assert_eq!(
+            ReturnParser::parse(r#"return 10 ip=src host=port"#),
+            Ok((
+                "",
+                ReturnCommand {
+                    count: ast::IntValue(10),
+                    fields: vec![
+                        _alias("ip", ast::Field::from("src")).into(),
+                        _alias("host", ast::Field::from("port")).into(),
+                    ],
+                }
+            ))
+        )
+    }
+}

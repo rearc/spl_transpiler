@@ -57,3 +57,69 @@ impl SplCommand<FillNullCommand> for FillNullParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+
+    //
+    //   test("fillnull") {
+    //     p(fillNull(_), FillNullCommand(None, None))
+    //   }
+    #[test]
+    fn test_fill_null_1() {
+        assert_eq!(
+            FillNullParser::parse(r#"fillnull"#),
+            Ok((
+                "",
+                FillNullCommand {
+                    value: None,
+                    fields: None,
+                }
+            ))
+        )
+    }
+
+    //
+    //   test("fillnull value=NA") {
+    //     p(fillNull(_), FillNullCommand(Some("NA"), None))
+    //   }
+    #[test]
+    fn test_fill_null_2() {
+        assert_eq!(
+            FillNullParser::parse(r#"fillnull value="NA""#),
+            Ok((
+                "",
+                FillNullCommand {
+                    value: Some("NA".into()),
+                    fields: None,
+                }
+            ))
+        )
+    }
+
+    //
+    //   test("fillnull value=\"NULL\" host port") {
+    //     p(fillNull(_), FillNullCommand(
+    //       Some("NULL"),
+    //       Some(Seq(
+    //         Field("host"),
+    //         Field("port")
+    //       ))))
+    //   }
+    #[test]
+    fn test_fill_null_3() {
+        assert_eq!(
+            FillNullParser::parse(r#"fillnull value="NULL" host port"#),
+            Ok((
+                "",
+                FillNullCommand {
+                    value: Some("NULL".into()),
+                    fields: Some(vec![ast::Field::from("host"), ast::Field::from("port"),].into()),
+                }
+                .into()
+            ))
+        )
+    }
+}

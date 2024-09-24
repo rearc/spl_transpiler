@@ -89,3 +89,40 @@ impl SplCommand<AddTotalsCommand> for AddTotalsParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+    use crate::spl::parser::command;
+
+    //
+    //   test("addtotals row=t col=f fieldname=num_total num_1 num_2") {
+    //     p(command(_), AddTotals(
+    //       fields = Seq(Field("num_1"), Field("num_2")),
+    //       row = true,
+    //       col = false,
+    //       fieldName = "num_total",
+    //       labelField = null,
+    //       label = "Total"
+    //     ))
+    //   }
+    #[test]
+    fn test_command_addtotals_1() {
+        assert_eq!(
+            command(r#"addtotals row=t col=f fieldname=num_total num_1 num_2"#),
+            Ok((
+                "",
+                AddTotalsCommand {
+                    fields: vec![ast::Field::from("num_1"), ast::Field::from("num_2")],
+                    row: true,
+                    col: false,
+                    field_name: "num_total".into(),
+                    label_field: None,
+                    label: "Total".into(),
+                }
+                .into()
+            ))
+        )
+    }
+}

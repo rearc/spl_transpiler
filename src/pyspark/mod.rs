@@ -5,6 +5,7 @@ pub(crate) mod alias;
 pub(crate) mod ast;
 pub(crate) mod base;
 pub(crate) mod transpiler;
+pub(crate) mod utils;
 
 pub use ast::TransformedPipeline;
 pub use base::TemplateNode;
@@ -17,23 +18,7 @@ pub fn convert(pipeline: Pipeline) -> Result<TransformedPipeline> {
 // Tests
 #[cfg(test)]
 mod tests {
-    use crate::format_python::format_python_code;
-    use crate::pyspark::base::TemplateNode;
-    use crate::pyspark::convert;
-
-    fn generates(spl_query: &str, spark_query: &str) {
-        let (_, pipeline_ast) =
-            crate::parser::pipeline(spl_query).expect("Failed to parse SPL query");
-        let converted = convert(pipeline_ast).expect("Failed to convert SPL query to Spark query");
-        let rendered = converted
-            .to_spark_query()
-            .expect("Failed to render Spark query");
-        let formatted_rendered = format_python_code(rendered.replace(",)", ")"))
-            .expect("Failed to format rendered Spark query");
-        let formatted_spark_query = format_python_code(spark_query.replace(",)", ")"))
-            .expect("Failed to format target Spark query");
-        assert_eq!(formatted_rendered, formatted_spark_query);
-    }
+    use crate::pyspark::utils::test::*;
 
     //   test("thing") {
     //     generates("n>2 | stats count() by valid",
@@ -310,10 +295,10 @@ mod tests {
     //   }
     #[test]
     #[ignore]
-    fn test_18() {
+    fn test_eval_fn_mvfilter() {
         generates(
             r#"eval mvfiltered=mvfilter(d > 3)"#,
-            r#"spark.table('main').withColumn('mvfiltered', F.filter(F.col('d'), lambda d: (d > F.lit(3))))"#,
+            r#"spark.table('main').withColumn('mvfiltered', F.filter(F.col('d'), lambda d: (d > 3)))"#,
         );
     }
 
@@ -461,11 +446,34 @@ mod tests {
     //         |""".stripMargin)
     //   }
     #[test]
-    #[ignore]
-    fn test_28() {
+    fn test_makeresults_1() {
+        generates(
+            r#"makeresults count=10 annotate=true"#,
+            r#"spark.range(0, 10, 1).withColumn(
+                '_time', F.current_timestamp()
+            ).withColumn(
+                '_raw', F.lit(None)
+            ).withColumn(
+                'host', F.lit(None)
+            ).withColumn(
+                'source', F.lit(None)
+            ).withColumn(
+                'sourcetype', F.lit(None)
+            ).withColumn(
+                'splunk_server', F.lit('local')
+            ).withColumn(
+                'splunk_server_group', F.lit(None)
+            )"#,
+        );
+    }
+
+    #[test]
+    fn test_makeresults_2() {
         generates(
             r#"makeresults count=10"#,
-            r#"spark.range(0, 10, 1).withColumn('_raw', F.lit(None)).withColumn('_time', F.current_timestamp()).withColumn('host', F.lit(None)).withColumn('source', F.lit(None)).withColumn('sourcetype', F.lit(None)).withColumn('splunk_server', F.lit('local')).withColumn('splunk_server_group', F.lit(None)).select('_time')"#,
+            r#"spark.range(0, 10, 1).withColumn(
+                '_time', F.current_timestamp()
+            )"#,
         );
     }
 
@@ -750,7 +758,6 @@ mod tests {
     //     // scalastyle:on
     //   }
     #[test]
-    #[ignore]
     fn test_38() {}
 
     //
@@ -782,7 +789,7 @@ mod tests {
     //   }
     #[test]
     #[ignore]
-    fn test_40() {
+    fn test_map_search_1() {
         generates(
             r#"map search="search index=fake_for_join id=$id$""#,
             r#"spark.table('fake_for_join').limit(10).alias('l').join(spark.table('main').alias('r'), (F.col('l.id') == F.col('r.id')), 'left_semi')"#,
@@ -1075,56 +1082,6 @@ mod tests {
                 F.percentile_approx(F.col("a"), 0.99).alias("x")
             )"#,
         )
-    }
-
-    #[test]
-    fn test_xsl_script_execution_with_wmic_1() {
-        generates(
-            r#"tstats
-            summariesonly=false allow_old_summaries=true fillnull_value=null
-            count min(_time) as firstTime max(_time) as lastTime
-            from datamodel=Endpoint.Processes
-            where (Processes.process_name=wmic.exe OR Processes.original_file_name=wmic.exe) Processes.process = "*os get*" Processes.process="*/format:*" Processes.process = "*.xsl*"
-            by Processes.parent_process_name Processes.parent_process Processes.process_name Processes.process_id Processes.process Processes.dest Processes.user"#,
-            r#"spark.table("Endpoint.Processes").where(
-                (
-                    (
-                        (
-                            (
-                                (F.col("Processes.process_name") == F.lit("wmic.exe"))
-                                | (F.col("Processes.original_file_name") == F.lit("wmic.exe"))
-                            )
-                            & F.col("Processes.process").like("%os get%")
-                        )
-                        & F.col("Processes.process").like("%/format:%")
-                    )
-                    & F.col("Processes.process").like("%.xsl%")
-                )
-            ).groupBy([
-                "Processes.parent_process_name",
-                "Processes.parent_process",
-                "Processes.process_name",
-                "Processes.process_id",
-                "Processes.process",
-                "Processes.dest",
-                "Processes.user",
-            ]).agg(
-                F.count(F.lit(1)).alias("count"),
-                F.min(F.col("_time")).alias("firstTime"),
-                F.max(F.col("_time")).alias("lastTime"),
-            )"#,
-        )
-    }
-
-    #[test]
-    fn test_spath_1() {
-        generates(
-            r#"spath input=x output=y key.subkey"#,
-            r#"spark.table("main").withColumn(
-                "y",
-                F.get_json_object(F.col("x"), "$.key.subkey")
-            )"#,
-        );
     }
 
     #[test]

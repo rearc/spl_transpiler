@@ -38,3 +38,40 @@ impl SplCommand<TableCommand> for TableParser {
         map(many1(ws(field)), |fields| TableCommand { fields })(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+    use crate::spl::parser::pipeline;
+
+    //
+    //   test("table foo bar baz*") {
+    //     p(pipeline(_), Pipeline(Seq(
+    //       TableCommand(Seq(
+    //         Field("foo"),
+    //         Field("bar"),
+    //         Field("baz*")
+    //       ))
+    //     )))
+    //   }
+    #[test]
+    fn test_pipeline_table_7() {
+        assert_eq!(
+            pipeline("table foo bar baz*"),
+            Ok((
+                "",
+                ast::Pipeline {
+                    commands: vec![TableCommand {
+                        fields: vec![
+                            ast::Field::from("foo"),
+                            ast::Field::from("bar"),
+                            ast::Field::from("baz*")
+                        ]
+                    }
+                    .into()],
+                }
+            ))
+        )
+    }
+}

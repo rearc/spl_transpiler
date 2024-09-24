@@ -41,13 +41,20 @@ impl TryFrom<ast::Expr> for Expr {
                 // src_ip = "x*" -> F.like(F.col("src_ip"), "x%"),
                 (
                     lhs,
-                    "==",
+                    op,
                     ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Wildcard(
                         ast::Wildcard(pattern),
                     ))),
                 ) => {
                     let lhs: Expr = lhs.try_into()?;
-                    Ok(column_like!([lhs].like([py_lit(pattern.replace("*", "%"))])).into())
+                    let match_wildcard =
+                        column_like!([lhs].like([py_lit(pattern.replace("*", "%"))]));
+                    match op {
+                        "=" => Ok(match_wildcard.into()),
+                        "==" => Ok(match_wildcard.into()),
+                        "!=" => Ok(column_like!(~[match_wildcard]).into()),
+                        _ => bail!("Unsupported comparison operator for wildcard rhs: {}", op),
+                    }
                 }
                 // a [op] b -> a [op] b
                 (left, op, right) => Ok(ColumnLike::BinaryOp {

@@ -109,3 +109,74 @@ impl SplCommand<FormatCommand> for FormatParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    //
+    //   test("format maxresults=10") {
+    //     p(format(_), FormatCommand(
+    //       mvSep = "OR",
+    //       maxResults = 10,
+    //       rowPrefix = "(",
+    //       colPrefix =  "(",
+    //       colSep = "AND",
+    //       colEnd = ")",
+    //       rowSep = "OR",
+    //       rowEnd = ")"
+    //     ))
+    //   }
+    #[test]
+    fn test_format_1() {
+        assert_eq!(
+            FormatParser::parse(r#"format maxresults=10"#),
+            Ok((
+                "",
+                FormatCommand {
+                    mv_sep: "OR".into(),
+                    max_results: 10,
+                    row_prefix: "(".into(),
+                    col_prefix: "(".into(),
+                    col_sep: "AND".into(),
+                    col_end: ")".into(),
+                    row_sep: "OR".into(),
+                    row_end: ")".into(),
+                }
+            ))
+        )
+    }
+
+    //
+    //   test("format mvsep=\"||\" \"[\" \"[\" \"&&\" \"]\" \"||\" \"]\"") {
+    //     p(format(_), FormatCommand(
+    //       mvSep = "||",
+    //       maxResults = 0,
+    //       rowPrefix = "[",
+    //       colPrefix = "[",
+    //       colSep = "&&",
+    //       colEnd = "]",
+    //       rowSep = "||",
+    //       rowEnd = "]"
+    //     ))
+    //   }
+    #[test]
+    fn test_format_2() {
+        assert_eq!(
+            FormatParser::parse(r#"format mvsep="||" "[" "[" "&&" "]" "||" "]""#),
+            Ok((
+                "",
+                FormatCommand {
+                    mv_sep: "||".into(),
+                    max_results: 0,
+                    row_prefix: "[".into(),
+                    col_prefix: "[".into(),
+                    col_sep: "&&".into(),
+                    col_end: "]".into(),
+                    row_sep: "||".into(),
+                    row_end: "]".into(),
+                }
+            ))
+        )
+    }
+}

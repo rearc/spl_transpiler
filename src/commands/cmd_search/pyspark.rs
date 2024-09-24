@@ -91,6 +91,7 @@ impl PipelineTransformer for SearchCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pyspark::utils::test::generates;
 
     fn check_split_results(
         expr: impl Into<ast::Expr>,
@@ -214,5 +215,25 @@ mod tests {
             vec!["lol".into(), "two".into()],
             Some(column_like!([[col("x")] == [lit(2)]] & [[col("y")] > [lit(3)]]).into()),
         );
+    }
+
+    #[test]
+    fn test_search_8() {
+        let query = r#"search
+        query!="SELECT * FROM Win32_ProcessStartTrace WHERE ProcessName = 'wsmprovhost.exe'"
+        AND query!="SELECT * FROM __InstanceOperationEvent WHERE TargetInstance ISA 'AntiVirusProduct' OR TargetInstance ISA 'FirewallProduct' OR TargetInstance ISA 'AntiSpywareProduct'"
+        "#;
+
+        generates(
+            query,
+            r#"
+            spark.table("main").where(
+                (
+                    ~F.col("query").like("SELECT % FROM Win32_ProcessStartTrace WHERE ProcessName = 'wsmprovhost.exe'") &
+                    ~F.col("query").like("SELECT % FROM __InstanceOperationEvent WHERE TargetInstance ISA 'AntiVirusProduct' OR TargetInstance ISA 'FirewallProduct' OR TargetInstance ISA 'AntiSpywareProduct'")
+                )
+            )
+            "#,
+        )
     }
 }

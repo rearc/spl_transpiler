@@ -1,11 +1,10 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Field, ParsedCommandOptions};
-use crate::spl::parser::{field, ws};
+use crate::spl::parser::{comma_separated_list1, field, ws};
 use crate::spl::python::impl_pyclass;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::{map, opt};
-use nom::multi::separated_list1;
 use nom::sequence::tuple;
 use nom::IResult;
 use pyo3::prelude::*;
@@ -55,7 +54,7 @@ impl SplCommand<FieldsCommand> for FieldsParser {
         map(
             tuple((
                 opt(ws(alt((tag("+"), tag("-"))))),
-                separated_list1(ws(tag(",")), field),
+                comma_separated_list1(field),
             )),
             |(remove_fields_opt, fields)| FieldsCommand {
                 remove_fields: remove_fields_opt.unwrap_or("+") == "-",

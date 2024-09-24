@@ -150,3 +150,64 @@ impl SplCommand<CollectCommand> for CollectParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+    use crate::spl::parser::pipeline;
+
+    //
+    //   test("collect index=threathunting addtime=f x, y,  z") {
+    //     p(pipeline(_), Pipeline(Seq(
+    //       CollectCommand(
+    //         index = "threathunting",
+    //         fields = Seq(
+    //           Field("x"),
+    //           Field("y"),
+    //           Field("z")
+    //         ),
+    //         addTime = false,
+    //         file = null,
+    //         host = null,
+    //         marker = null,
+    //         outputFormat = "raw",
+    //         runInPreview = false,
+    //         spool = true,
+    //         source = null,
+    //         sourceType = null,
+    //         testMode = false
+    //       )
+    //     )))
+    //   }
+    #[test]
+    fn test_pipeline_collect_3() {
+        assert_eq!(
+            pipeline("collect index=threathunting addtime=f x, y,  z"),
+            Ok((
+                "",
+                ast::Pipeline {
+                    commands: vec![CollectCommand {
+                        index: "threathunting".to_string(),
+                        fields: vec![
+                            ast::Field("x".into()),
+                            ast::Field("y".into()),
+                            ast::Field("z".into()),
+                        ],
+                        add_time: false,
+                        file: None,
+                        host: None,
+                        marker: None,
+                        output_format: "raw".to_string(),
+                        run_in_preview: false,
+                        spool: true,
+                        source: None,
+                        source_type: None,
+                        test_mode: false,
+                    }
+                    .into()],
+                }
+            ))
+        )
+    }
+}

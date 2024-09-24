@@ -73,3 +73,133 @@ impl SplCommand<HeadCommand> for HeadParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast::*;
+    use crate::spl::utils::test::*;
+
+    //
+    //   test("head 20") {
+    //     p(head(_),
+    //       HeadCommand(
+    //         IntValue(20),
+    //         Bool(false),
+    //         Bool(false)
+    //       )
+    //     )
+    //   }
+    #[test]
+    fn test_head_limit_1() {
+        assert_eq!(
+            HeadParser::parse("head 20"),
+            Ok((
+                "",
+                HeadCommand {
+                    eval_expr: IntValue(20).into(),
+                    keep_last: BoolValue(false),
+                    null_option: BoolValue(false),
+                }
+                .into()
+            ))
+        )
+    }
+
+    //
+    //   test("head limit=400") {
+    //     p(head(_),
+    //       HeadCommand(
+    //         IntValue(400),
+    //         Bool(false),
+    //         Bool(false))
+    //     )
+    //   }
+    #[test]
+    fn test_head_limit_2() {
+        assert_eq!(
+            HeadParser::parse("head limit=400"),
+            Ok((
+                "",
+                HeadCommand {
+                    eval_expr: IntValue(400).into(),
+                    keep_last: BoolValue(false),
+                    null_option: BoolValue(false),
+                }
+                .into()
+            ))
+        )
+    }
+
+    //
+    //   test("head limit=400 keeplast=true null=false") {
+    //     p(head(_),
+    //       HeadCommand(
+    //         IntValue(400),
+    //         Bool(true),
+    //         Bool(false)
+    //       )
+    //     )
+    //   }
+    #[test]
+    fn test_head_limit_3() {
+        assert_eq!(
+            HeadParser::parse("head limit=400 keeplast=true null=false"),
+            Ok((
+                "",
+                HeadCommand {
+                    eval_expr: IntValue(400).into(),
+                    keep_last: BoolValue(true),
+                    null_option: BoolValue(false),
+                }
+                .into()
+            ))
+        )
+    }
+
+    //
+    //   test("head count>10") {
+    //     p(head(_),
+    //       HeadCommand(
+    //         Binary(
+    //           Field("count"),
+    //           GreaterThan,
+    //           IntValue(10)
+    //         ),
+    //         Bool(false),
+    //         Bool(false)
+    //       )
+    //     )
+    //   }
+    #[test]
+    fn test_head_count_greater_than_10() {
+        assert_eq!(
+            HeadParser::parse("head count>10"),
+            Ok((
+                "",
+                HeadCommand {
+                    eval_expr: _gt(Field("count".to_string()), IntValue(10),),
+                    keep_last: BoolValue(false),
+                    null_option: BoolValue(false),
+                }
+                .into()
+            ))
+        )
+    }
+
+    #[test]
+    fn test_head_count_greater_than_10_keeplast() {
+        assert_eq!(
+            HeadParser::parse("head count>=10 keeplast=true"),
+            Ok((
+                "",
+                HeadCommand {
+                    eval_expr: _gte(Field("count".to_string()), IntValue(10),),
+                    keep_last: BoolValue(true),
+                    null_option: BoolValue(false),
+                }
+                .into()
+            ))
+        )
+    }
+}

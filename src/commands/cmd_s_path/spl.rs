@@ -78,3 +78,51 @@ impl SplCommand<SPathCommand> for SPathParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_spath_1() {
+        assert_eq!(
+            SPathParser::parse(r#"spath output=myfield path=vendorProductSet.product.desc"#),
+            Ok((
+                "",
+                SPathCommand {
+                    input: "_raw".into(),
+                    output: Some("myfield".into()),
+                    path: "vendorProductSet.product.desc".into(),
+                }
+                .into()
+            ))
+        );
+        assert_eq!(
+            crate::spl::parser::command(
+                r#"spath output=myfield path=vendorProductSet.product.desc"#
+            )
+            .unwrap()
+            .1,
+            SPathParser::parse(r#"spath output=myfield path=vendorProductSet.product.desc"#)
+                .unwrap()
+                .1
+                .into(),
+        );
+    }
+
+    #[test]
+    fn test_spath_2() {
+        assert_eq!(
+            SPathParser::parse(r#"spath input=x output=y key.subkey"#),
+            Ok((
+                "",
+                SPathCommand {
+                    input: "x".into(),
+                    output: Some("y".into()),
+                    path: "key.subkey".into(),
+                }
+                .into()
+            ))
+        );
+    }
+}

@@ -24,7 +24,8 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest",
-    "pytest-dependency"
+    "pytest-dependency",
+    "tabulate",
 ]
 cli = [
     "textual[syntax]"

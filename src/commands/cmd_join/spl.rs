@@ -1,10 +1,8 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Field, ParsedCommandOptions, Pipeline};
-use crate::spl::parser::{field, sub_search, ws};
+use crate::spl::parser::{comma_separated_list1, field, sub_search};
 use crate::spl::python::impl_pyclass;
-use nom::bytes::complete::tag;
 use nom::combinator::map;
-use nom::multi::separated_list1;
 use nom::sequence::tuple;
 use nom::IResult;
 use pyo3::prelude::*;
@@ -82,7 +80,7 @@ impl SplCommand<JoinCommand> for JoinParser {
         map(
             tuple((
                 Self::Options::match_options,
-                separated_list1(ws(tag(",")), field),
+                comma_separated_list1(field),
                 sub_search,
             )),
             |(options, fields, pipeline)| JoinCommand {
@@ -95,5 +93,158 @@ impl SplCommand<JoinCommand> for JoinParser {
                 sub_search: pipeline,
             },
         )(input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::cmd_rename::spl::RenameCommand;
+    use crate::commands::cmd_search::spl::SearchCommand;
+    use crate::spl::ast;
+    use crate::spl::utils::test::_alias;
+
+    //
+    //   test("join product_id [search vendors]") {
+    //     p(join(_),
+    //       JoinCommand(
+    //         joinType = "inner",
+    //         useTime = false,
+    //         earlier = true,
+    //         overwrite = false,
+    //         max = 1,
+    //         Seq(Field("product_id")),
+    //         Pipeline(Seq(
+    //           SearchCommand(Field("vendors"))))
+    //       )
+    //     )
+    //   }
+    #[test]
+    fn test_join_1() {
+        assert_eq!(
+            JoinParser::parse(r#"join product_id [search vendors]"#),
+            Ok((
+                "",
+                JoinCommand {
+                    join_type: "inner".to_string(),
+                    use_time: false,
+                    earlier: true,
+                    overwrite: false,
+                    max: 1,
+                    fields: vec![ast::Field::from("product_id")],
+                    sub_search: ast::Pipeline {
+                        commands: vec![SearchCommand {
+                            expr: ast::Field::from("vendors").into()
+                        }
+                        .into()],
+                    }
+                }
+                .into()
+            ))
+        )
+    }
+
+    //
+    //   test("join type=left usetime=true earlier=false " +
+    //     "overwrite=false product_id, host, name [search vendors]") {
+    //     p(join(_),
+    //       JoinCommand(
+    //         joinType = "left",
+    //         useTime = true,
+    //         earlier = false,
+    //         overwrite = false,
+    //         max = 1,
+    //         Seq(
+    //           Field("product_id"),
+    //           Field("host"),
+    //           Field("name")
+    //         ),
+    //         Pipeline(Seq(
+    //           SearchCommand(Field("vendors"))))
+    //       )
+    //     )
+    //   }
+    #[test]
+    fn test_join_2() {
+        assert_eq!(
+            JoinParser::parse(
+                r#"join type=left usetime=true earlier=false overwrite=false product_id, host, name [search vendors]"#
+            ),
+            Ok((
+                "",
+                JoinCommand {
+                    join_type: "left".to_string(),
+                    use_time: true,
+                    earlier: false,
+                    overwrite: false,
+                    max: 1,
+                    fields: vec![
+                        ast::Field::from("product_id"),
+                        ast::Field::from("host"),
+                        ast::Field::from("name")
+                    ],
+                    sub_search: ast::Pipeline {
+                        commands: vec![SearchCommand {
+                            expr: ast::Field::from("vendors").into()
+                        }
+                        .into()],
+                    }
+                }
+                .into()
+            ))
+        )
+    }
+
+    //
+    //   test("join product_id [search vendors | rename pid AS product_id]") {
+    //     p(join(_),
+    //       JoinCommand(
+    //         joinType = "inner",
+    //         useTime = false,
+    //         earlier = true,
+    //         overwrite = false,
+    //         max = 1,
+    //         Seq(Field("product_id")),
+    //         Pipeline(Seq(
+    //           SearchCommand(Field("vendors")),
+    //           RenameCommand(Seq(
+    //             Alias(
+    //               Field("pid"),
+    //               "product_id"
+    //             )))
+    //         ))
+    //       )
+    //     )
+    //   }
+    #[test]
+    fn test_join_3() {
+        assert_eq!(
+            JoinParser::parse(r#"join product_id [search vendors | rename pid AS product_id]"#),
+            Ok((
+                "",
+                JoinCommand {
+                    join_type: "inner".to_string(),
+                    use_time: false,
+                    earlier: true,
+                    overwrite: false,
+                    max: 1,
+                    fields: vec![ast::Field::from("product_id")],
+                    sub_search: ast::Pipeline {
+                        commands: vec![
+                            SearchCommand {
+                                expr: ast::Field::from("vendors").into()
+                            }
+                            .into(),
+                            RenameCommand {
+                                alias: vec![_alias("product_id", ast::Field::from("pid"))],
+                            }
+                            .into()
+                        ],
+                    }
+                    .into()
+                }
+                .into()
+            ))
+        )
     }
 }

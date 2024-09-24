@@ -88,3 +88,34 @@ impl SplCommand<ConvertCommand> for ConvertParser {
         )(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+
+    //
+    //   test("convert ctime(indextime)") {
+    //     p(convert(_), ConvertCommand(convs = Seq(
+    //       FieldConversion("ctime", Field("indextime"), None)
+    //     )))
+    //   }
+    #[test]
+    fn test_convert_1() {
+        assert_eq!(
+            ConvertParser::parse("convert ctime(indextime)"),
+            Ok((
+                "",
+                ConvertCommand {
+                    timeformat: "%m/%d/%Y %H:%M:%S".to_string(),
+                    convs: vec![FieldConversion {
+                        func: "ctime".into(),
+                        field: ast::Field::from("indextime"),
+                        alias: None,
+                    },],
+                }
+                .into()
+            ))
+        )
+    }
+}

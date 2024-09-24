@@ -1,13 +1,13 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{FieldLike, ParsedCommandOptions};
-use crate::spl::parser::{field_rep, token, ws};
+use crate::spl::parser::{aliased_field, comma_or_space_separated_list1, field, token, ws};
 use crate::spl::python::impl_pyclass;
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::multispace1;
-use nom::combinator::{map, opt};
+use nom::combinator::{map, opt, verify};
 use nom::sequence::{separated_pair, tuple};
-use nom::IResult;
+use nom::{IResult, Parser};
 use pyo3::prelude::*;
 
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -31,6 +31,25 @@ pub struct LookupCommand {
 }
 impl_pyclass!(LookupOutput { kv: String, fields: Vec<FieldLike> });
 impl_pyclass!(LookupCommand { dataset: String, fields: Vec<FieldLike>, output: Option<LookupOutput> });
+
+//   def fieldRep[_: P]: P[Seq[FieldLike]] = (aliasedField | field).filter {
+//     case Alias(Field(field), _) => field.toLowerCase() != "output"
+//     case Field(v) => v.toLowerCase(Locale.ROOT) != "output"
+//     case _ => false
+//   }.rep(1)
+pub fn field_rep(input: &str) -> IResult<&str, Vec<FieldLike>> {
+    comma_or_space_separated_list1(alt((
+        map(
+            verify(aliased_field, |v| v.name.to_ascii_lowercase() != "output"),
+            FieldLike::Alias,
+        ),
+        map(
+            verify(field, |v| v.0.to_ascii_lowercase() != "output"),
+            FieldLike::Field,
+        ),
+    )))
+    .parse(input)
+}
 
 //
 //   def lookupOutput[_: P]: P[LookupOutput] =
@@ -80,5 +99,57 @@ impl SplCommand<LookupCommand> for LookupParser {
                 output,
             },
         )(input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::ast;
+    use crate::spl::parser::pipeline;
+
+    //
+    //   test("lookup process_create_whitelist a b output reason") {
+    //     p(pipeline(_), Pipeline(Seq(
+    //       LookupCommand(
+    //         "process_create_whitelist",
+    //         Seq(
+    //           Field("a"),
+    //           Field("b")
+    //         ),
+    //         Some(
+    //           LookupOutput(
+    //             "output",
+    //             Seq(
+    //               Field("reason")
+    //             )
+    //           )
+    //         )
+    //       )
+    //     )))
+    //   }
+    #[test]
+    fn test_pipeline_lookup_5() {
+        let _lookup_cmd = LookupCommand {
+            dataset: "process_create_whitelist".to_string(),
+            fields: vec![ast::Field::from("a").into(), ast::Field::from("b").into()],
+            output: Some(LookupOutput {
+                kv: "output".to_string(),
+                fields: vec![ast::Field::from("reason").into()],
+            }),
+        };
+        assert_eq!(
+            LookupParser::parse("lookup process_create_whitelist a b output reason"),
+            Ok(("", _lookup_cmd.clone()))
+        );
+        assert_eq!(
+            pipeline("lookup process_create_whitelist a b output reason"),
+            Ok((
+                "",
+                ast::Pipeline {
+                    commands: vec![_lookup_cmd.clone().into()],
+                }
+            ))
+        )
     }
 }

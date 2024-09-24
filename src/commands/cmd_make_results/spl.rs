@@ -66,3 +66,59 @@ impl SplCommand<MakeResultsCommand> for MakeResultsParser {
         })(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spl::parser::command;
+
+    //
+    //   test("makeresults") {
+    //     p(command(_), MakeResults(
+    //       count = 1,
+    //       annotate = false,
+    //       server = "local",
+    //       serverGroup = null))
+    //   }
+    #[test]
+    fn test_command_makeresults_1() {
+        assert_eq!(
+            command(r#"makeresults"#),
+            Ok((
+                "",
+                MakeResultsCommand {
+                    count: 1,
+                    annotate: false,
+                    server: "local".into(),
+                    server_group: None,
+                }
+                .into()
+            ))
+        )
+    }
+
+    //
+    //   test("makeresults count=10 annotate=t splunk_server_group=group0") {
+    //     p(command(_), MakeResults(
+    //       count = 10,
+    //       annotate = true,
+    //       server = "local",
+    //       serverGroup = "group0"))
+    //   }
+    #[test]
+    fn test_command_makeresults_2() {
+        assert_eq!(
+            command(r#"makeresults count=10 annotate=t splunk_server_group=group0"#),
+            Ok((
+                "",
+                MakeResultsCommand {
+                    count: 10,
+                    annotate: true,
+                    server: "local".into(),
+                    server_group: Some("group0".into()),
+                }
+                .into()
+            ))
+        )
+    }
+}

@@ -41,6 +41,6 @@ impl SplCommand<SAMPLECommand> for SAMPLEParser {
     type Options = SAMPLECommandOptions;
 
     fn parse_body(input: &str) -> IResult<&str, SAMPLECommand> {
-        unimplemented!()
+        bail!("UNIMPLEMENTED")
     }
 }
