@@ -1,0 +1,15 @@
+`amazon_security_lake` api.operation=CreateAccessKey http_request.user_agent!=console.amazonaws.com api.response.error=null
+| rename unmapped{}.key as unmapped_key , unmapped{}.value as unmapped_value
+| eval keyjoin=mvzip(unmapped_key,unmapped_value)
+| mvexpand keyjoin
+| rex field=keyjoin "^(?<key>[^,]+),(?<value>.*)$"
+| eval {key} = value
+| search responseElements.accessKey.userName = *
+| rename identity.user.name as identity_user_name, responseElements.accessKey.userName as responseElements_accessKey_userName
+| eval match=if(identity_user_name=responseElements_accessKey_userName,1,0)
+| search match=0
+| rename identity_user_name as identity.user.name , responseElements_accessKey_userName as responseElements.accessKey.userName
+| stats count min(_time) as firstTime max(_time) as lastTime by responseElements.accessKey.userName api.operation api.service.name identity.user.account_uid identity.user.credential_uid identity.user.name identity.user.type identity.user.uid identity.user.uuid http_request.user_agent src_endpoint.ip
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+|`asl_aws_createaccesskey_filter`

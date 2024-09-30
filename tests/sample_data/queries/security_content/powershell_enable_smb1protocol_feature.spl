@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 ScriptBlockText = "*Enable-WindowsOptionalFeature*" ScriptBlockText = "*SMB1Protocol*"
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer UserID
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `powershell_enable_smb1protocol_feature_filter`

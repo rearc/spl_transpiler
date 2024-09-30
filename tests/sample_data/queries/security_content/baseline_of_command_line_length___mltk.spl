@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as start_time max(_time) as end_time FROM datamodel=Endpoint.Processes by Processes.user Processes.dest Processes.process_name Processes.process
+| `drop_dm_object_name(Processes)`
+| search user!=unknown
+| `security_content_ctime(start_time)`| `security_content_ctime(end_time)`| eval processlen=len(process)
+| fit DensityFunction processlen by user into cmdline_pdfmodel

@@ -1,0 +1,5 @@
+`sysmon` EventCode=8 SourceImage = "*\\rundll32.exe" TargetImage = "*.exe"
+| stats count min(_time) as firstTime max(_time) as lastTime by SourceImage TargetImage TargetProcessId SourceProcessId StartAddress EventCode dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `rundll32_create_remote_thread_to_a_process_filter`

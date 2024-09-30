@@ -1,0 +1,6 @@
+`papercutng` (loginType=Admin OR userName=admin)
+| eval uri_match=if(match(_raw, "(?i)(\/app\?service=page\/SetupCompleted|\/app|\/app\?service=page\/PrinterList|\/app\?service=direct\/1\/PrinterList\/selectPrinter&sp=l1001|\/app\?service=direct\/1\/PrinterDetails\/printerOptionsTab\.tab)"), "URI matches", null())
+| eval ip_match=if(match(_raw, "(?i)((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))") AND NOT match(_raw, "(?i)(10\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))|(172\.(1[6-9]|2[0-9]|3[0-1])\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))|(192\.168\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))"), "IP matches", null())
+| where  (isnotnull(uri_match) OR isnotnull(ip_match))
+| stats sparkline, count, values(uri_match) AS uri_match, values(ip_match) AS ip_match latest(_raw) BY host, index, sourcetype
+| `papercut_ng_suspicious_behavior_debug_log_filter`

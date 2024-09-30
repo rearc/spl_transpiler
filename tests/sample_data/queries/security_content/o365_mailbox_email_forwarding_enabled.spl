@@ -1,0 +1,11 @@
+`o365_management_activity` Operation=Set-Mailbox
+| eval match1=mvfind('Parameters{}.Name', "ForwardingAddress")
+| eval match2=mvfind('Parameters{}.Name', "ForwardingSmtpAddress")
+| where match1>= 0 OR match2>= 0
+| eval ForwardTo=coalesce(ForwardingAddress, ForwardingSmtpAddress)
+| search ForwardTo!=""
+| rename user_id as user
+| stats count earliest(_time) as firstTime latest(_time) as lastTime values(ForwardTo) as ForwardTo by user ObjectId
+|`security_content_ctime(firstTime)`
+|`security_content_ctime(lastTime)`
+| `o365_mailbox_email_forwarding_enabled_filter`

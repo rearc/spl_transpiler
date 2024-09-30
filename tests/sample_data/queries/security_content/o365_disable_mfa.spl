@@ -1,0 +1,6 @@
+`o365_management_activity` Operation="Disable Strong Authentication."
+| stats count earliest(_time) as firstTime latest(_time) as lastTime by UserType Operation UserId ResultStatus object
+| rename UserType AS user_type, Operation AS action, UserId AS src_user, object AS user, ResultStatus AS result
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_disable_mfa_filter`

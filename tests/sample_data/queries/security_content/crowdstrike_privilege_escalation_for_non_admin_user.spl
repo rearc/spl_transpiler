@@ -1,0 +1,7 @@
+`crowdstrike_stream` tag=alert
+| rename event.EndpointIp as src_ip, event.EndpointName as src_host, event.UserName as user, event.IncidentDescription as description, event.IncidentType as type, event.NumbersOfAlerts as count_alerts, event.SeverityName as severity
+| stats count min(_time) as firstTime max(_time) as lastTime by src_ip, src_host, user, description, type, count_alerts, severity
+| where LIKE(type,"%Privilege escalation%") AND NOT LIKE(user, "%adm%") AND NOT LIKE(user, "%svc%") AND NOT LIKE(user, "%admin%")
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `crowdstrike_privilege_escalation_for_non_admin_user_filter`

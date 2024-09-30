@@ -1,0 +1,7 @@
+`crushftp`
+| rex field=_raw "\[(?<protocol>HTTPS|HTTP):(?<session_id>[^\:]+):(?<user>[^\:]+):(?<src_ip>\d+\.\d+\.\d+\.\d+)\] (?<action>READ|WROTE): \*(?<http_method>[A-Z]+) (?<uri_query>[^\s]+) HTTP/[^\*]+\*"
+| eval message=if(match(_raw, "INCLUDE") and isnotnull(src_ip), "traces of exploitation by " . src_ip, "false")
+| search message!=false
+| rename host as dest
+| stats count by _time, dest, source, message, src_ip, http_method, uri_query, user, action
+| sort -_time| `crushftp_server_side_template_injection_filter`

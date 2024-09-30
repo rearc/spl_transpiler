@@ -1,0 +1,7 @@
+ `wineventlog_security` EventCode IN (4727, 4730, 4737) (TargetUserName="ESX Admins" OR TargetUserName="*ESX Admins*")
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode TargetUserName TargetDomainName SubjectUserName SubjectDomainName Computer
+| rename Computer as dest
+| eval EventCodeDescription=case( EventCode=4727, "Security Enabled Global Group Created", EventCode=4730, "Security Enabled Global Group Deleted", EventCode=4737, "Security Enabled Global Group Modified" )
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_esx_admins_group_creation_security_event_filter`

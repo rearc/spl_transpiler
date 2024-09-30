@@ -1,0 +1,6 @@
+index=something
+| from datamodel Identity_Management.All_Identities
+| eval empStatus=case((now()-startDate)<604800, "Accounts created in last week")
+| search empStatus="Accounts created in last week"| `security_content_ctime(endDate)`
+| `security_content_ctime(startDate)`| table identity empStatus endDate startDate
+| `identify_new_user_accounts_filter`

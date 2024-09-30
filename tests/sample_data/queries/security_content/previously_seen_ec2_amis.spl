@@ -1,0 +1,5 @@
+`cloudtrail` eventName=RunInstances errorCode=success
+| rename requestParameters.instancesSet.items{}.imageId as amiID
+| stats earliest(_time) as firstTime latest(_time) as lastTime by amiID
+| outputlookup previously_seen_ec2_amis
+| stats count

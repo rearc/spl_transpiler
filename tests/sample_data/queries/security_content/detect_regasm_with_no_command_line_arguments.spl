@@ -1,0 +1,7 @@
+index=something
+| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Processes where `process_regasm` by _time span=1h  Processes.process_id Processes.process_name Processes.dest Processes.user Processes.process_path Processes.process  Processes.parent_process_name
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| regex process="(?i)(regasm\.exe.{0,4}$)"
+| `detect_regasm_with_no_command_line_arguments_filter`

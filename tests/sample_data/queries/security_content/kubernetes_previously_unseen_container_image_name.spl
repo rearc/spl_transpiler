@@ -1,0 +1,9 @@
+index=something
+| mstats  count(k8s.container.ready) as k8s.container.ready_count where `kubernetes_metrics` AND earliest=-24h by host.name k8s.cluster.name k8s.node.name container.image.name
+| eval current="True"
+| append [mstats  count(k8s.container.ready) as k8s.container.ready_count where `kubernetes_metrics` AND earliest=-30d latest=-1h  by host.name k8s.cluster.name k8s.node.name container.image.name
+| eval current="false" ]
+| stats values(current) as current by host.name k8s.cluster.name k8s.node.name container.image.name
+| search current="true" AND current!="false"
+| rename host.name as host
+| `kubernetes_previously_unseen_container_image_name_filter`

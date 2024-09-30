@@ -1,0 +1,6 @@
+index=something
+| tstats count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where Web.url="*/api/v1/totp/user-backup-code/../../system/system-information*" Web.http_method=GET Web.status=200 by Web.src, Web.dest, Web.http_user_agent, Web.url
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `ivanti_connect_secure_system_information_access_via_auth_bypass_filter`

@@ -1,0 +1,9 @@
+`o365_management_activity` Operation=Set-Mailbox
+| spath input=Parameters
+| rename Identity AS src_user
+| search ForwardingAddress=*
+| stats dc(src_user) AS count_src_user earliest(_time) as firstTime latest(_time) as lastTime values(src_user) AS src_user values(user) AS user by ForwardingAddress
+| where count_src_user > 1
+|`security_content_ctime(firstTime)`
+|`security_content_ctime(lastTime)`
+|`o365_suspicious_admin_email_forwarding_filter`

@@ -1,0 +1,5 @@
+ `powershell` EventCode=4104  (ScriptBlockText=*get-objectacl* OR ScriptBlockText=*Get-DomainObjectAcl* )
+| stats count min(_time) as firstTime max(_time) as lastTime by Opcode Computer UserID EventCode ScriptBlockText
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_powerview_ad_access_control_list_enumeration_filter`

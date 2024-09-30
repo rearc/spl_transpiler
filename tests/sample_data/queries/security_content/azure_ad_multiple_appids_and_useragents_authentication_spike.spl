@@ -1,0 +1,8 @@
+ `azure_monitor_aad` category=SignInLogs operationName="Sign-in activity" (properties.authenticationRequirement="multiFactorAuthentication" AND properties.status.additionalDetails="MFA required in Azure AD") OR (properties.authenticationRequirement=singleFactorAuthentication AND "properties.authenticationDetails{}.succeeded"=true)
+| bucket span=5m _time
+| rename properties.* as *
+| stats count min(_time) as firstTime max(_time) as lastTime dc(appId) as unique_app_ids dc(userAgent) as unique_user_agents values(appDisplayName) values(deviceDetail.operatingSystem) by user, src_ip
+| where count > 5 and unique_app_ids > 2 and unique_user_agents > 5
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_multiple_appids_and_useragents_authentication_spike_filter`

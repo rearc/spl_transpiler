@@ -1,0 +1,9 @@
+`o365_management_activity` Operation="Consent to application."
+| eval new_field=mvindex('ModifiedProperties{}.NewValue', 4)
+| rex field=new_field "ConsentType: (?<ConsentType>[^\,]+)"
+| rex field=new_field "Scope: (?<Scope>[^\,]+)"
+| search  ConsentType = "AllPrincipals"
+| stats count min(_time) as firstTime max(_time) as lastTime by Operation, user, object, ObjectId, ConsentType, Scope
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_tenant_wide_admin_consent_granted_filter`

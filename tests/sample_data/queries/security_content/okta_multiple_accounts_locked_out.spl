@@ -1,0 +1,7 @@
+index=something
+| tstats `security_content_summariesonly` count max(_time) as lastTime, min(_time) as firstTime values(All_Changes.user) as user from datamodel=Change where All_Changes.change_type=AAA All_Changes.object_category=User AND All_Changes.action=lockout AND All_Changes.command=user.account.lock by _time span=5m All_Changes.result All_Changes.command sourcetype All_Changes.src
+| where count > 5
+| `drop_dm_object_name("All_Changes")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `okta_multiple_accounts_locked_out_filter`

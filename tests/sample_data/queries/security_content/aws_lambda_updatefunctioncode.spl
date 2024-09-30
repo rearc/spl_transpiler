@@ -1,0 +1,3 @@
+`cloudtrail` eventSource=lambda.amazonaws.com eventName=UpdateFunctionCode*  errorCode = success  user_type=IAMUser
+| stats  count min(_time) as firstTime max(_time) as lastTime  values(requestParameters.functionName) as function_updated by src_ip user_arn user_agent user_type eventName aws_account_id
+|`aws_lambda_updatefunctioncode_filter`

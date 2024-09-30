@@ -1,0 +1,5 @@
+`okta` eventType=user.account.lock
+| stats count min(_time) as firstTime max(_time) as lastTime values(displayMessage) values(src_user) as user by src_ip eventType status
+| where count >=3
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `okta_account_locked_out_filter`

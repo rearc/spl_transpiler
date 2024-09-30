@@ -1,0 +1,6 @@
+`o365_management_activity` Workload=Exchange AND Operation IN ("Set-*","Disable-*","New-*","Remove-*") Operation IN ("*AntiPhish*","*SafeLink*","*SafeAttachment*","*Malware*")
+| stats values(ObjectId) as object, min(_time) as firstTime, max(_time) as lastTime, count  by Id, UserId, Operation
+| rename Id as object_id, UserId as user, Operation as signature
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_email_security_feature_changed_filter`

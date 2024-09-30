@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where `process_netsh` Processes.process = "* firewall *" Processes.process = "* del*" by Processes.parent_process Processes.parent_process_name Processes.process_name Processes.process_id Processes.process_guid Processes.process Processes.user Processes.dest
+| `drop_dm_object_name("Processes")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_delete_or_modify_system_firewall_filter`

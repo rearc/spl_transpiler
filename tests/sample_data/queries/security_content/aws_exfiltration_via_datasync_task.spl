@@ -1,0 +1,6 @@
+`cloudtrail` eventName = CreateTask eventSource="datasync.amazonaws.com"
+| rename  requestParameters.*  as *
+| stats count min(_time) as firstTime max(_time) as lastTime by src_ip aws_account_id awsRegion eventName destinationLocationArn sourceLocationArn userAgent user_arn userIdentity.principalId  errorCode
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `aws_exfiltration_via_datasync_task_filter`

@@ -1,0 +1,7 @@
+ `o365_management_activity` Workload=Exchange Operation=Add-MailboxPermission
+| search (AccessRights=FullAccess OR AccessRights=ChangePermission OR AccessRights=ChangeOwner)
+| rename Identity AS dest_user
+| stats count earliest(_time) as firstTime latest(_time) as lastTime by user dest_user Operation AccessRights
+|`security_content_ctime(firstTime)`
+|`security_content_ctime(lastTime)`
+| `o365_elevated_mailbox_permission_assigned_filter`

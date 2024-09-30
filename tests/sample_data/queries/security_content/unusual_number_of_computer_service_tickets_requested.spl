@@ -1,0 +1,7 @@
+ `wineventlog_security` EventCode=4769 Service_Name="*$" Account_Name!="*$*"
+| bucket span=2m _time
+| stats dc(Service_Name) AS unique_targets values(Service_Name) as host_targets by _time, Client_Address, Account_Name
+| eventstats avg(unique_targets) as comp_avg , stdev(unique_targets) as comp_std by Client_Address, Account_Name
+| eval upperBound=(comp_avg+comp_std*3)
+| eval isOutlier=if(unique_targets >10 and unique_targets >= upperBound, 1, 0)
+| `unusual_number_of_computer_service_tickets_requested_filter`

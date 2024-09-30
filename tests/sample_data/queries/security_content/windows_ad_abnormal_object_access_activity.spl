@@ -1,0 +1,7 @@
+`wineventlog_security` EventCode=4662
+| stats min(_time) AS firstTime, max(_time) AS lastTime, dc(ObjectName) AS ObjectName_count, values(ObjectType) AS ObjectType, latest(Computer) AS dest count BY SubjectUserName
+| eventstats avg(ObjectName_count) AS average stdev(ObjectName_count) AS standarddev
+| eval limit = round((average+(standarddev*3)),0), user = SubjectUserName
+| where ObjectName_count > limit
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `windows_ad_abnormal_object_access_activity_filter`

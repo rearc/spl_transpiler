@@ -1,0 +1,6 @@
+index=something
+| tstats count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where Web.url IN ("*/api/v2/cmdb/system/admin*")  Web.http_method IN ("GET", "PUT") by Web.http_user_agent, Web.http_method, Web.url, Web.url_length, Web.src, Web.dest, sourcetype
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `fortinet_appliance_auth_bypass_filter`

@@ -1,0 +1,5 @@
+`aws_cloudwatchlogs_eks` annotations.authorization.k8s.io/reason=*
+| table sourceIPs{} user.username userAgent annotations.authorization.k8s.io/reason
+| stats count by user.username annotations.authorization.k8s.io/reason
+| rare user.username annotations.authorization.k8s.io/reason
+|`kubernetes_aws_detect_rbac_authorization_by_account_filter`

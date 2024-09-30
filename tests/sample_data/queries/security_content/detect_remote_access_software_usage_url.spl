@@ -1,0 +1,9 @@
+index=something
+| tstats count min(_time) as firstTime max(_time) as lastTime latest(Web.http_method) as http_method latest(Web.http_user_agent) as http_user_agent latest(Web.url) as url latest(Web.user) as user latest(Web.dest) as dest from datamodel=Web by Web.action Web.src Web.category Web.url_domain
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `drop_dm_object_name("Web")`
+| lookup remote_access_software remote_domain AS url_domain OUTPUT isutility, description as signature, comment_reference as desc, category
+| search isutility = True
+| `remote_access_software_usage_exceptions`
+| `detect_remote_access_software_usage_url_filter`

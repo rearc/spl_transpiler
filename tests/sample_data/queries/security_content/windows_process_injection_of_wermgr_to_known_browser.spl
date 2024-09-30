@@ -1,0 +1,5 @@
+`sysmon` EventCode=8 SourceImage = "*\\wermgr.exe" TargetImage IN ("*\\firefox.exe", "*\\chrome.exe", "*\\iexplore.exe","*\\microsoftedgecp.exe")
+| stats count min(_time) as firstTime max(_time) as lastTime by SourceImage TargetImage SourceProcessGuid SourceProcessId StartAddress StartFunction TargetProcessGuid TargetProcessId  EventCode dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_process_injection_of_wermgr_to_known_browser_filter`

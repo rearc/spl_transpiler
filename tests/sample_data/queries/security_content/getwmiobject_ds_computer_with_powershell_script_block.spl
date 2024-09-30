@@ -1,0 +1,4 @@
+`powershell` EventCode=4104 (ScriptBlockText=*Get-WmiObject* AND ScriptBlockText="*namespace root\\directory\\ldap*" AND ScriptBlockText="*class ds_computer*")
+| stats count min(_time) as firstTime max(_time) as lastTime by Opcode Computer UserID EventCode ScriptBlockText
+| `security_content_ctime(firstTime)`
+| `getwmiobject_ds_computer_with_powershell_script_block_filter`

@@ -1,0 +1,10 @@
+`o365_management_activity` (Operation=New-InboxRule OR Operation=set-InboxRule)
+| eval match1=mvfind('Parameters{}.Name', "ForwardTo")
+| eval match2=mvfind('Parameters{}.Name', "ForwardAsAttachmentTo")
+| eval match3=mvfind('Parameters{}.Name', "RedirectTo")
+| where match1>= 0 OR match2>= 0 OR match3>= 0
+| eval ForwardTo=coalesce(ForwardTo, ForwardAsAttachmentTo, RedirectTo)
+| stats count min(_time) as firstTime max(_time) as lastTime values(Name) as Name by user Operation ForwardTo
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_new_email_forwarding_rule_created_filter`

@@ -1,0 +1,13 @@
+index=something
+| tstats `security_content_summariesonly` count from datamodel=Network_Resolution where nodename=DNS "DNS.reply_code"!="No Error" "DNS.reply_code"!="NoError" DNS.reply_code!="unknown" NOT "DNS.query"="*.arpa" "DNS.query"="*.*" by "DNS.src" "DNS.query" "DNS.reply_code"
+| `drop_dm_object_name("DNS")`
+| lookup cim_corporate_web_domain_lookup domain as query OUTPUT domain
+| where isnull(domain)
+| lookup update=true alexa_lookup_by_str domain as query OUTPUT rank
+| where isnull(rank)
+| eventstats max(count) as mc by src reply_code
+| eval mode_query=if(count=mc, query, null())
+| stats sum(count) as count values(mode_query) as query values(mc) as max_query_count by src reply_code
+| where count>50
+| `get_asset(src)`
+| `excessive_dns_failures_filter`

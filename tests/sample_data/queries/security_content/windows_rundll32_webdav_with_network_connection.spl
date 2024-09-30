@@ -1,0 +1,10 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime FROM datamodel=Endpoint.Processes where Processes.parent_process_name=svchost.exe `process_rundll32` Processes.process IN ("*\\windows\\system32\\davclnt.dll,*davsetcookie*", "*\\windows\\syswow64\\davclnt.dll,*davsetcookie*") by host _time span=1h Processes.process_id Processes.process_name Processes.dest Processes.process_path Processes.process Processes.parent_process_name Processes.parent_process
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| rename dest as src
+| join host process_id [
+| tstats `security_content_summariesonly` count latest(All_Traffic.dest) as dest latest(All_Traffic.dest_ip) as dest_ip latest(All_Traffic.dest_port) as dest_port FROM datamodel=Network_Traffic.All_Traffic where All_Traffic.dest_port!=0 NOT (All_Traffic.dest_ip IN (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16))  by host All_Traffic.process_id
+| `drop_dm_object_name(All_Traffic)`]
+| `windows_rundll32_webdav_with_network_connection_filter`

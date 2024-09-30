@@ -1,0 +1,8 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where `process_powershell` by Processes.user Processes.process_name Processes.process Processes.parent_process_name Processes.original_file_name Processes.dest Processes.process_id
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| where match(process,"(?i)[\-|\/|–
+|—|―]w(in*d*o*w*s*t*y*l*e*)*\s+[^-]")
+| `powershell___connect_to_internet_with_hidden_window_filter`

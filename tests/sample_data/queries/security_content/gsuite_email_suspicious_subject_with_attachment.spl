@@ -1,0 +1,10 @@
+`gsuite_gmail` num_message_attachments > 0 subject IN ("*dhl*", "* ups *", "*delivery*", "*parcel*", "*label*", "*invoice*", "*postal*", "* fedex *", "* usps *", "* express *", "*shipment*", "*Banking/Tax*","*shipment*", "*new order*") attachment{}.file_extension_type IN ("doc", "docx", "xls", "xlsx", "ppt", "pptx", "pdf", "zip", "rar", "html","htm","hta")
+| rex field=source.from_header_address "[^@]+@(?<source_domain>[^@]+)"
+| rex field=destination{}.address "[^@]+@(?<dest_domain>[^@]+)"
+| where not source_domain="internal_test_email.com" and dest_domain="internal_test_email.com"
+| eval phase="plan"
+| eval severity="medium"
+| stats count min(_time) as firstTime max(_time) as lastTime values(attachment{}.file_extension_type) as email_attachments, values(attachment{}.sha256) as attachment_sha256, values(payload_size) as payload_size by destination{}.service num_message_attachments  subject destination{}.address source.address phase severity
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `gsuite_email_suspicious_subject_with_attachment_filter`

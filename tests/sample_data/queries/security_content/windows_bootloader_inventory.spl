@@ -1,0 +1,5 @@
+`bootloader_inventory`
+| stats count min(_time) as firstTime max(_time) as lastTime values(_raw) by host
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_bootloader_inventory_filter`

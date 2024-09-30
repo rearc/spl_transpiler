@@ -1,0 +1,6 @@
+`wineventlog_security` EventCode=4798  CallerProcessName = "*\\telegram.exe"
+| stats count min(_time) as firstTime max(_time) as lastTime by user Computer EventCode CallerProcessName  ProcessID SubjectUserSid SubjectDomainName  SubjectLogonId
+| rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `enumerate_users_local_group_using_telegram_filter`

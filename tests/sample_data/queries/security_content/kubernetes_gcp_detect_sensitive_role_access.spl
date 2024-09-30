@@ -1,0 +1,4 @@
+`google_gcp_pubsub_message` data.labels.authorization.k8s.io/reason=ClusterRoleBinding OR Clusterrole dest=apis/rbac.authorization.k8s.io/v1 src_ip!=::1
+| table src_ip src_user http_user_agent data.labels.authorization.k8s.io/decision data.labels.authorization.k8s.io/reason
+| dedup src_ip src_user
+|`kubernetes_gcp_detect_sensitive_role_access_filter`

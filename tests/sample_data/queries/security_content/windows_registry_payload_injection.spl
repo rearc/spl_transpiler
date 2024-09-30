@@ -1,0 +1,9 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) AS firstTime max(_time) AS lastTime FROM datamodel=Endpoint.Processes BY _time span=1h Processes.user Processes.process_id Processes.process_name Processes.process Processes.process_path Processes.dest Processes.parent_process_name Processes.parent_process Processes.process_guid| `drop_dm_object_name(Processes)`
+| join max=0 dest process_guid [| tstats `security_content_summariesonly` count from datamodel=Endpoint.Registry where Registry.registry_value_data=* by _time span=1h Registry.dest Registry.registry_path Registry.registry_value_name Registry.process_guid Registry.registry_value_data Registry.registry_key_name
+| `drop_dm_object_name(Registry)`
+| eval reg_data_len = len(registry_value_data)
+| where reg_data_len > 512]
+| fields firstTime lastTime dest user parent_process_name parent_process process_name process_path process registry_key_name registry_path registry_value_name registry_value_data process_guid
+| where isnotnull(registry_value_data)| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `windows_registry_payload_injection_filter`

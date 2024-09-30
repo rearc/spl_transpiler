@@ -1,0 +1,13 @@
+`o365_management_activity` Workload=AzureActiveDirectory Operation="Add app role assignment to service principal."
+| eval len=mvcount('Actor{}.ID')
+| eval userType = mvindex('Actor{}.ID',len-1)
+| eval roleId = mvindex('ModifiedProperties{}.NewValue', 0)
+| eval roleValue = mvindex('ModifiedProperties{}.NewValue', 1)
+| eval roleDescription = mvindex('ModifiedProperties{}.NewValue', 2)
+| eval dest_user = mvindex('Target{}.ID', 0)
+| search userType = "ServicePrincipal"
+| eval src_user = user
+| stats count earliest(_time) as firstTime latest(_time) as lastTime by src_user dest_user roleId roleValue roleDescription
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_admin_consent_bypassed_by_service_principal_filter`

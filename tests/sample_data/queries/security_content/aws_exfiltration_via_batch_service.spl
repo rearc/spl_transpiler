@@ -1,0 +1,5 @@
+`cloudtrail` eventName = JobCreated
+|  stats count min(_time) as firstTime max(_time) as lastTime values(serviceEventDetails.jobArn) as job_arn values(serviceEventDetails.status) as status by src_ip  aws_account_id eventName errorCode userAgent
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `aws_exfiltration_via_batch_service_filter`

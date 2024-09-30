@@ -1,0 +1,5 @@
+ `wineventlog_security` EventCode=4672 AND NOT(Caller_User_Name IN ("DWM-1","DWM-2","DWM-3","LOCAL SERVICE","NETWORK SERVICE","SYSTEM","*$"))
+| bucket span=5m _time
+| stats dc(Computer) AS unique_targets values(Computer) as dest values(PrivilegeList) as privileges by _time, Caller_User_Name
+| rename Caller_User_Name as user| where unique_targets > 30
+| `windows_special_privileged_logon_on_multiple_hosts_filter`

@@ -1,0 +1,5 @@
+`wineventlog_security` EventCode=4741 NewUacValue="0x80" ServicePrincipalNames IN ("*HOST/*","*RestrictedKrbHost/*")
+| stats count min(_time) as firstTime max(_time) as lastTime values(EventCode),values(TargetDomainName),values(PrimaryGroupId), values(OldUacValue), values(NewUacValue),values(SamAccountName),values(DnsHostName),values(ServicePrincipalNames) by dest Logon_ID subject
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_computer_account_with_spn_filter`

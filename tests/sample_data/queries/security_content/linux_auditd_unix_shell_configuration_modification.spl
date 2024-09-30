@@ -1,0 +1,4 @@
+`linux_auditd` type=PATH name IN ("/etc/profile", "/etc/shells", "/etc/profile.d", "/etc/bash.bashrc", "/etc/bashrc", "/etc/zsh/zprofile", "/etc/zsh/zshrc", "/etc/zsh/zlogin", "/etc/zsh/zlogout", "/etc/csh.cshrc", "/etc/csh.login", "/root/.bashrc", "/root/.bash_profile", "root/.profile", "/root/.zshrc", "/root/.zprofile", "/home/*/.bashrc", "/home/*/.zshrc", "/home/*/.bash_profile", "/home/*/.zprofile", "/home/*/.profile", "/home/*/.bash_login", "/home/*/.bash_logout", "/home/*/.zlogin", "/home/*/.zlogout")
+| rename host as dest
+| stats count min(_time) as firstTime max(_time) as lastTime by name nametype OGID type dest
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`| `linux_auditd_unix_shell_configuration_modification_filter`

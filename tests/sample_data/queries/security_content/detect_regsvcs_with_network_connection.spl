@@ -1,0 +1,5 @@
+`sysmon` EventID=3 dest_ip!=10.0.0.0/8 dest_ip!=172.16.0.0/12 dest_ip!=192.168.0.0/16 process_name=regsvcs.exe
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, user, process_name, src_ip, dest_ip
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `detect_regsvcs_with_network_connection_filter`

@@ -1,0 +1,11 @@
+index=something
+| tstats min(_time) as firstTime max(_time) as lastTime from datamodel=Authentication where Authentication.signature=AssumeRole by Authentication.vendor_account Authentication.user Authentication.src Authentication.user_role
+| `drop_dm_object_name(Authentication)`
+| rex field=user_role "arn:aws:sts:*:(?<dest_account>.*):"
+| where vendor_account != dest_account
+| rename vendor_account as requestingAccountId dest_account as requestedAccountId
+| lookup previously_seen_aws_cross_account_activity requestingAccountId, requestedAccountId, OUTPUTNEW firstTime
+| eval status = if(firstTime > relative_time(now(), "-24h@h"),"New Cross Account Activity","Previously Seen")
+|  where status = "New Cross Account Activity"
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `aws_cross_account_activity_from_previously_unseen_account_filter`

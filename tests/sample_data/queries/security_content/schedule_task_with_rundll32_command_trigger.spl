@@ -1,0 +1,7 @@
+`wineventlog_security` EventCode=4698
+| xmlkv Message
+| search Command IN ("*rundll32*")
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, Task_Name, Command, Author, Enabled, Hidden, Arguments
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `schedule_task_with_rundll32_command_trigger_filter`

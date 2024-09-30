@@ -1,0 +1,6 @@
+`cloudtrail` eventName=RunInstances errorCode=success `abnormally_high_aws_instances_launched_by_user___mltk_filter`
+| bucket span=10m _time
+| stats count as instances_launched by _time src_user
+| apply ec2_excessive_runinstances_v1
+| rename "IsOutlier(instances_launched)" as isOutlier
+| where isOutlier=1

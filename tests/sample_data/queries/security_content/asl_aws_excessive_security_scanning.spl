@@ -1,0 +1,5 @@
+`amazon_security_lake` api.operation=Describe* OR api.operation=List* OR api.operation=Get*
+| stats dc(api.operation) as dc_api_operations min(_time) as firstTime max(_time) as lastTime values(http_request.user_agent) as http_request.user_agent values(src_endpoint.ip) as src_endpoint.ip values(cloud.region) as cloud.region values(identity.user.account_uid) as identity.user.account_uid by identity.user.name
+| where dc_api_operations > 50
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`|`asl_aws_excessive_security_scanning_filter`

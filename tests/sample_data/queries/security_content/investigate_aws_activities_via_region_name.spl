@@ -1,0 +1,2 @@
+`cloudtrail` vendor_region=$vendor_region$| rename requestParameters.instancesSet.items{}.instanceId as instanceId
+| stats values(eventName) by user instanceId vendor_region

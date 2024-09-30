@@ -1,0 +1,5 @@
+`sysmon` EventCode=9 Device = \\Device\\HarddiskVolume* NOT (Image IN("*\\Windows\\System32\\*", "*\\Windows\\SysWOW64\\*"))
+| stats count min(_time) as firstTime max(_time) as lastTime by dest signature signature_id process_guid process_name process_path Device
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_raw_access_to_disk_volume_partition_filter`

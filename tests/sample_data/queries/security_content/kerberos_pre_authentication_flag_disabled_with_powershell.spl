@@ -1,0 +1,6 @@
+`powershell` EventCode=4104 (ScriptBlockText = "*Set-ADAccountControl*" AND ScriptBlockText="*DoesNotRequirePreAuth:$true*")
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer user_id
+| rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `kerberos_pre_authentication_flag_disabled_with_powershell_filter`

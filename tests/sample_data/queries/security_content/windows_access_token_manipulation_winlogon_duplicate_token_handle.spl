@@ -1,0 +1,5 @@
+`sysmon` EventCode=10 TargetImage IN("*\\system32\\winlogon.exe*", "*\\SysWOW64\\winlogon.exe*") GrantedAccess = 0x1040
+| stats count min(_time) as firstTime max(_time) as lastTime by SourceImage TargetImage SourceProcessGUID TargetProcessGUID SourceProcessId TargetProcessId GrantedAccess CallTrace dest user_id
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_access_token_manipulation_winlogon_duplicate_token_handle_filter`

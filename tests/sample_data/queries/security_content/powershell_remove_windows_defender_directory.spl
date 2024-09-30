@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 ScriptBlockText = "*rmdir *" AND ScriptBlockText = "*\\Microsoft\\Windows Defender*"
+| stats count min(_time) as firstTime max(_time) as lastTime by Opcode Computer UserID EventCode ScriptBlockText
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `powershell_remove_windows_defender_directory_filter`

@@ -1,0 +1,5 @@
+`cloudtrail` eventName=ConsoleLogin action=failure
+| bucket span=5m _time
+| stats dc(_raw) AS failed_attempts values(user_name) as tried_accounts values(user_agent) by _time, src_ip, eventName, eventSource aws_account_id
+| where failed_attempts > 20
+|  `aws_high_number_of_failed_authentications_from_ip_filter`

@@ -1,0 +1,5 @@
+`o365_management_activity` Workload=AzureActiveDirectory LogonError=*Sso* Operation=UserLoginFailed
+| stats count min(_time) as firstTime max(_time) as lastTime values(user) as user by  src_ip signature user_agent authentication_service action| where count >= 5
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_excessive_sso_logon_errors_filter`

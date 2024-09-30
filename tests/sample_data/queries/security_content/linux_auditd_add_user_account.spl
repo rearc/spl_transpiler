@@ -1,0 +1,4 @@
+`linux_auditd` `linux_auditd_normalized_proctitle_process`| rename host as dest
+| where LIKE (process_exec, "%useradd%") OR LIKE (process_exec, "%adduser%")
+| stats count min(_time) as firstTime max(_time) as lastTime by process_exec proctitle dest
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`| `linux_auditd_add_user_account_filter`

@@ -1,0 +1,6 @@
+`sysmon` EventCode=7 ImageLoaded= *.exe
+| stats count min(_time) as firstTime max(_time) as lastTime by Image ImageLoaded Signed SignatureStatus OriginalFileName process_name Computer EventCode ProcessId Hashes IMPHASH
+| rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_executable_in_loaded_modules_filter`

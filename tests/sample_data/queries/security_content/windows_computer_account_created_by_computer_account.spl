@@ -1,0 +1,5 @@
+`wineventlog_security` EventCode=4741 user_type=computer SubjectDomainName!="NT AUTHORITY" ServicePrincipalNames=*RestrictedKrbHost*
+| stats  count min(_time) as firstTime max(_time) as lastTime by dest, subject, action ,src_user, user, user_type, SubjectUserName,SubjectDomainName
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_computer_account_created_by_computer_account_filter`

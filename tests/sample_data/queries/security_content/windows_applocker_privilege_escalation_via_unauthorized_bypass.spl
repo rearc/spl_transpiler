@@ -1,0 +1,8 @@
+`applocker` EventCode IN (8007, 8004, 8022, 8025, 8029, 8040)
+| spath input=UserData_Xml
+| rename RuleAndFileData.* as *, Computer as dest, TargetUser AS user
+| stats count AS attempt_count min(_time) as firstTime max(_time) as lastTime by dest, PolicyName, RuleId, user, TargetProcessId, FilePath, FullFilePath, EventCode
+| where attempt_count > 5
+| sort - attempt_count
+| lookup applockereventcodes EventCode OUTPUT Description
+| `windows_applocker_privilege_escalation_via_unauthorized_bypass_filter`

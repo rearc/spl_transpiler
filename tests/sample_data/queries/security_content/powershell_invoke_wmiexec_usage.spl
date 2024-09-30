@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 ScriptBlockText IN ("*invoke-wmiexec*")
+| stats count min(_time) as firstTime max(_time) as lastTime by Computer EventCode ScriptBlockText
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `powershell_invoke_wmiexec_usage_filter`

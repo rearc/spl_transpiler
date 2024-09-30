@@ -1,0 +1,6 @@
+`pingid` "result.status" IN ("FAILURE,authFail","UNSUCCESSFUL_ATTEMPT")
+| eval time = _time, src = coalesce('resources{}.ipaddress','resources{}.devicemodel'), user = upper('actors{}.name'), object = 'resources{}.devicemodel', reason = 'result.message'| bucket span=10m _time
+| stats dc(_raw) AS mfa_prompts min(time) as firstTime, max(time) as lastTime values(src) as src by user, reason, _time
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| where mfa_prompts >= 10
+| `pingid_multiple_failed_mfa_requests_for_user_filter`

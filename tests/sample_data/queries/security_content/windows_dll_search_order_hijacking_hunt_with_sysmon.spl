@@ -1,0 +1,5 @@
+`sysmon` EventCode=7 NOT (process_path IN ("*\\system32\\*", "*\\syswow64\\*","*\\winsxs\\*","*\\wbem\\*"))
+| lookup hijacklibs library AS loaded_file OUTPUT islibrary
+| search islibrary = True
+| stats count min(_time) as firstTime max(_time) as lastTime values(process_name) as process_name by _time dest loaded_file
+| `windows_dll_search_order_hijacking_hunt_with_sysmon_filter`

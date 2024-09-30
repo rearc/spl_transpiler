@@ -1,0 +1,5 @@
+`cloudtrail` eventName= ConsoleLogin errorCode=success "additionalEventData.MFAUsed"=No
+| stats count min(_time) as firstTime max(_time) as lastTime by src eventName eventSource aws_account_id errorCode additionalEventData.MFAUsed userAgent eventID awsRegion user_name userIdentity.arn
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `aws_successful_single_factor_authentication_filter`

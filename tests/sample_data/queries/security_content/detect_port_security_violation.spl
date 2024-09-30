@@ -1,0 +1,6 @@
+`cisco_networks` (facility="PM" mnemonic="ERR_DISABLE" disable_cause="psecure-violation") OR (facility="PORT_SECURITY" mnemonic="PSECURE_VIOLATION" OR mnemonic="PSECURE_VIOLATION_VLAN")
+| eval src_interface=src_int_prefix_long+src_int_suffix
+| stats min(_time) AS firstTime max(_time) AS lastTime values(disable_cause) AS disable_cause values(src_mac) AS src_mac values(src_vlan) AS src_vlan values(action) AS action count by host src_interface
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `detect_port_security_violation_filter`

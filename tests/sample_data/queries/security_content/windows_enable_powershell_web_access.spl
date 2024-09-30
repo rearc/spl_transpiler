@@ -1,0 +1,6 @@
+`powershell` EventCode=4104 ScriptBlockText IN ("*Install-WindowsFeature*WindowsPowerShellWebAccess*","*Install-PswaWebApplication*","*Add-PswaAuthorizationRule*UserName *ComputerName *")
+| rename Computer as dest
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText dest UserID
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_enable_powershell_web_access_filter`

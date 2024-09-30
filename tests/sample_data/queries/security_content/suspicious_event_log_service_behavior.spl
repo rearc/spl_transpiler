@@ -1,0 +1,4 @@
+(`wineventlog_security` EventCode=1100)
+| stats count min(_time) as firstTime max(_time) as lastTime by dest name EventCode
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `suspicious_event_log_service_behavior_filter`

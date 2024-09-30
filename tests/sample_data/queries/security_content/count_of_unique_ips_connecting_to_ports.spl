@@ -1,0 +1,4 @@
+index=something
+| tstats `security_content_summariesonly` count dc(All_Traffic.src) as numberOfUniqueHosts from datamodel=Network_Traffic by All_Traffic.dest_port
+| `drop_dm_object_name("All_Traffic")`
+| sort - count

@@ -1,0 +1,4 @@
+`cloudtrail` eventName= ConsoleLogin errorMessage="Failed authentication" additionalEventData.MFAUsed = "Yes"
+| stats count min(_time) as firstTime max(_time) as lastTime by src eventName eventSource aws_account_id errorCode errorMessage userAgent eventID awsRegion user_name userIdentity.arn
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `aws_console_login_failed_during_mfa_challenge_filter`

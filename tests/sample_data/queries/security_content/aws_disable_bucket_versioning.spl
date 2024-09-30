@@ -1,0 +1,4 @@
+`cloudtrail` eventName= PutBucketVersioning "requestParameters.VersioningConfiguration.Status"=Suspended
+|  stats count values(requestParameters.bucketName) as bucket_name values(resources{}.ARN) as resource_arn by src_ip aws_account_id awsRegion eventName userAgent user_arn userIdentity.principalId  errorCode
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `aws_disable_bucket_versioning_filter`

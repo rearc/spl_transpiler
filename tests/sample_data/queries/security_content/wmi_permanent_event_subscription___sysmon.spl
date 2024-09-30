@@ -1,0 +1,4 @@
+`sysmon` EventCode=21
+| rename host as dest
+| table _time, dest, user, Operation, EventType, Query, Consumer, Filter
+| `wmi_permanent_event_subscription___sysmon_filter`

@@ -1,0 +1,4 @@
+index=something
+| search `notable`
+| search dest=$dest$
+| table _time, dest, rule_name, owner, priority, severity, status_description

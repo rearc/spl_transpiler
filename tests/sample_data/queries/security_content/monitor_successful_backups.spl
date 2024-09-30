@@ -1,0 +1,3 @@
+`netbackup` "Disk/Partition backup completed successfully."
+| bucket _time span=1d
+| stats dc(COMPUTERNAME) as count values(COMPUTERNAME) as dest by _time, MESSAGE

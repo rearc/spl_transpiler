@@ -1,0 +1,5 @@
+`sysmon` EventCode=7 ImageLoaded IN ("*\\AclNumsInvertHost.dll", "*\\ModeBitmapNumericAnimate.dll", "*\\UnregisterAncestorAppendAuto.dll", "*\\DeregisterSeekUsers.dll", "*\\ScrollbarHandleGet.dll", "*\\PerformanceCaptionApi.dll", "*\\WowIcmpRemoveReg.dll", "*\\BlendMonitorStringBuild.dll", "*\\HandleFrequencyAll.dll", "*\\HardSwapColor.dll", "*\\LengthInMemoryActivate.dll", "*\\ParametersNamesPopup.dll", "*\\ModeFolderSignMove.dll", "*\\ChildPaletteConnected.dll", "*\\AddressResourcesSpec.dll")
+| stats count min(_time) as firstTime max(_time) as lastTime by Image ImageLoaded process_name dest EventCode Signed ProcessId Hashes IMPHASH
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_known_graphicalproton_loaded_modules_filter`

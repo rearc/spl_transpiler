@@ -1,0 +1,4 @@
+`linux_auditd` type=PATH name="/etc/ssh/ssh_config*"
+| rename host as dest
+| stats count min(_time) as firstTime max(_time) as lastTime by name nametype OGID type dest
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`| `linux_auditd_possible_access_or_modification_of_sshd_config_file_filter`

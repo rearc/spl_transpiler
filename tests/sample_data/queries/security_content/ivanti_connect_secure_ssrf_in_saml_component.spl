@@ -1,0 +1,6 @@
+index=something
+| tstats count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where Web.url IN ("*/dana-ws/saml20.ws*","*/dana-ws/saml.ws*","*/dana-ws/samlecp.ws*","*/dana-na/auth/saml-logout.cgi/*") Web.http_method=POST Web.status=200 by Web.src, Web.dest, Web.http_user_agent, Web.url, Web.status, Web.http_method
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `ivanti_connect_secure_ssrf_in_saml_component_filter`

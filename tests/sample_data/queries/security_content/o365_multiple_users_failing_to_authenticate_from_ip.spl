@@ -1,0 +1,5 @@
+ `o365_management_activity` Workload=AzureActiveDirectory Operation=UserLoginFailed ErrorNumber=50126
+|  bucket span=5m _time
+|  stats dc(user) as unique_accounts values(user) as user values(LogonError) as LogonError values(signature) as signature values(UserAgent) as UserAgent by _time, src_ip
+|  where unique_accounts > 10
+| `o365_multiple_users_failing_to_authenticate_from_ip_filter`

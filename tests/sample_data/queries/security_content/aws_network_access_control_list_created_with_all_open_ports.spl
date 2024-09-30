@@ -1,0 +1,8 @@
+`cloudtrail` eventName=CreateNetworkAclEntry OR eventName=ReplaceNetworkAclEntry requestParameters.ruleAction=allow requestParameters.egress=false requestParameters.aclProtocol=-1
+| append [search `cloudtrail` eventName=CreateNetworkAclEntry OR eventName=ReplaceNetworkAclEntry requestParameters.ruleAction=allow requestParameters.egress=false requestParameters.aclProtocol!=-1
+| eval port_range='requestParameters.portRange.to' - 'requestParameters.portRange.from'
+| where port_range>1024]
+| fillnull
+| stats count min(_time) as firstTime max(_time) as lastTime by userName user_arn userIdentity.principalId eventName requestParameters.ruleAction requestParameters.egress requestParameters.aclProtocol requestParameters.portRange.to requestParameters.portRange.from src userAgent requestParameters.cidrBlock
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `aws_network_access_control_list_created_with_all_open_ports_filter`

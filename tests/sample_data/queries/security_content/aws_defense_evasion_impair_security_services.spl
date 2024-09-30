@@ -1,0 +1,3 @@
+`cloudtrail` eventName IN ("DeleteLogStream","DeleteDetector","DeleteIPSet","DeleteWebACL","DeleteRule","DeleteRuleGroup","DeleteLoggingConfiguration","DeleteAlarms")
+| stats count min(_time) as firstTime max(_time) as lastTime values(eventName)  as eventName values(eventSource) as eventSource values(requestParameters.*) as * by src region user_arn aws_account_id user_type user_agent errorCode| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`|  `aws_defense_evasion_impair_security_services_filter`

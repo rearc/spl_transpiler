@@ -1,0 +1,10 @@
+`sysmon` EventCode = 1 process_name = "sc.exe"
+|  bucket _time span=15m
+| stats values(process) as process count as numScExe by dest, _time
+|  eventstats avg(numScExe) as avgScExe, stdev(numScExe) as stdScExe, count as numSlots by dest
+|  eval upperThreshold=(avgScExe + stdScExe *3)
+|  eval isOutlier=if(avgScExe > 5 and avgScExe >= upperThreshold, 1, 0)
+|  search isOutlier=1
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `excessive_usage_of_sc_service_utility_filter`

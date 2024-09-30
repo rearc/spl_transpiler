@@ -1,0 +1,5 @@
+`exchange` c_uri="*//autodiscover*" cs_uri_query="*PowerShell*" cs_method="POST"
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, cs_uri_query, cs_method, c_uri
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `exchange_powershell_abuse_via_ssrf_filter`

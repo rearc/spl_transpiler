@@ -1,0 +1,14 @@
+`azure_monitor_aad`  operationName="Update user"
+| rename properties.* as *
+| eval propertyName = mvindex('targetResources{}.modifiedProperties{}.displayName', 0)
+| search propertyName = StrongAuthenticationMethod
+| eval oldvalue = mvindex('targetResources{}.modifiedProperties{}.oldValue',0)
+| eval newvalue = mvindex('targetResources{}.modifiedProperties{}.newValue',0)
+| rex field=newvalue max_match=0 "(?i)(?<new_method_type>\"MethodType\")"
+| rex field=oldvalue max_match=0 "(?i)(?<old_method_type>\"MethodType\")"
+| eval count_new_method_type = coalesce(mvcount(new_method_type), 0)
+| eval count_old_method_type = coalesce(mvcount(old_method_type), 0)
+| stats earliest(_time) as firstTime latest(_time) as lastTime values(propertyName) by user newvalue oldvalue
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_new_mfa_method_registered_filter`

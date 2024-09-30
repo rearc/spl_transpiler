@@ -1,0 +1,6 @@
+`sysmon` EventCode=1 IntegrityLevel="system" ParentUser=* NOT ParentUser IN ("*SYSTEM","*LOCAL SERVICE","*NETWORK SERVICE","*DWM-*","*$","-")
+| eval src_user = replace(ParentUser,"^[^\\\]+\\\\","")
+| stats count min(_time) as firstTime max(_time) as lastTime values(process_name) as process_name values(process) as process, values(process_path) as process_path, values(process_current_directory) as process_current_directory values(parent_process) as parent_process by dest, user, src_user, parent_process_name, parent_process_guid
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_privilege_escalation_system_process_without_system_parent_filter`

@@ -1,0 +1,10 @@
+ `wineventlog_security` EventCode=5136
+| stats min(_time) as _time values(eval(if(OperationType=="%%14675",AttributeValue,null))) as old_value values(eval(if(OperationType=="%%14674",AttributeValue,null))) as new_value values(OperationType) as OperationType by ObjectClass ObjectDN OpCorrelationID src_user SubjectLogonId DSName
+| rex field=old_value "O:(?P<old_owner>.*?)G:"
+| rex field=new_value "O:(?P<new_owner>.*?)G:"
+| where old_owner!=new_owner
+| lookup builtin_groups_lookup builtin_group_string  as new_owner_group OUTPUT builtin_group_name as new_owner_group_builtin_group
+| lookup builtin_groups_lookup builtin_group_string  as old_owner OUTPUT builtin_group_name as old_owner_group_builtin_group
+| eval user=coalesce(new_owner_user, new_owner_group, new_owner_group_builtin_group, new_owner), previousOwner=coalesce(old_owner_user, old_owner_group, old_owner_group_builtin_group, old_owner)
+| stats values(previousOwner) as previousOwner values(user) as user values(SubjectLogonId) as SubjectLogonId by _time ObjectClass ObjectDN src_user OpCorrelationID DSName
+| `windows_ad_object_owner_updated_filter`

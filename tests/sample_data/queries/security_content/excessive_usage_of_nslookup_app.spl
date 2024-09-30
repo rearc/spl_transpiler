@@ -1,0 +1,10 @@
+`sysmon` EventCode = 1 process_name = "nslookup.exe"
+| bucket _time span=1m
+| stats count as numNsLookup by dest, _time
+| eventstats avg(numNsLookup) as avgNsLookup, stdev(numNsLookup) as stdNsLookup, count as numSlots by dest
+| eval upperThreshold=(avgNsLookup + stdNsLookup *3)
+| eval isOutlier=if(numNsLookup > 20 and numNsLookup >= upperThreshold, 1, 0)
+| search isOutlier=1
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `excessive_usage_of_nslookup_app_filter`

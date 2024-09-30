@@ -1,0 +1,8 @@
+`o365_management_activity` Workload=AzureActiveDirectory Operation="Consent to application." ResultStatus=Failure
+| eval permissions =mvindex('ModifiedProperties{}.NewValue', 4)
+| eval reason =mvindex('ModifiedProperties{}.NewValue', 5)
+|  search reason = "Risky application detected"
+| rex field=permissions "Scope: (?<Scope>[^,]+)"
+|  stats max(_time) as lastTime by Operation, user, reason, object, Scope
+| `security_content_ctime(lastTime)`
+| `o365_user_consent_blocked_for_risky_application_filter`

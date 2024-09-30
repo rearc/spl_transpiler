@@ -1,0 +1,8 @@
+`applocker`
+| spath input=UserData_Xml
+| rename RuleAndFileData.* as *, Computer as dest, TargetUser AS user
+| stats dc(_time) as days, count by FullFilePath dest user
+| eventstats avg(count) as avg, stdev(count) as stdev
+| eval upperBound=(avg+stdev*3), lowerBound=(avg-stdev*3)
+| where count > upperBound OR count < lowerBound
+| `windows_applocker_rare_application_launch_detection_filter`

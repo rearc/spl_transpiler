@@ -1,0 +1,11 @@
+index=something
+| tstats earliest(_time) as firstTime, latest(_time) as lastTime, values(All_Changes.object_id) as object_id from datamodel=Change where (All_Changes.action=started OR All_Changes.action=created) All_Changes.status=success by All_Changes.src, All_Changes.user, All_Changes.command
+| `drop_dm_object_name("All_Changes")`
+| lookup previously_seen_cloud_provisioning_activity_sources src as src OUTPUT firstTimeSeen, enough_data
+| eventstats max(enough_data) as enough_data
+| where enough_data=1
+| eval firstTimeSeenSrc=min(firstTimeSeen)
+| where isnull(firstTimeSeenSrc) OR firstTimeSeenSrc > relative_time(now(), `previously_unseen_cloud_provisioning_activity_window`)
+| `security_content_ctime(firstTime)`
+| table firstTime, src, user, object_id, command
+| `cloud_provisioning_activity_from_previously_unseen_ip_address_filter`

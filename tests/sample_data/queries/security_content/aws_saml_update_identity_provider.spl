@@ -1,0 +1,4 @@
+`cloudtrail` eventName=UpdateSAMLProvider
+| stats count min(_time) as firstTime max(_time) as lastTime by eventType eventName requestParameters.sAMLProviderArn userIdentity.sessionContext.sessionIssuer.arn sourceIPAddress userIdentity.accessKeyId userIdentity.principalId
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+|`aws_saml_update_identity_provider_filter`

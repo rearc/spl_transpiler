@@ -1,0 +1,6 @@
+`azure_monitor_aad` category=SignInLogs "properties.authenticationProtocol"=deviceCode
+| rename properties.* as *
+| stats count min(_time) as firstTime max(_time) as lastTime by user src_ip, appDisplayName, userAgent
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_device_code_authentication_filter`

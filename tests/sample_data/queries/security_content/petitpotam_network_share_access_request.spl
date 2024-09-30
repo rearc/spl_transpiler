@@ -1,0 +1,5 @@
+`wineventlog_security` SubjectUserName="ANONYMOUS LOGON" EventCode=5145 RelativeTargetName=lsarpc
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, SubjectUserSid, ShareName, src, AccessMask, AccessReason
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `petitpotam_network_share_access_request_filter`

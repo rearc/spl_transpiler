@@ -1,0 +1,6 @@
+index=something
+| tstats count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where Web.url="*/api/v1/configuration/users/user-roles/user-role/rest-userrole1/web/web-bookmarks/bookmark*" Web.http_method=GET Web.status=403 by Web.src, Web.dest, Web.http_user_agent, Web.status, Web.url source
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `access_to_vulnerable_ivanti_connect_secure_bookmark_endpoint_filter`

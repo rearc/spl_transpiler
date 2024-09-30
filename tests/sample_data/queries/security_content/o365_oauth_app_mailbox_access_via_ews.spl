@@ -1,0 +1,6 @@
+ `o365_management_activity` Workload=Exchange Operation=MailItemsAccessed AppId=* ClientAppId=*
+| regex ClientInfoString="^Client=WebServices;ExchangeWebServices"
+|  stats count earliest(_time) as firstTime latest(_time) as lastTime values(ClientIPAddress) as src_ip by user ClientAppId OperationCount AppId ClientInfoString
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_oauth_app_mailbox_access_via_ews_filter`

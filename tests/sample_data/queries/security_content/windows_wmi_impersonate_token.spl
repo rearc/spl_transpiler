@@ -1,0 +1,5 @@
+`sysmon` EventCode=10 SourceImage = "*\\wmiprvse.exe"  GrantedAccess IN ("0x1478", "0x1fffff")
+| stats count min(_time) as firstTime max(_time) as lastTime by SourceImage TargetImage SourceProcessGUID TargetProcessGUID SourceProcessId TargetProcessId GrantedAccess CallTrace dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_wmi_impersonate_token_filter`

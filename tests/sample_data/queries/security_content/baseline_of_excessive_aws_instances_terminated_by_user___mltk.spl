@@ -1,0 +1,4 @@
+`cloudtrail` eventName=TerminateInstances errorCode=success
+| bucket span=10m _time
+| stats count as instances_terminated by _time src_user
+| fit DensityFunction instances_terminated threshold=0.0005 into ec2_excessive_terminateinstances_v1

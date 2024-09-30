@@ -1,0 +1,7 @@
+`amazon_security_lake` api.operation=DeletePolicy
+| fillnull
+| stats count min(_time) as firstTime max(_time) as lastTime by api.operation actor.user.account_uid actor.user.name actor.user.uid http_request.user_agent src_endpoint.ip cloud.region
+| rename actor.user.name as user, src_endpoint.ip as src_ip, cloud.region as region, http_request.user_agent as user_agent, actor.user.account_uid as aws_account_id
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `asl_aws_iam_delete_policy_filter`

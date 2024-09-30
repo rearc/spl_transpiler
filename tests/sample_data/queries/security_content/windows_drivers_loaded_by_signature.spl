@@ -1,0 +1,5 @@
+`sysmon` EventCode=6
+| stats min(_time) as firstTime max(_time) as lastTime values(ImageLoaded) count by dest Signed Signature service_signature_verified service_signature_exists Hashes
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_drivers_loaded_by_signature_filter`

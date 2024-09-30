@@ -1,0 +1,5 @@
+`powershell` EventCode=4104  (ScriptBlockText=*system.net.webclient* AND ScriptBlockText=*frombase64string*)
+| stats count min(_time) as firstTime max(_time) as lastTime by Opcode Computer UserID EventCode ScriptBlockText
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `detect_empire_with_powershell_script_block_logging_filter`

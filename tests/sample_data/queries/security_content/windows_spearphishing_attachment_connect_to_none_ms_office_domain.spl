@@ -1,0 +1,6 @@
+`sysmon` EventCode=22 Image IN ("*\\winword.exe","*\\excel.exe","*\\powerpnt.exe","*\\mspub.exe","*\\visio.exe","*\\wordpad.exe","*\\wordview.exe","*\\onenote.exe", "*\\onenotem.exe","*\\onenoteviewer.exe","*\\onenoteim.exe", "*\\msaccess.exe") AND NOT(QueryName IN ("*.office.com", "*.office.net"))
+| stats count min(_time) as firstTime max(_time) as lastTime by Image QueryName QueryResults QueryStatus Computer
+| rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_spearphishing_attachment_connect_to_none_ms_office_domain_filter`

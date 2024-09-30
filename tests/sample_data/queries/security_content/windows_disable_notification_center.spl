@@ -1,0 +1,7 @@
+index=something
+| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Registry WHERE (Registry.registry_value_name= "DisableNotificationCenter" Registry.registry_value_data = "0x00000001") BY _time span=1h Registry.dest Registry.user Registry.registry_path Registry.registry_key_name Registry.registry_value_name Registry.registry_value_data Registry.process_guid
+| `drop_dm_object_name(Registry)`
+| where isnotnull(registry_value_data)
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_disable_notification_center_filter`

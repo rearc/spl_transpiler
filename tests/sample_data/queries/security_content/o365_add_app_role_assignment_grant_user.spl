@@ -1,0 +1,5 @@
+`o365_management_activity` Workload=AzureActiveDirectory Operation="Add app role assignment grant to user."
+| stats count min(_time) as firstTime max(_time) as lastTime values(Actor{}.ID) as Actor.ID values(Actor{}.Type) as Actor.Type values(ModifiedProperties{}.Name) as modified_properties_name by user dest ResultStatus Operation
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_add_app_role_assignment_grant_user_filter`

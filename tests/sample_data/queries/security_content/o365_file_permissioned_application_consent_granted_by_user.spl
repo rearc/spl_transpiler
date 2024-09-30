@@ -1,0 +1,10 @@
+`o365_management_activity` Workload=AzureActiveDirectory Operation="Consent to application." ResultStatus=Success
+| eval admin_consent =mvindex('ModifiedProperties{}.NewValue', 0)
+| search admin_consent=False
+| eval permissions =mvindex('ModifiedProperties{}.NewValue', 4)
+| rex field=permissions "Scope: (?<Scope>[^,]+)"
+| makemv delim=" " Scope
+| search Scope IN ("Files.Read", "Files.Read.All", "Files.ReadWrite", "Files.ReadWrite.All", "Files.ReadWrite.AppFolder")
+| stats max(_time) as lastTime values(Scope) by Operation, user, object, ObjectId
+| `security_content_ctime(lastTime)`
+| `o365_file_permissioned_application_consent_granted_by_user_filter`

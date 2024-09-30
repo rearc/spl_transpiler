@@ -1,0 +1,11 @@
+index=something
+| tstats `security_content_summariesonly` max(_time) as lastTime from datamodel=Updates where Updates.status=Installed Updates.vendor_product="Microsoft Windows" by Updates.dest Updates.status Updates.vendor_product
+| rename Updates.dest as Host
+| rename Updates.status as "Update Status"
+| rename Updates.vendor_product as Product
+| eval isOutlier=if(lastTime <= relative_time(now(), "-60d@d"), 1, 0)
+| `security_content_ctime(lastTime)`
+| search isOutlier=1
+| rename lastTime as "Last Update Time",
+| table Host, "Update Status", Product, "Last Update Time"
+| `no_windows_updates_in_a_time_frame_filter`

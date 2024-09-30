@@ -1,0 +1,3 @@
+`cloudtrail` user_type=AssumedRole userIdentity.sessionContext.sessionIssuer.type=Role
+| table sourceIPAddress userIdentity.arn user_agent user_access_key status action requestParameters.roleName responseElements.role.roleName responseElements.role.createDate
+| `aws_detect_sts_assume_role_abuse_filter`

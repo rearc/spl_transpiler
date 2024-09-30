@@ -1,0 +1,5 @@
+`sysmon` EventCode=10 TargetImage IN (*\\notepad.exe) NOT (SourceImage IN ("*\\system32\\*","*\\syswow64\\*","*\\Program Files\\*")) GrantedAccess IN ("0x40","0x1fffff")
+| stats count min(_time) as firstTime max(_time) as lastTime by dest SourceImage TargetImage GrantedAccess CallTrace
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_process_injection_into_notepad_filter`

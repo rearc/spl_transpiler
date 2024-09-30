@@ -1,0 +1,5 @@
+`sysmon` EventID=11 process_name=taskmgr.exe TargetFilename=*lsass*.dmp
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, object_category, process_name, TargetFilename
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `creation_of_lsass_dump_with_taskmgr_filter`

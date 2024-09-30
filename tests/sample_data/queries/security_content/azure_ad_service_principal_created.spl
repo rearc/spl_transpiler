@@ -1,0 +1,8 @@
+`azure_monitor_aad`  operationName="Add service principal" properties.initiatedBy.user.id=*
+| rename properties.* as *
+| rename targetResources{}.displayName as displayName
+| rename targetResources{}.type as type
+| stats count min(_time) as firstTime max(_time) as lastTime values(displayName) as displayName by type, user, result, operationName
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_service_principal_created_filter`

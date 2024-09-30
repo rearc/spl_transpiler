@@ -1,0 +1,5 @@
+`capi2_operational` EventID=81 "The digital signature of the object did not verify."
+| xmlkv UserData_Xml
+| stats count min(_time) as firstTime max(_time) as lastTime by Computer, UserData_Xml
+| rename Computer as dest
+| `windows_sip_winverifytrust_failed_trust_validation_filter`

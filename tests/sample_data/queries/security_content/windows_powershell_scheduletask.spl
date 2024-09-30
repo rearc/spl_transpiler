@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 ScriptBlockText IN ("*New-ScheduledTask*", "*New-ScheduledTaskAction*", "*New-ScheduledTaskSettingsSet*", "*New-ScheduledTaskTrigger*", "*Register-ClusteredScheduledTask*", "*Register-ScheduledTask*", "*Set-ClusteredScheduledTask*", "*Set-ScheduledTask*", "*Start-ScheduledTask*", "*Enable-ScheduledTask*")
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer user_id
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_powershell_scheduletask_filter`

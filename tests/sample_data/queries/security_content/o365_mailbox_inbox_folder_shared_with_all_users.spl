@@ -1,0 +1,7 @@
+`o365_management_activity` Operation=ModifyFolderPermissions Workload=Exchange object=Inbox Item.ParentFolder.MemberUpn=Everyone
+| eval isReadRole=if(match('Item.ParentFolder.MemberRights', "(ReadAny)"), "true", "false")
+| search isReadRole = "true"
+| stats count earliest(_time) as firstTime latest(_time) as lastTime by Operation, UserId, object, MailboxOwnerUPN, Item.ParentFolder.MemberUpn, Item.ParentFolder.MemberRights
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_mailbox_inbox_folder_shared_with_all_users_filter`

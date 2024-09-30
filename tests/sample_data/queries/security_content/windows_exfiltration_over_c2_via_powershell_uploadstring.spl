@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 ScriptBlockText = "*Net.webclient*" AND ScriptBlockText = "*.UploadString*"
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer UserID
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_exfiltration_over_c2_via_powershell_uploadstring_filter`

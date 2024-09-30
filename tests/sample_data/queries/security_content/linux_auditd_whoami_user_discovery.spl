@@ -1,0 +1,5 @@
+`linux_auditd` type=SYSCALL comm=whoami OR exe= "*/whoami"
+| rename host as dest
+| stats count min(_time) as firstTime max(_time) as lastTime by comm exe  SYSCALL UID ppid pid dest success
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `linux_auditd_whoami_user_discovery_filter`

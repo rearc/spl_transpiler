@@ -1,0 +1,5 @@
+`zeek_rpc` DrsReplicaAdd OR DRSGetNCChanges
+| where NOT (dest_category="Domain Controller") OR NOT (src_category="Domain Controller")
+| fillnull value="Unknown" src_category, dest_category
+| table _time endpoint operation src src_category dest dest_category
+| `windows_ad_rogue_domain_controller_network_activity_filter`

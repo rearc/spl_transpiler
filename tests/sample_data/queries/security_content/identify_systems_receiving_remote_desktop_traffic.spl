@@ -1,0 +1,4 @@
+index=something
+| tstats `security_content_summariesonly` count from datamodel=Network_Traffic where All_Traffic.dest_port=3389 by All_Traffic.dest
+| `drop_dm_object_name("All_Traffic")`
+| sort - count

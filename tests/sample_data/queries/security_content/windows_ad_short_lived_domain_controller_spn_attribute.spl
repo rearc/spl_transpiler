@@ -1,0 +1,9 @@
+`wineventlog_security` EventCode=5136 AttributeLDAPDisplayName=servicePrincipalName (AttributeValue="GC/*" OR AttributeValue="E3514235-4B06-11D1-AB04-00C04FC2DCD2/*")
+| stats min(_time) as _time range(_time) as duration values(OperationType) as OperationType values(user) as user values(src_ip) as src_ip values(src_nt_domain) as src_nt_domain values(src_user) as src_user values(Computer) as dest, values(ObjectDN) as ObjectDN by Logon_ID
+| eval short_lived=case((duration<30),"TRUE")
+| where short_lived="TRUE" AND mvcount(OperationType)>1
+| replace "%%14674" with "Value Added", "%%14675" with "Value Deleted" in OperationType
+| rename Logon_ID as TargetLogonId
+| appendpipe [| map search="search `wineventlog_security` EventCode=4624 TargetLogonId=$TargetLogonId$"]
+| stats min(_time) as _time, values(ObjectDN) as ObjectDN values(OperationType) as OperationType by TargetLogonId src_user dest
+| `windows_ad_short_lived_domain_controller_spn_attribute_filter`

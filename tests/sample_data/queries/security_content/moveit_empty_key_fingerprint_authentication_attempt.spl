@@ -1,0 +1,5 @@
+`moveit_sftp_logs` "UserAuthRequestHandler: SftpPublicKeyAuthenticator: Attempted to authenticate empty public key fingerprint"
+| stats count by source _raw
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `moveit_empty_key_fingerprint_authentication_attempt_filter`

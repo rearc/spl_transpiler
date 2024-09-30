@@ -1,0 +1,6 @@
+index=something
+| tstats count from datamodel=Web where Web.url IN ("/app?service=page/SetupCompleted", "/app", "/app?service=page/PrinterList", "/app?service=direct/1/PrinterList/selectPrinter&sp=*", "/app?service=direct/1/PrinterDetails/printerOptionsTab.tab") NOT (src IN ("10.*.*.*","172.16.*.*", "192.168.*.*", "169.254.*.*", "127.*.*.*", "fc00::*", "fd00::*", "fe80::*")) by Web.http_user_agent Web.http_method, Web.url,Web.url_length Web.src, Web.dest Web.dest_port sourcetype
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `papercut_ng_remote_web_access_attempt_filter`

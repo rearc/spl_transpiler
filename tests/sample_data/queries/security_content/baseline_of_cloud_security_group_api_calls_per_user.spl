@@ -1,0 +1,11 @@
+index=something
+| tstats count as security_group_api_calls from datamodel=Change where All_Changes.object_category=firewall All_Changes.status=success by All_Changes.user _time span=1h
+| `drop_dm_object_name("All_Changes")`
+| eval HourOfDay=strftime(_time, "%H")
+| eval HourOfDay=floor(HourOfDay/4)*4
+| eval DayOfWeek=strftime(_time, "%w")
+| eval isWeekend=if(DayOfWeek >= 1 AND DayOfWeek <= 5, 0, 1)
+| table _time security_group_api_calls, user, HourOfDay, isWeekend
+| eventstats dc(security_group_api_calls) as security_group_api_calls by user, HourOfDay, isWeekend
+| where security_group_api_calls >= 1
+| fit DensityFunction security_group_api_calls by "user,HourOfDay,isWeekend" into cloud_excessive_security_group_api_calls_v1 dist=norm show_density=true

@@ -1,0 +1,8 @@
+index=something
+| tstats `security_content_summariesonly` values(DNS.answer) as IPs min(_time) as firstTime from datamodel=Network_Resolution by DNS.src, DNS.query
+| `drop_dm_object_name(DNS)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| lookup 3cx_ioc_domains domain as query OUTPUT Description isIOC
+| search isIOC=true
+| `3cx_supply_chain_attack_network_indicators_filter`

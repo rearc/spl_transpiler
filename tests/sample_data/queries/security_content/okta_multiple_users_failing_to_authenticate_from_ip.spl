@@ -1,0 +1,7 @@
+index=something
+| tstats `security_content_summariesonly` count max(_time) as lastTime, min(_time) as firstTime dc(Authentication.user) as unique_accounts values(Authentication.signature) as signature values(Authentication.user) as user values(Authentication.app) as app values(Authentication.authentication_method) as authentication_method from datamodel=Authentication where Authentication.action="failure" AND Authentication.signature=user.session.start by _time span=5m Authentication.src sourcetype
+| where unique_accounts > 9
+| `drop_dm_object_name("Authentication")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `okta_multiple_users_failing_to_authenticate_from_ip_filter`

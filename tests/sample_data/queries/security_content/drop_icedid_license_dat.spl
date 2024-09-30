@@ -1,0 +1,5 @@
+`sysmon` EventCode= 11  TargetFilename = "*\\license.dat" AND (TargetFilename="*\\appdata\\*" OR TargetFilename="*\\programdata\\*")
+|stats count min(_time) as firstTime max(_time) as lastTime by TargetFilename EventCode process_id  process_name dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `drop_icedid_license_dat_filter`

@@ -1,0 +1,6 @@
+`linux_auditd` `linux_auditd_normalized_execve_process`
+| rename host as dest
+| where  (LIKE (process_exec, "%find%") OR LIKE (process_exec, "%grep%")) AND (LIKE (process_exec, "%.tif%") OR LIKE (process_exec, "%.tiff%") OR LIKE (process_exec, "%.gif%") OR LIKE (process_exec, "%.jpeg%")OR LIKE (process_exec, "%.jpg%")OR LIKE (process_exec, "%.jif%")OR LIKE (process_exec, "%.jfif%")OR LIKE (process_exec, "%.jp2%")OR LIKE (process_exec, "%.jpx%")OR LIKE (process_exec, "%.j2k%")OR LIKE (process_exec, "%.j2c%")OR LIKE (process_exec, "%.fpx%")OR LIKE (process_exec, "%.pcd%")OR LIKE (process_exec, "%.png%")OR LIKE (process_exec, "%.flv%") OR LIKE (process_exec, "%.pdf%")OR LIKE (process_exec, "%.mp4%")OR LIKE (process_exec, "%.mp3%")OR LIKE (process_exec, "%.gifv%")OR LIKE (process_exec, "%.avi%")OR LIKE (process_exec, "%.mov%")OR LIKE (process_exec, "%.mpeg%")OR LIKE (process_exec, "%.wav%")OR LIKE (process_exec, "%.doc%")OR LIKE (process_exec, "%.docx%")OR LIKE (process_exec, "%.xls%")OR LIKE (process_exec, "%.xlsx%")OR LIKE (process_exec, "%.svg%"))
+| stats count min(_time) as firstTime max(_time) as lastTime by argc process_exec dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `linux_auditd_file_and_directory_discovery_filter`

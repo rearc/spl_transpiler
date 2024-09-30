@@ -1,0 +1,5 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Network_Traffic where (All_Traffic.transport=udp AND All_Traffic.dest_port=69) OR (All_Traffic.transport=tcp AND All_Traffic.dest_port=21) OR (All_Traffic.transport=tcp AND All_Traffic.dest_port=22) AND All_Traffic.dest_category!=common_software_repo_destination AND All_Traffic.src_category=network OR All_Traffic.src_category=router OR All_Traffic.src_category=switch by All_Traffic.src All_Traffic.dest All_Traffic.dest_port
+| `drop_dm_object_name("All_Traffic")`
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `detect_software_download_to_network_device_filter`

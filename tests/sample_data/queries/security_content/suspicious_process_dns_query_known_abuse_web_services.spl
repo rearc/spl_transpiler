@@ -1,0 +1,6 @@
+`sysmon` EventCode=22 QueryName IN ("*pastebin*", "*discord*", "*api.telegram*","*t.me*") process_name IN ("cmd.exe", "*powershell*", "pwsh.exe", "wscript.exe","cscript.exe") OR Image IN ("*\\users\\public\\*", "*\\programdata\\*", "*\\temp\\*", "*\\Windows\\Tasks\\*", "*\\appdata\\*", "*\\perflogs\\*")
+| stats count min(_time) as firstTime max(_time) as lastTime by Image QueryName QueryStatus process_name QueryResults Computer
+| rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `suspicious_process_dns_query_known_abuse_web_services_filter`

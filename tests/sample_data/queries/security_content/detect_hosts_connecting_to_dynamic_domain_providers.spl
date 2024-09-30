@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count values(DNS.answer) as answer min(_time) as firstTime from datamodel=Network_Resolution by DNS.query host
+| `drop_dm_object_name("DNS")`
+| `security_content_ctime(firstTime)`
+| `dynamic_dns_providers`
+| `detect_hosts_connecting_to_dynamic_domain_providers_filter`

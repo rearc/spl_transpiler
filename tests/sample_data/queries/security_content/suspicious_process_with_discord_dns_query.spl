@@ -1,0 +1,6 @@
+`sysmon` EventCode=22 QueryName IN ("*discord*") Image != "*\\AppData\\Local\\Discord\\*" AND Image != "*\\Program Files*" AND Image != "discord.exe"
+| stats count min(_time) as firstTime max(_time) as lastTime by Image QueryName QueryStatus process_name QueryResults Computer
+| rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `suspicious_process_with_discord_dns_query_filter`

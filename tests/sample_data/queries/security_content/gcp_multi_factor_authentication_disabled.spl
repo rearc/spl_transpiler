@@ -1,0 +1,4 @@
+`gws_reports_admin` command=UNENROLL_USER_FROM_STRONG_AUTH
+| stats count min(_time) as firstTime max(_time) as lastTime by user, command, actor.email, status, id.applicationName, event.name, vendor_account, action
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `gcp_multi_factor_authentication_disabled_filter`

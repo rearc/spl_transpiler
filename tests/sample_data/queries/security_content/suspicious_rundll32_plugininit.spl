@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where `process_rundll32` Processes.process=*PluginInit* by  Processes.process_name Processes.process Processes.parent_process_name Processes.original_file_name Processes.parent_process Processes.process_id Processes.parent_process_id Processes.dest Processes.user
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `suspicious_rundll32_plugininit_filter`

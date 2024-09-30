@@ -1,0 +1,5 @@
+`sysmon` EventCode=23 TargetFilename = "*:Zone.Identifier"
+| stats  min(_time) as firstTime max(_time) as lastTime count by user EventCode Image TargetFilename ProcessID dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_mark_of_the_web_bypass_filter`

@@ -1,0 +1,9 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime FROM datamodel=Endpoint.Processes by Processes.user Processes.dest Processes.process_name Processes.process
+| `drop_dm_object_name("Processes")`
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`|  eval processlen=len(process)
+| eventstats stdev(processlen) as stdev, avg(processlen) as avg by dest
+| stats max(processlen) as maxlen, values(stdev) as stdevperhost, values(avg) as avgperhost by dest, user, process_name, process
+| `unusually_long_command_line_filter`
+|eval threshold = 3
+| where maxlen > ((threshold*stdevperhost) + avgperhost)

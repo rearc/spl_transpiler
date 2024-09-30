@@ -1,0 +1,6 @@
+`powershell` EventCode=4104 ScriptBlockText = "*Get-ForestDomain*"
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer UserID
+| rename Computer as dest, UserID as user
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_forest_discovery_with_getforestdomain_filter`

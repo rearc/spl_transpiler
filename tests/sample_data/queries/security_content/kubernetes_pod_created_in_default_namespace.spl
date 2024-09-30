@@ -1,0 +1,5 @@
+`kube_audit` objectRef.resource=pods verb=create objectRef.namespace IN ("default", "kube-system", "kube-public")
+| fillnull
+| stats count by objectRef.name objectRef.namespace objectRef.resource requestReceivedTimestamp requestURI responseStatus.code sourceIPs{} stage user.groups{} user.uid user.username userAgent verb
+| rename sourceIPs{} as src_ip, user.username as user
+| `kubernetes_pod_created_in_default_namespace_filter`

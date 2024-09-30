@@ -1,0 +1,5 @@
+`sysmon` OriginalFileName=procdump  process_name!=procdump*.exe  EventID=1 (CommandLine=*-ma* OR CommandLine=*-mm*) CommandLine=*lsass*
+|  stats count min(_time) as firstTime max(_time) as lastTime by dest, parent_process_name, process_name, OriginalFileName, CommandLine
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `dump_lsass_via_procdump_rename_filter`

@@ -1,0 +1,7 @@
+`o365_management_activity` Workload=Exchange (Operation=ModifyFolderPermissions OR Operation=AddFolderPermissions) Workload=Exchange object!=Calendar object!=Contacts object!=PersonMetadata
+| eval isReadRole=if(match('Item.ParentFolder.MemberRights', "(ReadAny)"), "true", "false")
+| rename UserId as user
+| stats count earliest(_time) as firstTime latest(_time) as lastTime by Operation, user, object, Item.ParentFolder.MemberUpn, Item.ParentFolder.MemberRights
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_mailbox_folder_read_permission_assigned_filter`

@@ -1,0 +1,7 @@
+index=something
+| tstats `security_content_summariesonly` min(_time) as firstTime max(_time) as lastTime sum(All_Risk.calculated_risk_score) as sum_risk_score, values(All_Risk.annotations.mitre_attack.mitre_tactic) as annotations.mitre_attack.mitre_tactic, values(All_Risk.annotations.mitre_attack.mitre_technique_id) as annotations.mitre_attack.mitre_technique_id, dc(All_Risk.annotations.mitre_attack.mitre_technique_id) as mitre_technique_id_count values(source) as source, dc(source) as source_count from datamodel=Risk.All_Risk where All_Risk.analyticstories="Dev Sec Ops" All_Risk.risk_object_type = "other" by All_Risk.risk_object All_Risk.risk_object_type All_Risk.annotations.mitre_attack.mitre_tactic
+| `drop_dm_object_name(All_Risk)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| where source_count > 3 and sum_risk_score > 100
+| `risk_rule_for_dev_sec_ops_by_repository_filter`

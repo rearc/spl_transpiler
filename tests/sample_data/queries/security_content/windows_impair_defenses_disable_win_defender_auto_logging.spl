@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Registry where (Registry.registry_path = "*WMI\\Autologger\\DefenderApiLogger\\Start" OR Registry.registry_path = "*WMI\\Autologger\\DefenderAuditLogger\\Start")  Registry.registry_value_data ="0x00000000" by  Registry.registry_path Registry.registry_value_name Registry.registry_value_data Registry.process_guid Registry.action Registry.dest Registry.user
+| `drop_dm_object_name(Registry)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_impair_defenses_disable_win_defender_auto_logging_filter`

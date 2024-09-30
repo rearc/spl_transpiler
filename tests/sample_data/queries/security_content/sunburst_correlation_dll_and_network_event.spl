@@ -1,0 +1,7 @@
+(`sysmon` EventCode=7 ImageLoaded=*SolarWinds.Orion.Core.BusinessLayer.dll) OR (`sysmon` EventCode=22 QueryName=*avsvmcloud.com)
+| eventstats dc(EventCode) AS dc_events
+| where dc_events=2
+| stats min(_time) as firstTime max(_time) as lastTime values(ImageLoaded) AS ImageLoaded values(QueryName) AS QueryName by host
+| rename host as dest
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `sunburst_correlation_dll_and_network_event_filter`

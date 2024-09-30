@@ -1,0 +1,8 @@
+index=something
+| tstats earliest(_time) as firstTimeSeen, latest(_time) as lastTimeSeen from datamodel=Change where All_Changes.action=created  by All_Changes.Instance_Changes.image_id
+| `drop_dm_object_name("All_Changes")`
+| `drop_dm_object_name("Instance_Changes")`
+| where image_id != "unknown"
+| eventstats min(firstTimeSeen) as globalFirstTime
+| eval enough_data = if(globalFirstTime <= relative_time(now(), "-7d@d"), 1, 0)
+| outputlookup previously_seen_cloud_compute_images

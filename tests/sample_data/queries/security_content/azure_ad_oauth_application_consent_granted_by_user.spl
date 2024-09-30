@@ -1,0 +1,9 @@
+`azure_monitor_aad` operationName="Consent to application" properties.result=success
+| rename properties.* as *
+| eval permissions_index = if(mvfind('targetResources{}.modifiedProperties{}.displayName', "ConsentAction.Permissions") >= 0, mvfind('targetResources{}.modifiedProperties{}.displayName', "ConsentAction.Permissions"), -1)
+| eval permissions = mvindex('targetResources{}.modifiedProperties{}.newValue',permissions_index)
+| rex field=permissions "Scope: (?<Scope>[^,]+)"
+| stats count min(_time) as firstTime max(_time) as lastTime by operationName, user, Scope
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_oauth_application_consent_granted_by_user_filter`

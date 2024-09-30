@@ -1,0 +1,11 @@
+`cloudtrail` eventName=CreateKey OR eventName=PutKeyPolicy
+| spath input=requestParameters.policy output=key_policy_statements path=Statement{}
+| mvexpand key_policy_statements
+| spath input=key_policy_statements output=key_policy_action_1 path=Action
+| spath input=key_policy_statements output=key_policy_action_2 path=Action{}
+| eval key_policy_action=mvappend(key_policy_action_1, key_policy_action_2)
+| spath input=key_policy_statements output=key_policy_principal path=Principal.AWS
+| search key_policy_action="kms:Encrypt" AND key_policy_principal="*"
+| stats count min(_time) as firstTime max(_time) as lastTime by eventName eventSource eventID awsRegion userIdentity.principalId user
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+|`aws_detect_users_creating_keys_with_encrypt_policy_without_mfa_filter`

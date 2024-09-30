@@ -1,0 +1,5 @@
+`wineventlog_security` EventCode=4663 NOT (ProcessName IN ("*\\chrome.exe", "*\\explorer.exe", "*sql*")) ObjectName="*\\Google\\Chrome\\User Data\\Default*"
+| stats count min(_time) as firstTime max(_time) as lastTime by ObjectName ObjectType ProcessName AccessMask EventCode dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `non_chrome_process_accessing_chrome_default_dir_filter`

@@ -1,0 +1,5 @@
+`o365_management_activity` Workload=AzureActiveDirectory Operation="*Add service principal*" OR (Operation = "*principal*" AND action = "created")
+| stats count values(ModifiedProperties{}.NewValue) as new_value by src_user src_user_type action Operation authentication_service Workload
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_added_service_principal_filter`

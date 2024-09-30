@@ -1,0 +1,6 @@
+`o365_management_activity` Workload=SecurityComplianceCenter Operation=AdminMailAccess
+| stats values(Workload) as category, values(MailboxId) as user, values(Operation) as signature, count, min(_time) as firstTime, max(_time) as lastTime by InternetMessageId, UserId
+| rename InternetMessageId as signature_id, UserId as src_user
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_email_access_by_security_administrator_filter`

@@ -1,0 +1,6 @@
+`cloudtrail` eventName=RunInstances errorCode=success
+| rename requestParameters.instanceType as instanceType
+| fillnull value="m1.small" instanceType
+| stats earliest(_time) as earliest latest(_time) as latest by instanceType
+| outputlookup previously_seen_ec2_instance_types
+| stats count

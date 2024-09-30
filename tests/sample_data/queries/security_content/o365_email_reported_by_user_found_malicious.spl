@@ -1,0 +1,13 @@
+`o365_management_activity` Workload=SecurityComplianceCenter  Operation=AlertEntityGenerated Name="Email reported by user as*"
+| fromjson Data
+| rename _raw AS temp etps AS _raw
+| extract pairdelim=";" kvdelim=":"
+| rename _raw AS etps temp AS _raw
+| search RescanVerdict IN (Phish,Malware)
+| rex field=tsd "\<(?<src_user>.+)\>"
+| eval src_user = case(isnull(src_user),tsd,true(),src_user)
+| stats count min(_time) as firstTime max(_time) as lastTime values(ms) as subject values(RescanVerdict) as result values(tsd) as sender values(src_user) as src_user by AlertId,AlertEntityId,Operation,Name
+| rename Name as signature, AlertId as signature_id, AlertEntityId as user
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_email_reported_by_user_found_malicious_filter`

@@ -1,0 +1,9 @@
+index=something
+|  tstats `security_content_summariesonly` latest(Processes.parent_process) as parent_process, latest(Processes.process) as process, latest(Processes.process_guid) as process_guid count, min(_time) AS firstTime, max(_time) AS lastTime FROM datamodel=Endpoint.Processes where Processes.process != "unknown" AND NOT Processes.process_path IN ("*\\Program Files*","*\\PROGRA~*","*\\Windows\\System32\\*","*\\Windows\\Syswow64\\*") BY Processes.user Processes.dest Processes.parent_process_name Processes.process_name Processes.process_path
+|`drop_dm_object_name(Processes)`
+| lookup lolbas_file_path lolbas_file_name as process_name OUTPUT description as desc
+| lookup lolbas_file_path lolbas_file_name as process_name lolbas_file_path as process_path OUTPUT description as is_lolbas_path
+| search desc!="false" AND is_lolbas_path="false"
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_lolbas_executed_outside_expected_path_filter`

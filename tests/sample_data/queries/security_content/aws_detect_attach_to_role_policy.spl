@@ -1,0 +1,3 @@
+`aws_cloudwatchlogs_eks` attach policy| spath requestParameters.policyArn
+| table sourceIPAddress user_access_key userIdentity.arn userIdentity.sessionContext.sessionIssuer.arn eventName errorCode errorMessage status action requestParameters.policyArn userIdentity.sessionContext.attributes.mfaAuthenticated userIdentity.sessionContext.attributes.creationDate
+| `aws_detect_attach_to_role_policy_filter`

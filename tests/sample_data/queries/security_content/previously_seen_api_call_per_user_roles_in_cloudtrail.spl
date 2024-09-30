@@ -1,0 +1,4 @@
+`cloudtrail` eventType=AwsApiCall errorCode=success userIdentity.type=AssumedRole
+| stats earliest(_time) as earliest latest(_time) as latest by userName eventName
+| outputlookup previously_seen_api_calls_from_user_roles
+| stats count

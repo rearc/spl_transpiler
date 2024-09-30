@@ -1,0 +1,6 @@
+ `wineventlog_security` EventCode=5136 ObjectClass=groupPolicyContainer AttributeLDAPDisplayName=versionNumber (ObjectDN="CN={31B2F340-016D-11D2-945F-00C04FB984F9},CN=POLICIES,CN=SYSTEM,DC=*" OR ObjectDN="CN={6AC1786C-016F-11D2-945F-00C04fB984F9},CN=POLICIES,CN=SYSTEM,DC=*")
+| stats min(_time) as firstTime max(_time) as lastTime by ObjectDN SubjectUserSid AttributeValue Computer DSName
+| rename AttributeValue as versionNumber
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_default_group_policy_object_modified_filter`

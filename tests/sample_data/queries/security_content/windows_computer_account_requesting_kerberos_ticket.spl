@@ -1,0 +1,5 @@
+`wineventlog_security`  EventCode=4768 TargetUserName="*$"  src_ip!="::1"
+| stats  count min(_time) as firstTime max(_time) as lastTime by dest, subject, action, user, TargetUserName, src_ip
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_computer_account_requesting_kerberos_ticket_filter`

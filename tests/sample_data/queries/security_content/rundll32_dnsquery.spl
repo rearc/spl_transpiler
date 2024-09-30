@@ -1,0 +1,6 @@
+`sysmon` EventCode=22 process_name="rundll32.exe"
+| stats count min(_time) as firstTime max(_time) as lastTime values(query) as query values(answer) as answer values(QueryResults) as query_results values(QueryStatus) as query_status by process_name process_guid Computer
+| rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `rundll32_dnsquery_filter`

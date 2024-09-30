@@ -1,0 +1,7 @@
+`powershell` EventCode=4104 ScriptBlockText IN (*get-netdomaintrust*, *get-netforesttrust*, *get-addomain*, *get-adgroupmember*, *get-domainuser*)
+| stats count min(_time) as firstTime max(_time) as lastTime by Computer EventCode ScriptBlockText UserID
+| rename Computer as dest
+| rename UserID as user
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `powershell_domain_enumeration_filter`

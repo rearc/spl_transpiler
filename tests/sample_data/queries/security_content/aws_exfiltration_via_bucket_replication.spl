@@ -1,0 +1,4 @@
+`cloudtrail`  eventName = PutBucketReplication eventSource = s3.amazonaws.com
+| rename requestParameters.* as *
+| stats count values(bucketName) as source_bucket values(ReplicationConfiguration.Rule.ID) as rule_id values(ReplicationConfiguration.Rule.Destination.Bucket) as destination_bucket by _time user_arn userName user_type src_ip aws_account_id userIdentity.principalId user_agent
+| `aws_exfiltration_via_bucket_replication_filter`

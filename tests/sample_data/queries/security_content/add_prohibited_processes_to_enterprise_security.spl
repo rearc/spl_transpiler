@@ -1,0 +1,9 @@
+index=something
+| inputlookup prohibited_processes
+| search note!=ESCU*
+| inputlookup append=T prohibited_processes
+| fillnull value=* dest dest_pci_domain
+| fillnull value=false is_required is_secure
+| fillnull value=true is_prohibited
+| outputlookup prohibited_processes
+| stats count

@@ -1,0 +1,6 @@
+`iis_get_webglobalmodule`
+| stats count min(_time) as firstTime max(_time) as lastTime by host name image
+| rename host as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_iis_components_get_webglobalmodule_module_query_filter`

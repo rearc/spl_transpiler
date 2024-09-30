@@ -1,0 +1,7 @@
+index=something
+| tstats dc(All_Changes.object) as unique_security_groups values(All_Changes.src) as src values(All_Changes.user_type) as user_type values(All_Changes.object_category) as object_category values(All_Changes.object) as objects values(All_Changes.action) as action  values(All_Changes.user_agent) as user_agent values(All_Changes.command) as command from datamodel=Change WHERE All_Changes.object_category = "security_group" (All_Changes.action = modified OR All_Changes.action = deleted OR All_Changes.action = created)  by All_Changes.user  _time span=30m
+|  `drop_dm_object_name("All_Changes")`
+| eventstats avg(unique_security_groups) as avg_changes , stdev(unique_security_groups) as std_changes by user
+| eval upperBound=(avg_changes+std_changes*3)
+| eval isOutlier=if(unique_security_groups > 2 and unique_security_groups >= upperBound, 1, 0)
+| where isOutlier=1| `cloud_security_groups_modifications_by_user_filter`

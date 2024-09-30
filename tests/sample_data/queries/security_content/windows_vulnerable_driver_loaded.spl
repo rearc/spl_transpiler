@@ -1,0 +1,7 @@
+`sysmon` EventCode=6
+| stats  min(_time) as firstTime max(_time) as lastTime count by dest ImageLoaded
+| lookup loldrivers driver_name AS ImageLoaded OUTPUT is_driver driver_description
+| search is_driver = TRUE
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_vulnerable_driver_loaded_filter`

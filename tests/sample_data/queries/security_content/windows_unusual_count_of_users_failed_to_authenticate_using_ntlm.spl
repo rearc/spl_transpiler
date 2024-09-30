@@ -1,0 +1,8 @@
+ `wineventlog_security`  EventCode=4776 TargetUserName!=*$ Status=0xC000006A
+| bucket span=2m _time
+| stats dc(TargetUserName) AS unique_accounts values(TargetUserName) as tried_accounts by _time, Workstation
+| eventstats avg(unique_accounts) as comp_avg , stdev(unique_accounts) as comp_std by Workstation
+| eval upperBound=(comp_avg+comp_std*3)
+| eval isOutlier=if(unique_accounts > 10 and unique_accounts >= upperBound, 1, 0)
+| search isOutlier=1
+| `windows_unusual_count_of_users_failed_to_authenticate_using_ntlm_filter`

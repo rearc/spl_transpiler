@@ -1,0 +1,12 @@
+index=something
+| tstats `security_content_summariesonly` values(DNS.answer) as IPs min(_time) as firstTime  max(_time) as lastTime from datamodel=Network_Resolution by DNS.src, DNS.query
+| `drop_dm_object_name(DNS)`
+| rename query AS domain
+| fields IPs, src, domain, firstTime, lastTime
+| apply pretrained_dga_model_dsdl
+| rename pred_dga_proba AS dga_score
+| where dga_score>0.5
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| table src, domain, IPs, firstTime, lastTime, dga_score
+| `detect_dga_domains_using_pretrained_model_in_dsdl_filter`

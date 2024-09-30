@@ -1,0 +1,5 @@
+ `wineventlog_security` EventCode=4768 TicketEncryptionType=0x17 ServiceName!=*$
+| stats count min(_time) as firstTime max(_time) as lastTime by ServiceName src_ip dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `kerberos_tgt_request_using_rc4_encryption_filter`

@@ -1,0 +1,7 @@
+`cloudtrail` (errorCode = "AccessDenied") user_type=IAMUser (userAgent!=*.amazonaws.com)
+| bucket _time span=1h
+| stats count as failures min(_time) as firstTime max(_time) as lastTime, dc(eventName) as methods, dc(eventSource) as sources by src_ip, userIdentity.arn, _time
+| where failures >= 5 and methods >= 1 and sources >= 1
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `aws_iam_accessdenied_discovery_events_filter`

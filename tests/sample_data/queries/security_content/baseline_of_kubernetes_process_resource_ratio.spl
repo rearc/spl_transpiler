@@ -1,0 +1,11 @@
+index=something
+| mstats avg(process.*) as process.* where `kubernetes_metrics` by host.name k8s.cluster.name k8s.node.name process.executable.name span=10s
+| eval cpu:mem = 'process.cpu.utilization'/'process.memory.utilization'
+| eval cpu:disk = 'process.cpu.utilization'/'process.disk.operations'
+| eval mem:disk = 'process.memory.utilization'/'process.memory.utilization'
+| eval cpu:threads = 'process.cpu.utilization'/'process.threads'
+| eval disk:threads = 'process.disk.operations'/'process.threads'
+| eval key = 'k8s.cluster.name' + ":" + 'host.name' + ":" + 'process.executable.name'
+| fillnull
+| stats avg(cpu:mem) as avg_cpu:mem stdev(cpu:mem) as stdev_cpu:mem avg(cpu:disk) as avg_cpu:disk stdev(cpu:disk) as stdev_cpu:disk avg(mem:disk) as avg_mem:disk stdev(mem:disk) as stdev_mem:disk avg(cpu:threads) as avg_cpu:threads stdev(cpu:threads) as stdev_cpu:threads avg(disk:threads) as avg_disk:threads stdev(disk:threads) as stdev_disk:threads count latest(_time) as last_seen by key
+| outputlookup k8s_process_resource_ratio_baseline

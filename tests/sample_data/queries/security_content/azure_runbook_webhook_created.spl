@@ -1,0 +1,8 @@
+ `azure_audit` operationName.localizedValue="Create or Update an Azure Automation webhook" status.value=Succeeded
+| dedup object
+| rename claims.ipaddr as src_ip
+| rename caller as user
+| stats count min(_time) as firstTime max(_time) as lastTime by object user, src_ip, resourceGroupName, object_path
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_runbook_webhook_created_filter`

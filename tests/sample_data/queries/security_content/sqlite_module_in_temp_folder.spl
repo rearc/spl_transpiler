@@ -1,0 +1,4 @@
+`sysmon` EventCode=11 (TargetFilename = "*\\sqlite32.dll" OR TargetFilename = "*\\sqlite64.dll") (TargetFilename = "*\\temp\\*")
+| stats count min(_time) as firstTime max(_time) as lastTime by dest signature signature_id process_name file_name file_path action process_guid| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `sqlite_module_in_temp_folder_filter`

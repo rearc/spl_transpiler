@@ -1,0 +1,4 @@
+`sysmon` EventID=7 Image=*lsass.exe Signed=false
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, Image, ImageLoaded, Signed, SHA1
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `unsigned_image_loaded_by_lsass_filter`

@@ -1,0 +1,8 @@
+`wineventlog_security` signature_id=4703 Process_Name=*powershell.exe
+| rex field=Message "Enabled Privileges:\s+(?<privs>\w+)\s+Disabled Privileges:"
+| where privs="SeDebugPrivilege"
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, Process_Name, privs, Process_ID, Message
+| rename privs as "Enabled Privilege"
+| rename Process_Name as process
+|  `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `detect_mimikatz_via_powershell_and_eventcode_4703_filter`

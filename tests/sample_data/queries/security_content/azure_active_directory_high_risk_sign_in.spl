@@ -1,0 +1,6 @@
+ `azure_monitor_aad` category=UserRiskEvents properties.riskLevel=high
+| rename properties.* as *
+| stats count min(_time) as firstTime max(_time) as lastTime values(user) as user by src_ip, activity, riskLevel, riskEventType, additionalInfo
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_active_directory_high_risk_sign_in_filter`

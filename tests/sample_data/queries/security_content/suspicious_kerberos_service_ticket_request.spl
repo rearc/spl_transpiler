@@ -1,0 +1,6 @@
+ `wineventlog_security` EventCode=4769
+| eval isSuspicious = if(lower(ServiceName) = lower(mvindex(split(TargetUserName,"@"),0)),1,0)
+| where isSuspicious = 1
+| rename Computer as dest| rename TargetUserName as user
+| table _time, dest, src_ip, user, ServiceName, Error_Code, isSuspicious
+| `suspicious_kerberos_service_ticket_request_filter`

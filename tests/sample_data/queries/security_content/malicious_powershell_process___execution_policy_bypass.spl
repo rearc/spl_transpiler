@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` values(Processes.process_id) as process_id, values(Processes.parent_process_id) as parent_process_id values(Processes.process) as process min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where `process_powershell` (Processes.process="* -ex*" OR Processes.process="* bypass *") by Processes.process_id, Processes.user, Processes.dest
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `malicious_powershell_process___execution_policy_bypass_filter`

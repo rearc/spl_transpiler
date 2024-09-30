@@ -1,0 +1,6 @@
+`wineventlog_security` EventCode=4698 TaskContent IN ("*\\users\\public\\*", "*\\programdata\\*", "*\\temp\\*", "*\\Windows\\Tasks\\*", "*\\appdata\\*", "*\\perflogs\\*")
+| stats count min(_time) as firstTime max(_time) as lastTime by Computer, TaskName, TaskContent
+|  rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `winevent_scheduled_task_created_within_public_path_filter`

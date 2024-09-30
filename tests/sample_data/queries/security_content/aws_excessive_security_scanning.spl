@@ -1,0 +1,5 @@
+`cloudtrail` eventName=Describe* OR eventName=List* OR eventName=Get*
+| stats dc(eventName) as dc_events min(_time) as firstTime max(_time) as lastTime values(eventName) as command values(src) as src values(userAgent) as userAgent by user userIdentity.arn
+| where dc_events > 50
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`|`aws_excessive_security_scanning_filter`

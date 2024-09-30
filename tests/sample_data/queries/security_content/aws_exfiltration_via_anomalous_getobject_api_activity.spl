@@ -1,0 +1,6 @@
+`cloudtrail` eventName=GetObject
+| bin _time span=10m
+|  stats count values(requestParameters.bucketName) as bucketName by _time src_ip aws_account_id user_type user_arn userIdentity.principalId
+| anomalydetection "count" "user_type" "user_arn" action=annotate
+| search probable_cause=*
+|`aws_exfiltration_via_anomalous_getobject_api_activity_filter`

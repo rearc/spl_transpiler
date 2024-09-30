@@ -1,0 +1,5 @@
+  `wineventlog_security` EventCode=4624 LogonType=3 TargetUserName!="ANONYMOUS LOGON" TargetUserName!="*$"
+| bucket span=5m _time
+| stats dc(Computer) AS unique_targets values(Computer) as host_targets by _time, IpAddress, TargetUserName
+| where unique_targets > 30
+| `windows_rapid_authentication_on_multiple_hosts_filter`

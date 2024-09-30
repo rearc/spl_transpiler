@@ -1,0 +1,8 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime values(Processes.process) as process values(Processes.parent_process) as parent_process from datamodel=Endpoint.Processes where Processes.dest!=unknown Processes.user!=unknown by Processes.dest Processes.user Processes.process_name Processes.process
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `drop_dm_object_name(Processes)`
+| lookup remote_access_software remote_utility AS process_name OUTPUT isutility
+| search isutility = True
+| `windows_remote_access_software_hunt_filter`

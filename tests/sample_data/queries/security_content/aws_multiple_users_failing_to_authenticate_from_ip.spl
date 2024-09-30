@@ -1,0 +1,4 @@
+`cloudtrail` eventName=ConsoleLogin action=failure
+| bucket span=10m _time
+| stats  dc(user_name) AS unique_accounts values(user_name) as tried_accounts by _time, src_ip
+| `aws_multiple_users_failing_to_authenticate_from_ip_filter`

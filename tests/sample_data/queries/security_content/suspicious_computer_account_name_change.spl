@@ -1,0 +1,4 @@
+`wineventlog_security` EventCode=4781 OldTargetUserName="*$" NewTargetUserName!="*$"
+| table _time, Computer, Caller_User_Name, OldTargetUserName, NewTargetUserName
+| rename Computer as dest
+| `suspicious_computer_account_name_change_filter`

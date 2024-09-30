@@ -1,0 +1,8 @@
+index=something
+| mstats  count(process.memory.utilization) as process.memory.utilization_count where `kubernetes_metrics` AND earliest=-1h by host.name k8s.cluster.name k8s.node.name process.executable.name
+| eval current="True"
+| append [mstats  count(process.memory.utilization) as process.memory.utilization_count where `kubernetes_metrics` AND earliest=-30d latest=-1h by host.name k8s.cluster.name k8s.node.name process.executable.name ]
+| stats count values(current) as current by host.name k8s.cluster.name k8s.node.name process.executable.name
+| where count=1 and current="True"
+| rename host.name as host
+| `kubernetes_previously_unseen_process_filter`

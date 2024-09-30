@@ -1,0 +1,5 @@
+`sysmon` EventCode=7  ImageLoaded = "*.dll" Image = "*\\mmc.exe" Signed=false Company != "Microsoft Corporation"
+| stats count min(_time) as firstTime max(_time) as lastTime by Image ImageLoaded Signed ProcessId OriginalFileName dest EventCode Company
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `uac_bypass_mmc_load_unsigned_dll_filter`

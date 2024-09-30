@@ -1,0 +1,10 @@
+`azure_monitor_aad` operationName="Update authorization policy"
+| rename properties.* as *
+| eval index_number = if(mvfind('targetResources{}.modifiedProperties{}.displayName', "AllowUserConsentForRiskyApps") >= 0, mvfind('targetResources{}.modifiedProperties{}.displayName', "AllowUserConsentForRiskyApps"), -1)
+| search index_number >= 0
+| eval AllowUserConsentForRiskyApps = mvindex('targetResources{}.modifiedProperties{}.newValue',index_number)
+| search AllowUserConsentForRiskyApps = "[true]"
+| stats count min(_time) as firstTime max(_time) as lastTime by user, src_ip, operationName, AllowUserConsentForRiskyApps
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_block_user_consent_for_risky_apps_disabled_filter`

@@ -1,0 +1,4 @@
+`wineventlog_security`  EventCode=4887
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, name, Requester, action, Attributes, Subject
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `windows_steal_authentication_certificates_certificate_issued_filter`

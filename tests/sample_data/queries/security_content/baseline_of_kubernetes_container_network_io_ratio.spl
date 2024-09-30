@@ -1,0 +1,9 @@
+index=something
+| mstats avg(k8s.pod.network.io) as io where `kubernetes_metrics` by k8s.cluster.name k8s.pod.name k8s.node.name direction span=10s
+| eval service = replace('k8s.pod.name', "-\w{5}$|-[abcdef0-9]{8,10}-\w{5}$", "")
+| eval key = 'k8s.cluster.name' + ":" + 'service'
+| stats avg(eval(if(direction="transmit", io,null()))) as outbound_network_io avg(eval(if(direction="receive", io,null()))) as inbound_network_io by key _time
+| eval inbound:outbound = inbound_network_io/outbound_network_io
+| eval outbound:inbound = outbound_network_io/inbound_network_io
+| stats avg(*:*) as avg_*:* stdev(*:*) as stdev_*:* count latest(_time) as last_seen by key
+| outputlookup k8s_container_network_io_ratio_baseline

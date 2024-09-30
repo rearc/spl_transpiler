@@ -1,0 +1,4 @@
+`powershell` EventCode=4104 ScriptBlockText="*Invoke-WmiMethod*" AND (ScriptBlockText="*-CN*" OR ScriptBlockText="*-ComputerName*") AND ScriptBlockText="*-Class Win32_Process*" AND ScriptBlockText="*-Name create*"
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer UserID|  `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `remote_process_instantiation_via_wmi_and_powershell_script_block_filter`

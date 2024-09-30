@@ -1,0 +1,6 @@
+`wineventlog_security` EventCode=4663  ProcessName=*\\ScreenConnect.Service.exe file_path IN ("*\\ScreenConnect\\App_Extensions\\*") file_name IN ("*.aspx","*.ashx")
+| stats count min(_time) as firstTime max(_time) as lastTime by  ObjectName ObjectType ProcessName AccessMask process_id EventCode Computer Caller_User_Name
+| rename Computer as dest Caller_User_Name as user ProcessName as process_name
+|  `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `connectwise_screenconnect_path_traversal_windows_sacl_filter`

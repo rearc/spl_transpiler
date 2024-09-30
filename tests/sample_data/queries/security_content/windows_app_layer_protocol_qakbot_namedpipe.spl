@@ -1,0 +1,6 @@
+`sysmon` EventCode IN (17, 18) EventType IN ( "CreatePipe", "ConnectPipe") Image IN ("*\\calc.exe", "*\\notepad.exe", "*\\rdpclip.exe", "*\\explorer.exe", "*\\wermgr.exe", "*\\ping.exe", "*\\OneDriveSetup.exe", "*\\dxdiag.exe", "*\\mobsync.exe", "*\\msra.exe", "*\\xwizard.exe")
+| regex PipeName="^\\\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{8}"
+| stats  min(_time) as firstTime max(_time) as lastTime count by Image EventType ProcessGuid ProcessId PipeName SecurityID EventCode dest UserID
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_app_layer_protocol_qakbot_namedpipe_filter`

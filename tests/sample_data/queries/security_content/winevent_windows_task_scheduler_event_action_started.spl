@@ -1,0 +1,5 @@
+`wineventlog_task_scheduler` EventCode IN ("200","201")
+| stats count min(_time) as firstTime max(_time) as lastTime by TaskName dest EventCode
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `winevent_windows_task_scheduler_event_action_started_filter`

@@ -1,0 +1,17 @@
+index=something
+| inputlookup discovered_dns_records
+| rename answer as discovered_answer
+| join domain[|tstats `security_content_summariesonly` count values(DNS.record_type) as type, values(DNS.answer) as current_answer values(DNS.src) as src from datamodel=Network_Resolution where DNS.message_type=RESPONSE DNS.answer!="unknown" DNS.answer!="" by DNS.query
+| rename DNS.query as query
+| where query!="unknown"
+| rex field=query "(?<domain>\w+\.\w+?)(?:$|/)"]
+| makemv delim=" " answer
+|  makemv delim=" " type
+| sort -count
+| table count,src,domain,type,query,current_answer,discovered_answer
+| makemv current_answer
+| mvexpand current_answer
+| makemv discovered_answer
+| eval n=mvfind(discovered_answer, current_answer)
+| where isnull(n)
+| `dns_record_changed_filter`

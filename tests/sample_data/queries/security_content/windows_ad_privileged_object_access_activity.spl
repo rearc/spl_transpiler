@@ -1,0 +1,7 @@
+`wineventlog_security` EventCode=4662 ObjectName IN ( "CN=Account Operators,*", "CN=Administrators,*", "CN=Backup Operators,*", "CN=Cert Publishers,*", "CN=Certificate Service DCOM Access,*", "CN=Domain Admins,*", "CN=Domain Controllers,*", "CN=Enterprise Admins,*", "CN=Enterprise Read-only Domain Controllers,*", "CN=Group Policy Creator Owners,*", "CN=Incoming Forest Trust Builders,*", "CN=Microsoft Exchange Servers,*", "CN=Network Configuration Operators,*", "CN=Power Users,*", "CN=Print Operators,*", "CN=Read-only Domain Controllers,*", "CN=Replicators,*", "CN=Schema Admins,*", "CN=Server Operators,*", "CN=Exchange Trusted Subsystem,*", "CN=Exchange Windows Permission,*", "CN=Organization Management,*")
+| rex field=ObjectName "CN\=(?<object_name>[^,]+)"
+| stats values(Computer) as dest, values(object_name) as object_name, dc(ObjectName) as object_count, min(_time) as firstTime, max(_time) as lastTime, count by SubjectUserName
+| rename SubjectUserName as user
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_ad_privileged_object_access_activity_filter`

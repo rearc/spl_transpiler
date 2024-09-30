@@ -1,0 +1,5 @@
+index=something
+| mstats avg(process.*) as avg_process.* stdev(*) as stdev_* where `kubernetes_metrics` by host.name k8s.cluster.name k8s.node.name process.executable.name
+| eval key = 'k8s.cluster.name' + ":" + 'host.name' + ":" + 'process.executable.name'
+| fillnull
+| outputlookup k8s_process_resource_baseline

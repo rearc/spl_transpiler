@@ -1,0 +1,11 @@
+`sysmon` ImageLoaded EventCode=7 NOT ImageLoaded IN ("*\\Program Files*","*\\system32\\*", "*\\syswow64\\*","*\\winsxs\\*","*\\wbem\\*")
+| stats latest(ProcessGuid) as process_guid, count, min(_time) as firstTime, max(_time) as lastTime by User, Computer, Image, ImageLoaded
+| rename User as user, Computer as dest, Image as process, ImageLoaded as loaded_file
+| eval process_name = case(isnotnull(process),replace(process,"(.*\\\)(?=.*(\.\w*)$|(\w+)$)","")), loaded_file_path = case(isnotnull(loaded_file), replace(loaded_file, "(:[\w\. ]+)", "")), loaded_file = case(isnotnull(loaded_file),replace(loaded_file,"(.*\\\)(?=.*(\.\w*)$|(\w+)$)","")), user = case(NOT user IN ("-"), replace(user, "(.*)\\\(.+)$","\2"))
+| lookup hijacklibs_loaded library AS loaded_file OUTPUT islibrary comment as desc
+| lookup hijacklibs_loaded library AS loaded_file excludes as loaded_file_path OUTPUT islibrary as excluded
+| search islibrary = TRUE AND excluded = false
+| stats values(*) as * by dest, process_name, process, process_guid, loaded_file, loaded_file_path
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_known_abused_dll_loaded_suspiciously_filter`

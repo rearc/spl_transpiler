@@ -1,0 +1,5 @@
+`okta` eventType=user.account.report_suspicious_activity_by_enduser
+| stats count min(_time) as firstTime max(_time) as lastTime values(displayMessage) by user eventType client.userAgent.rawUserAgent client.userAgent.browser client.geographicalContext.city  client.geographicalContext.country
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `okta_suspicious_activity_reported_filter`

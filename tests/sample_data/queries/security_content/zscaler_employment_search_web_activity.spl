@@ -1,0 +1,5 @@
+`zscaler_proxy` urlsupercategory="Job/Employment Search"
+| stats count min(_time) as firstTime max(_time) as lastTime by action deviceowner user urlcategory url src dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `zscaler_employment_search_web_activity_filter`

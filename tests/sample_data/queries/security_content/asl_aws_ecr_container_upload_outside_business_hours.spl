@@ -1,0 +1,9 @@
+`amazon_security_lake` api.operation=PutImage
+| eval hour=strftime(time/pow(10,3), "%H"), weekday=strftime(time/pow(10,3), "%A")
+| where hour >= 20 OR hour < 8 OR weekday=Saturday OR weekday=Sunday
+| fillnull
+| stats count min(_time) as firstTime max(_time) as lastTime by api.operation actor.user.account_uid actor.user.name actor.user.uid http_request.user_agent cloud.region
+| rename actor.user.name as user, cloud.region as region, http_request.user_agent as user_agent, actor.user.account_uid as aws_account_id
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `asl_aws_ecr_container_upload_outside_business_hours_filter`

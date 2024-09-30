@@ -1,0 +1,5 @@
+`cloudtrail` `ec2_modification_api_calls` errorCode=success
+| spath output=arn userIdentity.arn
+| stats earliest(_time) as firstTime latest(_time) as lastTime by arn
+| outputlookup previously_seen_ec2_modifications_by_user
+| stats count

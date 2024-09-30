@@ -1,0 +1,6 @@
+ `azure_monitor_aad` operationName="Sign-in activity" properties.status.errorCode=65004
+| rename properties.* as *
+| stats count min(_time) as firstTime max(_time) as lastTime by operationName, user, appDisplayName, status.failureReason
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_user_consent_denied_for_oauth_application_filter`

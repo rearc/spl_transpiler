@@ -1,0 +1,5 @@
+`zeek_rpc` operation IN (NetrServerPasswordSet2,NetrServerReqChallenge,NetrServerAuthenticate3)
+| bin span=5m _time
+| stats values(operation) dc(operation) as opscount count(eval(operation=="NetrServerReqChallenge")) as challenge count(eval(operation=="NetrServerAuthenticate3")) as authcount count(eval(operation=="NetrServerPasswordSet2")) as passcount count as totalcount by _time,src_ip,dest_ip
+| search opscount=3 authcount>4 passcount>0
+| search `detect_zerologon_via_zeek_filter`

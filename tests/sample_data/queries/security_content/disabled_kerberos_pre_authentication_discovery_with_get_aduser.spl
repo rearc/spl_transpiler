@@ -1,0 +1,5 @@
+ `powershell` EventCode=4104 (ScriptBlockText = "*Get-ADUser*" AND ScriptBlockText="*4194304*")
+| stats count min(_time)  as firstTime max(_time) as lastTime by Opcode Computer UserID EventCode ScriptBlockText
+| rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `disabled_kerberos_pre_authentication_discovery_with_get_aduser_filter`

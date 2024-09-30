@@ -1,0 +1,4 @@
+index=something
+| tstats  `security_content_summariesonly` count sum(Web.bytes_out) as sum_bytes_out values(Web.user) as user values(Web.app) as app values(Web.dest) as dest from datamodel=Web by _time span=2m Web.url Web.src sourcetype
+| search sum_bytes_out > 1070000000
+| `drop_dm_object_name("Web")`| `high_volume_of_bytes_out_to_url_filter`

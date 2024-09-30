@@ -1,0 +1,3 @@
+`google_gcp_pubsub_message` type.googleapis.com/google.cloud.audit.AuditLog
+|table protoPayload.@type protoPayload.status.details{}.@type protoPayload.status.details{}.violations{}.callerIp protoPayload.status.details{}.violations{}.type protoPayload.status.message
+| `gcp_detect_oauth_token_abuse_filter`

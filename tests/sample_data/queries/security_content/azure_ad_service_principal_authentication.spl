@@ -1,0 +1,6 @@
+ `azure_monitor_aad` operationName="Sign-in activity" category=ServicePrincipalSignInLogs
+| rename properties.* as *
+| stats count earliest(_time) as firstTime latest(_time) as lastTime by user, user_id, src_ip, resourceDisplayName, resourceId
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_service_principal_authentication_filter`

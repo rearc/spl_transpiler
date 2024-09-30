@@ -1,0 +1,5 @@
+`kube_audit` verb=create "objectRef.resource"=cronjobs
+| fillnull
+| stats count values(user.groups{}) as user_groups by kind objectRef.name objectRef.namespace objectRef.resource requestObject.kind requestObject.spec.schedule requestObject.spec.jobTemplate.spec.template.spec.containers{}.image responseStatus.code sourceIPs{} stage user.username userAgent verb
+| rename sourceIPs{} as src_ip, user.username as user
+| `kubernetes_cron_job_creation_filter`

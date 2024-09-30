@@ -1,0 +1,5 @@
+`sysmon` EventCode=6 Signature="Noriyuki MIYAZAKI" OR ImageLoaded= "*\\WinRing0x64.sys"
+|  stats  min(_time) as firstTime max(_time) as lastTime count by  dest ImageLoaded Hashes IMPHASH Signature Signed
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `xmrig_driver_loaded_filter`

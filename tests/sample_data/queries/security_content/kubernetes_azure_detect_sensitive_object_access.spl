@@ -1,0 +1,5 @@
+`kubernetes_azure` category=kube-audit
+| spath input=properties.log| search objectRef.resource=secrets OR configmaps user.username=system.anonymous OR annotations.authorization.k8s.io/decision=allow
+|table user.username user.groups{} objectRef.resource objectRef.namespace objectRef.name annotations.authorization.k8s.io/reason
+|dedup user.username user.groups{}
+|`kubernetes_azure_detect_sensitive_object_access_filter`

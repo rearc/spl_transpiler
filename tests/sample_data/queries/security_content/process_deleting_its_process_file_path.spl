@@ -1,0 +1,7 @@
+`sysmon` EventCode=1 CommandLine = "* /c *" CommandLine = "* del*" Image = "*\\cmd.exe"
+| eval result = if(like(process,"%".parent_process."%"), "Found", "Not Found")
+| stats min(_time) as firstTime max(_time) as lastTime count by dest user ParentImage ParentCommandLine Image CommandLine EventCode ProcessID result
+| where result = "Found"
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `process_deleting_its_process_file_path_filter`

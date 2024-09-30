@@ -1,0 +1,7 @@
+ `okta` eventType=user.authentication.auth_via_mfa outcome.result=FAILURE debugContext.debugData.factor!=PASSWORD_AS_FACTOR
+| bucket _time span=5m
+| stats count min(_time) as firstTime max(_time) as lastTime values(displayMessage) values(src_ip) as src_ip values(debugContext.debugData.factor) by _time src_user
+| where count >= 10
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `okta_multiple_failed_mfa_requests_for_user_filter`

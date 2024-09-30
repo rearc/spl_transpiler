@@ -1,0 +1,5 @@
+`sysmon` EventCode=7  ImageLoaded IN ("*\\fastprox.dll", "*\\wbemprox.dll", "*\\wbemcomn.dll") NOT (process_name IN ("wmiprvse.exe", "WmiApSrv.exe", "unsecapp.exe")) NOT(Image IN("*\\windows\\*","*\\program files*", "*\\wbem\\*"))
+| stats count min(_time) as firstTime max(_time) as lastTime by Image ImageLoaded process_name dest EventCode Signed ProcessId Hashes IMPHASH
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `wbemprox_com_object_execution_filter`

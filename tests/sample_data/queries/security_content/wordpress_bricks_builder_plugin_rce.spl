@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where Web.url IN ("*/wp-json/bricks/v1/render_element") Web.status=200 Web.http_method=POST by Web.src, Web.dest, Web.http_user_agent, Web.url, Web.uri_path, Web.status, Web.http_method, sourcetype, source
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `wordpress_bricks_builder_plugin_rce_filter`

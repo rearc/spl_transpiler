@@ -1,0 +1,6 @@
+index=something
+| tstats count from datamodel=Web where Web.http_method IN ("GET") Web.url IN ("*tomcatwar.jsp*","*poc.jsp*","*shell.jsp*") by Web.http_user_agent Web.http_method, Web.url,Web.url_length Web.src, Web.dest sourcetype
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `spring4shell_payload_url_request_filter`

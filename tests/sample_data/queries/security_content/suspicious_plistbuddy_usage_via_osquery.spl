@@ -1,0 +1,2 @@
+`osquery_process` "columns.cmdline"="*LaunchAgents*" OR "columns.cmdline"="*RunAtLoad*" OR "columns.cmdline"="*true*"
+|  `suspicious_plistbuddy_usage_via_osquery_filter`

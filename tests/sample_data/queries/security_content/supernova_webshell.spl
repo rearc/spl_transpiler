@@ -1,0 +1,3 @@
+index=something
+| tstats `security_content_summariesonly` count from datamodel=Web.Web where web.url=*logoimagehandler.ashx*codes* OR Web.url=*logoimagehandler.ashx*clazz* OR Web.url=*logoimagehandler.ashx*method* OR Web.url=*logoimagehandler.ashx*args* by Web.src Web.dest Web.url Web.vendor_product Web.user Web.http_user_agent _time span=1s
+| `supernova_webshell_filter`

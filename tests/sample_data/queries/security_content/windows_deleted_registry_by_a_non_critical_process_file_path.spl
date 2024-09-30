@@ -1,0 +1,7 @@
+index=something
+| tstats `security_content_summariesonly` count from datamodel=Endpoint.Registry WHERE Registry.action=deleted BY _time span=1h Registry.dest Registry.registry_path Registry.registry_value_name Registry.registry_key_name Registry.process_guid Registry.registry_value_data Registry.action
+| `drop_dm_object_name(Registry)`
+| join process_guid [| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Processes WHERE NOT (Processes.process_path IN ("*\\windows\\*", "*\\program files*")) by _time span=1h Processes.process_id Processes.process_name Processes.process Processes.user Processes.parent_process_name Processes.parent_process Processes.process_path Processes.process_guid
+| `drop_dm_object_name(Processes)`]
+| fields _time parent_process_name parent_process process_name process_path process process_guid registry_path registry_value_name registry_value_data registry_key_name action dest user
+| `windows_deleted_registry_by_a_non_critical_process_file_path_filter`

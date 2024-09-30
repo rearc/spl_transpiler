@@ -1,0 +1,13 @@
+index=something
+| tstats `security_content_summariesonly` dc("DNS.query") as count  from datamodel=Network_Resolution  where nodename=DNS "DNS.message_type"="QUERY" NOT (`cim_corporate_web_domain_search("DNS.query")`) NOT "DNS.query"="*.in-addr.arpa" NOT ("DNS.src_category"="svc_infra_dns" OR "DNS.src_category"="svc_infra_webproxy" OR "DNS.src_category"="svc_infra_email*"   ) by "DNS.src","DNS.query"
+| rename "DNS.src" as src  "DNS.query" as message
+| eval length=len(message)
+| stats sum(length) as length by src
+| append [ tstats `security_content_summariesonly` dc("DNS.answer") as count  from datamodel=Network_Resolution  where nodename=DNS "DNS.message_type"="QUERY" NOT (`cim_corporate_web_domain_search("DNS.query")`) NOT "DNS.query"="*.in-addr.arpa" NOT ("DNS.src_category"="svc_infra_dns" OR "DNS.src_category"="svc_infra_webproxy" OR "DNS.src_category"="svc_infra_email*"   ) by "DNS.src","DNS.answer"
+| rename "DNS.src" as src  "DNS.answer" as message
+| eval message=if(message=="unknown","", message)
+| eval length=len(message)
+| stats sum(length) as length by src ]
+| stats sum(length) as length by src
+| where length > 10000
+| `detection_of_dns_tunnels_filter`

@@ -1,0 +1,5 @@
+index=something
+| tstats count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where Web.url IN ("/webui/logoutconfirm.html?logon_hash=*") Web.http_method=POST Web.status=200 by Web.http_user_agent, Web.status Web.http_method, Web.url, Web.url_length, Web.src, Web.dest, sourcetype
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `cisco_ios_xe_implant_access_filter`

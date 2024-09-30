@@ -1,0 +1,18 @@
+index=something
+| mstats avg(process.*) as process.* where `kubernetes_metrics` by host.name k8s.cluster.name k8s.node.name process.executable.name span=10s
+| eval cpu:mem = 'process.cpu.utilization'/'process.memory.utilization'
+| eval cpu:disk = 'process.cpu.utilization'/'process.disk.operations'
+| eval mem:disk = 'process.memory.utilization'/'process.disk.operations'
+| eval cpu:threads = 'process.cpu.utilization'/'process.threads'
+| eval disk:threads = 'process.disk.operations'/'process.threads'
+| eval key = 'k8s.cluster.name' + ":" + 'host.name' + ":" + 'process.executable.name'
+| lookup k8s_process_resource_ratio_baseline key
+| fillnull
+| eval anomalies = ""
+| foreach stdev_* [ eval anomalies =if( '<<MATCHSTR>>' > ('avg_<<MATCHSTR>>' + 4 * 'stdev_<<MATCHSTR>>'), anomalies + "<<MATCHSTR>> ratio higher than average by " + tostring(round(('<<MATCHSTR>>' - 'avg_<<MATCHSTR>>')/'stdev_<<MATCHSTR>>' ,2)) + " Standard Deviations. <<MATCHSTR>>=" + tostring('<<MATCHSTR>>') + " avg_<<MATCHSTR>>=" + tostring('avg_<<MATCHSTR>>') + " 'stdev_<<MATCHSTR>>'=" + tostring('stdev_<<MATCHSTR>>') + ", " , anomalies) ]
+| eval anomalies = replace(anomalies, ",\s$", "")
+| where anomalies!=""
+| stats count values(anomalies) as anomalies by host.name k8s.cluster.name k8s.node.name process.executable.name
+| where count > 5
+| rename host.name as host
+| `kubernetes_process_with_resource_ratio_anomalies_filter`

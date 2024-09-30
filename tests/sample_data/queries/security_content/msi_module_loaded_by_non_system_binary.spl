@@ -1,0 +1,5 @@
+`sysmon` EventCode=7 ImageLoaded="*\\msi.dll" NOT (Image IN ("*\\System32\\*","*\\syswow64\\*","*\\windows\\*", "*\\winsxs\\*"))
+| stats count min(_time) as firstTime max(_time) as lastTime by Image ImageLoaded process_name dest EventCode ProcessId
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `msi_module_loaded_by_non_system_binary_filter`

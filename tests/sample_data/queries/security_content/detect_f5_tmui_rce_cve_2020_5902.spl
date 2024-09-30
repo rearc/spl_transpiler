@@ -1,0 +1,3 @@
+`f5_bigip_rogue`
+| regex _raw="(hsqldb;|.*\\.\\.;.*)"
+| search `detect_f5_tmui_rce_cve_2020_5902_filter`

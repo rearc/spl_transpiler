@@ -1,0 +1,10 @@
+`o365_management_activity` Operation="Update application."
+| eval json_data=mvindex('ModifiedProperties{}.NewValue', 0)
+| eval json_data=replace(json_data, "^\[\s*", "")
+| eval json_data=replace(json_data, "\s*\]$", "")
+| spath input=json_data path=RequiredAppPermissions{}.EntitlementId output=EntitlementIds
+| eval match_found=mvfind(EntitlementIds, "810c84a8-4a9e-49e6-bf7d-12d183f40d01")
+| where isnotnull(match_found)
+| stats max(_time) as lastTime values(EntitlementIds) as EntitlementIds by Operation, user, object
+| `security_content_ctime(lastTime)`
+| `o365_mailbox_read_access_granted_to_application_filter`

@@ -1,0 +1,10 @@
+`applocker`
+| spath input=UserData_Xml
+| rename RuleAndFileData.* as *, Computer as dest, TargetUser AS user
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, PolicyName, RuleId, user, TargetProcessId, FilePath, FullFilePath
+| eventstats avg(count) as avg, stdev(count) as stdev
+| eval upperBound=(avg+stdev*2), anomaly=if(count > upperBound, "Yes", "No")
+| where anomaly="Yes"
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_applocker_execution_from_uncommon_locations_filter`

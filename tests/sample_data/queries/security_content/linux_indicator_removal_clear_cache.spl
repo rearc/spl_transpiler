@@ -1,0 +1,5 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where Processes.process_name IN ("dash", "sudo", "bash")  AND Processes.process  IN("* echo 3 &gt; *", "* echo 2 &gt; *","* echo 1 &gt; *") AND Processes.process = "*/proc/sys/vm/drop_caches" by Processes.dest Processes.user Processes.parent_process_name Processes.process_name Processes.process Processes.process_id Processes.parent_process_id Processes.process_guid
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `linux_indicator_removal_clear_cache_filter`

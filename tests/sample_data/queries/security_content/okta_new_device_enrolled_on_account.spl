@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count max(_time) as lastTime, min(_time) as firstTime from datamodel=Change where All_Changes.action=created All_Changes.command=device.enrollment.create by _time span=5m All_Changes.user All_Changes.result All_Changes.command sourcetype All_Changes.src All_Changes.action All_Changes.object_category
+| `drop_dm_object_name("All_Changes")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `okta_new_device_enrolled_on_account_filter`

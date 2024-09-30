@@ -1,0 +1,5 @@
+`okta` eventType="security.threat.detected" AND outcome.reason="Login failures with high unknown users count*"
+| stats count min(_time) as firstTime max(_time) as lastTime values(displayMessage) by user eventType client.userAgent.rawUserAgent client.userAgent.browser outcome.reason
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `okta_threatinsight_login_failure_with_high_unknown_users_filter`

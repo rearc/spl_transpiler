@@ -1,0 +1,7 @@
+`cloudtrail` eventName=ConsoleLogin
+| rename userIdentity.arn as user
+| iplocation src
+| eval City=if(City LIKE "",src,City),Region=if(Region LIKE "",src,Region)
+| stats earliest(_time) as firstTime latest(_time) as lastTime by user src City Region Country
+| outputlookup previously_seen_users_console_logins_cloudtrail
+| stats count

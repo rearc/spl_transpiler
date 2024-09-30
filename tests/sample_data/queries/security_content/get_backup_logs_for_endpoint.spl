@@ -1,0 +1,3 @@
+`netbackup` COMPUTERNAME=$dest$
+| rename COMPUTERNAME as dest, MESSAGE as signature
+| table _time, dest, signature

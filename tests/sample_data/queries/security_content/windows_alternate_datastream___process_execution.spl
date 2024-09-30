@@ -1,0 +1,7 @@
+index=something
+| tstats count min(_time) as firstTime max(_time) as lastTime values(Processes.process_current_directory) as directory from datamodel=Endpoint.Processes where Processes.parent_process_name != "unknown" Processes.process_name IN ("appvlp.exe","bitsadmin.exe","control.exe","cscript.exe","forfiles.exe","ftp.exe","mavinject.exe","mshta.exe","powershell.exe","powershell_ise.exe","pwsh.exe","regini.exe","regscr32.exe","rundll32.exe","sc.exe","wmic.exe","wscript.exe") by Processes.dest Processes.user Processes.parent_process_name Processes.process_name Processes.process Processes.process_id Processes.parent_process_id
+| `drop_dm_object_name(Processes)`
+| regex process="(\b)\w+(\.\w+)?:\w+(\.\w{2,4})(?!\.)(\b|\s|&)"
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_alternate_datastream___process_execution_filter`

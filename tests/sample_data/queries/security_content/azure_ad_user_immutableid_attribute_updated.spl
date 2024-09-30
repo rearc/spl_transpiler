@@ -1,0 +1,8 @@
+ `azure_monitor_aad`  operationName="Update user" properties.targetResources{}.modifiedProperties{}.displayName=SourceAnchor
+| rename properties.* as *
+| rename initiatedBy.user.userPrincipalName as initiatedBy
+| rename targetResources{}.modifiedProperties{}.newValue as modifiedProperties
+| stats count min(_time) as firstTime max(_time) as lastTime values(user) as user values(modifiedProperties) as modifiedProperties by initiatedBy, src_ip, result, operationName
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_user_immutableid_attribute_updated_filter`

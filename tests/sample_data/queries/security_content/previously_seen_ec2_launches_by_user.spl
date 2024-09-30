@@ -1,0 +1,5 @@
+`cloudtrail` eventName=RunInstances errorCode=success
+| rename userIdentity.arn as arn
+| stats earliest(_time) as firstTime latest(_time) as lastTime by arn
+| outputlookup previously_seen_ec2_launches_by_user
+| stats count

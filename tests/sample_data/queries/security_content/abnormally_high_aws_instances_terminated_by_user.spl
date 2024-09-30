@@ -1,0 +1,9 @@
+`cloudtrail` eventName=TerminateInstances errorCode=success
+| bucket span=10m _time
+| stats count AS instances_terminated by _time userName
+| eventstats avg(instances_terminated) as total_terminations_avg, stdev(instances_terminated) as total_terminations_stdev
+| eval threshold_value = 4
+| eval isOutlier=if(instances_terminated > total_terminations_avg+(total_terminations_stdev * threshold_value), 1, 0)
+| search isOutlier=1 AND _time >= relative_time(now(), "-10m@m")| eval num_standard_deviations_away = round(abs(instances_terminated - total_terminations_avg) / total_terminations_stdev, 2)
+|table _time, userName, instances_terminated, num_standard_deviations_away, total_terminations_avg, total_terminations_stdev
+| `abnormally_high_aws_instances_terminated_by_user_filter`

@@ -1,0 +1,4 @@
+ `linux_auditd` type=ADD_USER
+| rename hostname as dest| stats count min(_time) as firstTime max(_time) as lastTime by exe pid dest res UID type
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `linux_auditd_add_user_account_type_filter`

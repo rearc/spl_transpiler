@@ -1,0 +1,11 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime values(Filesystem.file_create_time) as file_create_time from datamodel=Endpoint.Filesystem where Filesystem.file_name!=unknown by Filesystem.dest Filesystem.user Filesystem.process_id Filesystem.file_name Filesystem.file_path
+| `drop_dm_object_name(Filesystem)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| regex file_name =  "\\x{202E}"
+| rex field=file_name "(?<RTLO_file_1>.+)(?<RTLO_exist_file>\\x{202E})(?<RTLO_file_2>.+)"
+| eval file_name_with_RTLO=file_name
+| eval file_name=RTLO_file_1.RTLO_file_2
+| fields - RTLO*
+| `detect_rtlo_in_file_name_filter`

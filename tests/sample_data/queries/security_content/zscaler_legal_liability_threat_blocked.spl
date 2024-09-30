@@ -1,0 +1,6 @@
+`zscaler_proxy` urlclass="Legal Liability"
+|  stats count min(_time) as firstTime max(_time) as lastTime by action deviceowner user urlcategory url src dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| dedup urlcategory
+| `zscaler_legal_liability_threat_blocked_filter`

@@ -1,0 +1,8 @@
+ `wineventlog_security` EventCode=4624 Logon_Type=3 Account_Name!="*$"
+| eval Source_Account = mvindex(Account_Name, 1)
+| bucket span=2m _time
+| stats dc(ComputerName) AS unique_targets values(ComputerName) as target_hosts by _time, Source_Network_Address, Source_Account
+| eventstats avg(unique_targets) as comp_avg , stdev(unique_targets) as comp_std by Source_Network_Address, Source_Account
+| eval upperBound=(comp_avg+comp_std*3)
+| eval isOutlier=if(unique_targets >10 and unique_targets >= upperBound, 1, 0)
+| `unusual_number_of_remote_endpoint_authentication_events_filter`

@@ -1,0 +1,5 @@
+`printservice` ((ErrorCode="0x45A" (EventCode="808" OR EventCode="4909")) OR ("The print spooler failed to load a plug-in module" OR "\\drivers\\x64\\"))
+| stats count min(_time) as firstTime max(_time) as lastTime by OpCode EventCode ComputerName Message
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `print_spooler_failed_to_load_a_plug_in_filter`

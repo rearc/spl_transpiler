@@ -1,0 +1,7 @@
+`crowdstrike_stream` tag=alert event.SeverityName= LOW
+| rename event.EndpointIp as src_ip, event.EndpointName as src_host, event.UserName as user, event.IncidentDescription as description, event.IncidentType as type, event.NumbersOfAlerts as count_alerts, event.SeverityName as severity
+| stats dc(type) as type_count, values(user) as users, values(description) as descriptions, values(type) as types, values(severity) count min(_time) as firstTime max(_time) as lastTime by src_ip src_host
+| where type_count >= 3
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `crowdstrike_multiple_low_severity_alerts_filter`

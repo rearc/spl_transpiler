@@ -1,0 +1,6 @@
+`remoteconnectionmanager` EventCode=1149
+| stats count min(_time) as firstTime max(_time) as lastTime by Computer, user_id
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| rename Computer as dest
+| `windows_rdp_connection_successful_filter`

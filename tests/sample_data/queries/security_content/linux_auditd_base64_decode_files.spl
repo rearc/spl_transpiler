@@ -1,0 +1,5 @@
+`linux_auditd` `linux_auditd_normalized_execve_process`
+| rename host as dest
+| where LIKE(process_exec, "%base64%") AND (LIKE(process_exec, "%-d %") OR LIKE(process_exec, "% --d%"))
+| stats count min(_time) as firstTime max(_time) as lastTime by argc process_exec dest
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`| `linux_auditd_base64_decode_files_filter`

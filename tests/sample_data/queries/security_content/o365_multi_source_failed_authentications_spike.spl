@@ -1,0 +1,6 @@
+ `o365_management_activity` Workload=AzureActiveDirectory Operation=UserLoginFailed ErrorNumber=50126
+| bucket span=5m _time
+| eval uniqueIPUserCombo = src_ip . "-" . user
+| stats dc(uniqueIPUserCombo) as uniqueIpUserCombinations, dc(user) as uniqueUsers, dc(src_ip) as uniqueIPs, values(user) as user, values(src_ip) as ips, values(user_agent) as user_agents by _time
+| where uniqueIpUserCombinations > 20 AND uniqueUsers > 20 AND uniqueIPs > 20
+| `o365_multi_source_failed_authentications_spike_filter`

@@ -1,0 +1,6 @@
+`iis_operational_logs` EventCode=29
+| stats  count min(_time) as firstTime max(_time) as lastTime by OpCode EventCode ComputerName Message
+| rename ComputerName AS dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_iis_components_new_module_added_filter`

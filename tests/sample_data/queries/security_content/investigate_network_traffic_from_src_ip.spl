@@ -1,0 +1,3 @@
+index=something
+| from datamodel Network_Traffic.All_Traffic
+| search src_ip=$src_ip$

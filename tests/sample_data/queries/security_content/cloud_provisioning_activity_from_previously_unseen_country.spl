@@ -1,0 +1,13 @@
+index=something
+| tstats earliest(_time) as firstTime, latest(_time) as lastTime from datamodel=Change where (All_Changes.action=started OR All_Changes.action=created) All_Changes.status=success by All_Changes.src, All_Changes.user, All_Changes.object, All_Changes.command
+| `drop_dm_object_name("All_Changes")`
+| iplocation src
+| where isnotnull(Country)
+| lookup previously_seen_cloud_provisioning_activity_sources Country as Country OUTPUT firstTimeSeen, enough_data
+| eventstats max(enough_data) as enough_data
+| where enough_data=1
+| eval firstTimeSeenCountry=min(firstTimeSeen)
+| where isnull(firstTimeSeenCountry) OR firstTimeSeenCountry > relative_time(now(), "-24h@h")
+| `security_content_ctime(firstTime)`
+| table firstTime, src, Country, user, object, command
+| `cloud_provisioning_activity_from_previously_unseen_country_filter`

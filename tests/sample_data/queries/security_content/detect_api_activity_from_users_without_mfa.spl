@@ -1,0 +1,7 @@
+`cloudtrail` userIdentity.sessionContext.attributes.mfaAuthenticated=false
+| search NOT [| inputlookup aws_service_accounts
+| fields identity
+| rename identity as user]| stats  count min(_time) as firstTime max(_time) as lastTime values(eventName) as eventName by userIdentity.arn userIdentity.type user
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `detect_api_activity_from_users_without_mfa_filter`

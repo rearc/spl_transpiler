@@ -1,0 +1,5 @@
+`linux_auditd` type=SYSCALL comm=insmod
+| rename host as dest
+| stats count min(_time) as firstTime max(_time) as lastTime by comm exe  SYSCALL UID ppid pid success dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `linux_auditd_insert_kernel_module_using_insmod_utility_filter`

@@ -1,0 +1,8 @@
+`azure_monitor_aad` operationName="Invite external user"
+| rename properties.*  as *
+| rename initiatedBy.user.userPrincipalName as initiatedBy
+| rename targetResources{}.type as type
+| stats count min(_time) as firstTime max(_time) as lastTime values(user) as user by type, initiatedBy, result, operationName
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_external_guest_user_invited_filter`

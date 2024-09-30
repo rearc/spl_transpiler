@@ -1,0 +1,6 @@
+`o365_management_activity` Workload=AzureActiveDirectory Operation="Add owner to application."
+| eval app_id=mvindex('ModifiedProperties{}.NewValue', 0)
+| eval app_displayName=mvindex('ModifiedProperties{}.NewValue', 1)
+| stats max(_time) as lastTime values(ModifiedProperties{}.NewValue) by Operation, user, app_displayName, object
+| `security_content_ctime(lastTime)`
+| `o365_application_registration_owner_added_filter`

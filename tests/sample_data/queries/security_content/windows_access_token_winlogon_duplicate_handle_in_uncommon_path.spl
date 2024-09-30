@@ -1,0 +1,5 @@
+`sysmon` EventCode=10  TargetImage IN("*\\system32\\winlogon.exe*", "*\\SysWOW64\\winlogon.exe*") AND GrantedAccess = 0x1040 AND NOT (SourceImage IN("C:\\Windows\\*", "C:\\Program File*", "%systemroot%\\*"))
+| stats count min(_time) as firstTime max(_time) as lastTime by Computer SourceImage TargetImage SourceProcessGUID TargetProcessGUID SourceProcessId TargetProcessId GrantedAccess CallTrace
+| rename Computer as dest| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_access_token_winlogon_duplicate_handle_in_uncommon_path_filter`

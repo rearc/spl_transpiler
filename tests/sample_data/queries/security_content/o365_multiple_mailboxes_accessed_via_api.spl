@@ -1,0 +1,7 @@
+ `o365_management_activity` Workload=Exchange Operation=MailItemsAccessed AppId=* ClientAppId=*
+| bucket span=10m _time
+| eval matchRegex=if(match(ClientInfoString, "^Client=WebServices;ExchangeWebServices"), 1, 0)
+| search (AppId="00000003-0000-0000-c000-000000000000" OR matchRegex=1)
+| stats values(ClientIPAddress) as src_ip dc(user) as unique_mailboxes values(user) as user by _time ClientAppId ClientInfoString
+| where unique_mailboxes > 5
+| `o365_multiple_mailboxes_accessed_via_api_filter`

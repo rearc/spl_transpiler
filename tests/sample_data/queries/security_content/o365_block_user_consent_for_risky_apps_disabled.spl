@@ -1,0 +1,9 @@
+`o365_management_activity` Workload=AzureActiveDirectory Operation="Update authorization policy."
+| eval index_number = if(mvfind('ModifiedProperties{}.Name', "AllowUserConsentForRiskyApps") >= 0, mvfind('ModifiedProperties{}.Name', "AllowUserConsentForRiskyApps"), -1)
+| search index_number >= 0
+| eval AllowUserConsentForRiskyApps = mvindex('ModifiedProperties{}.NewValue',index_number)
+| where AllowUserConsentForRiskyApps like "%true%"
+| stats count min(_time) as firstTime max(_time) as lastTime by user, Operation, AllowUserConsentForRiskyApps, user_agent
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_block_user_consent_for_risky_apps_disabled_filter`

@@ -1,0 +1,5 @@
+`sysmon` EventCode=11  TargetFilename = "*\\Windows\\SchCache\\*" TargetFilename = "*.sch*" NOT (Image IN ("*\\Windows\\system32\\mmc.exe"))
+|stats count min(_time) as firstTime max(_time) as lastTime by Image TargetFilename EventCode process_id  process_name dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `schcache_change_by_app_connect_and_create_adsi_object_filter`

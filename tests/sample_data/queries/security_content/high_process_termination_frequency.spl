@@ -1,0 +1,6 @@
+`sysmon` EventCode=5
+|bin _time span=3s
+|stats values(Image) as proc_terminated min(_time) as firstTime max(_time) as lastTime  count by _time dest EventCode ProcessID
+| where count >= 15
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `high_process_termination_frequency_filter`

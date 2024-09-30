@@ -1,0 +1,11 @@
+`google_gcp_pubsub_message` data.resource.type=gcs_bucket data.protoPayload.methodName=storage.setIamPermissions
+| spath output=action path=data.protoPayload.serviceData.policyDelta.bindingDeltas{}.action
+| spath output=user path=data.protoPayload.authenticationInfo.principalEmail
+| spath output=location path=data.protoPayload.resourceLocation.currentLocations{}
+| spath output=src path=data.protoPayload.requestMetadata.callerIp
+| spath output=bucketName path=data.protoPayload.resourceName
+| spath output=role path=data.protoPayload.serviceData.policyDelta.bindingDeltas{}.role
+| spath output=member path=data.protoPayload.serviceData.policyDelta.bindingDeltas{}.member
+| search (member=allUsers AND action=ADD)
+| table  _time, bucketName, src, user, location, action, role, member
+| search `detect_new_open_gcp_storage_buckets_filter`

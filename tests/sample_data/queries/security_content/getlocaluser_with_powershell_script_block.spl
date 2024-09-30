@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 (ScriptBlockText = "*Get-LocalUser*")
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer user_id
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `getlocaluser_with_powershell_script_block_filter`

@@ -1,0 +1,5 @@
+`cloudtrail` eventName IN ("CreateSnapshot", "DescribeSnapshotAttribute", "ModifySnapshotAttribute", "DeleteSnapshot") src_ip !="guardduty.amazonaws.com"
+|  bin _time span=5m
+|  stats count dc(eventName) as distinct_api_calls values(eventName)  values(requestParameters.attributeType) as attributeType values(requestParameters.createVolumePermission.add.items{}.userId) as aws_account_id_added values(userAgent) as userAgent by _time userName src_ip aws_account_id
+| where distinct_api_calls >= 2
+| `aws_exfiltration_via_ec2_snapshot_filter`

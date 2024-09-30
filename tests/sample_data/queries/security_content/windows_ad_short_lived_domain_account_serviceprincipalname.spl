@@ -1,0 +1,6 @@
+ `wineventlog_security` EventCode=5136 AttributeLDAPDisplayName=servicePrincipalName
+| transaction ObjectDN AttributeValue startswith=(EventCode=5136 OperationType="%%14674") endswith=(EventCode=5136 OperationType="%%14675")
+| eval short_lived=case((duration<300),"TRUE")
+| search short_lived = TRUE
+| rename ObjectDN as user
+| `windows_ad_short_lived_domain_account_serviceprincipalname_filter`

@@ -1,0 +1,6 @@
+ `linux_auditd` `linux_auditd_normalized_execve_process`
+| rename host as dest
+| where  (LIKE (process_exec, "%find%") OR LIKE (process_exec, "%grep%")) AND (LIKE (process_exec, "%.db%") OR LIKE (process_exec, "%.sql%") OR LIKE (process_exec, "%.sqlite%") OR LIKE (process_exec, "%.mdb%")OR LIKE (process_exec, "%.accdb%")OR LIKE (process_exec, "%.mdf%")OR LIKE (process_exec, "%.ndf%")OR LIKE (process_exec, "%.ldf%")OR LIKE (process_exec, "%.frm%")OR LIKE (process_exec, "%.idb%")OR LIKE (process_exec, "%.myd%")OR LIKE (process_exec, "%.myi%")OR LIKE (process_exec, "%.dbf%")OR LIKE (process_exec, "%.db2%")OR LIKE (process_exec, "%.dbc%")OR LIKE (process_exec, "%.fpt%")OR LIKE (process_exec, "%.ora%"))
+| stats count min(_time) as firstTime max(_time) as lastTime by argc process_exec dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `linux_auditd_database_file_and_directory_discovery_filter`

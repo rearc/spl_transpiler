@@ -1,0 +1,9 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime values(All_Traffic.dest_port) as dest_port latest(user) as user from datamodel=Network_Traffic by All_Traffic.src All_Traffic.dest, All_Traffic.app
+| `drop_dm_object_name("All_Traffic")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| lookup remote_access_software remote_appid AS app OUTPUT isutility, description as signature, comment_reference as desc, category
+| search isutility = True
+| `remote_access_software_usage_exceptions`
+| `detect_remote_access_software_usage_traffic_filter`

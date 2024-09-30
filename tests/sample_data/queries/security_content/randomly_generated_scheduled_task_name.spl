@@ -1,0 +1,6 @@
+ `wineventlog_security` EventCode=4698
+| xmlkv Message
+| lookup ut_shannon_lookup word as Task_Name
+| where ut_shannon > 3
+| table  _time, dest, Task_Name, ut_shannon, Command, Author, Enabled, Hidden
+| `randomly_generated_scheduled_task_name_filter`

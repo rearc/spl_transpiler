@@ -1,0 +1,6 @@
+`gsuite_drive` name=change_user_access
+| rename parameters.* as *
+| search email = "*@yourdomain.com" target_user != "*@yourdomain.com"
+| stats count values(owner) as owner values(target_user) as target values(doc_type) as doc_type values(doc_title) as doc_title dc(target_user) as distinct_target by src_ip email
+| where distinct_target > 50
+| `gdrive_suspicious_file_sharing_filter`

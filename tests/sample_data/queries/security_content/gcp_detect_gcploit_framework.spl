@@ -1,0 +1,3 @@
+`google_gcp_pubsub_message` data.protoPayload.request.function.timeout=539s
+| table src src_user data.resource.labels.project_id data.protoPayload.request.function.serviceAccountEmail data.protoPayload.authorizationInfo{}.permission data.protoPayload.request.location http_user_agent
+| `gcp_detect_gcploit_framework_filter`

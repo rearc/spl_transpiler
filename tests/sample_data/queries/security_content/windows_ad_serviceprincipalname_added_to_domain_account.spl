@@ -1,0 +1,4 @@
+ `wineventlog_security` EventCode=5136 AttributeLDAPDisplayName=servicePrincipalName OperationType="%%14674"
+| stats values(ObjectDN) as ObjectDN by _time, Computer, SubjectUserName, AttributeValue
+| rename Computer as dest SubjectUserName as user
+| `windows_ad_serviceprincipalname_added_to_domain_account_filter`

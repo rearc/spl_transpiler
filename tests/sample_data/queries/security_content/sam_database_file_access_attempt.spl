@@ -1,0 +1,4 @@
+`wineventlog_security` (EventCode=4663)  ProcessName!=*\\dllhost.exe ObjectName IN ("*\\Windows\\System32\\config\\SAM*","*\\Windows\\System32\\config\\SYSTEM*","*\\Windows\\System32\\config\\SECURITY*")
+| stats values(AccessList) count by ProcessName ObjectName dest src_user
+| rename ProcessName as process_name
+| `sam_database_file_access_attempt_filter`

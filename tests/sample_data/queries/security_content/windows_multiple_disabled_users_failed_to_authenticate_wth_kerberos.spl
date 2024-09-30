@@ -1,0 +1,5 @@
+`wineventlog_security` EventCode=4768 TargetUserName!=*$ Status=0x12
+| bucket span=5m _time
+| stats dc(TargetUserName) AS unique_accounts values(TargetUserName) as user by _time, IpAddress
+| where unique_accounts > 30
+| `windows_multiple_disabled_users_failed_to_authenticate_wth_kerberos_filter`

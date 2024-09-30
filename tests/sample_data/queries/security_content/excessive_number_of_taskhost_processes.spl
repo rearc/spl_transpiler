@@ -1,0 +1,11 @@
+index=something
+| tstats `security_content_summariesonly` values(Processes.process_id) as process_ids  min(_time) as firstTime max(_time) as lastTime FROM datamodel=Endpoint.Processes WHERE Processes.process_name = "taskhost.exe" OR Processes.process_name = "taskhostex.exe" BY Processes.dest Processes.process_name _time span=1h
+| `drop_dm_object_name(Processes)`
+| eval pid_count=mvcount(process_ids)
+| eval taskhost_count_=if(process_name == "taskhost.exe", pid_count, 0)
+| eval taskhostex_count_=if(process_name == "taskhostex.exe", pid_count, 0)
+| stats sum(taskhost_count_) as taskhost_count, sum(taskhostex_count_) as taskhostex_count by _time, dest, firstTime, lastTime
+| where taskhost_count > 10 or taskhostex_count > 10
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `excessive_number_of_taskhost_processes_filter`

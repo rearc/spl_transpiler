@@ -1,0 +1,7 @@
+`powershell` EventCode=4104 ScriptBlockText="*win32_scheduledjob*"
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer UserID
+| rename Computer as dest
+| rename UserID as user
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_powershell_wmi_win32_scheduledjob_filter`

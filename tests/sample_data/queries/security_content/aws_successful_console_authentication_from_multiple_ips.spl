@@ -1,0 +1,5 @@
+ `cloudtrail` eventName = ConsoleLogin
+| bin span=5m _time
+| stats values(userAgent) as userAgent values(eventName) as eventName values(src_ip) as src_ip dc(src_ip) as distinct_ip_count by _time user_arn
+| where distinct_ip_count>1
+| `aws_successful_console_authentication_from_multiple_ips_filter`

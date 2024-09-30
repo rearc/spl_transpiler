@@ -1,0 +1,11 @@
+index=something
+| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Filesystem where Filesystem.file_path IN ("*\\System32\\drivers\\*", "*\\syswow64\\drivers\\*") by _time span=5m Filesystem.dest Filesystem.user Filesystem.file_name Filesystem.file_path Filesystem.process_guid Filesystem.file_create_time
+| `drop_dm_object_name(Filesystem)`
+| rex field="file_name" "\.(?<extension>[^\.]*$)"
+| where isnull(extension)
+| join process_guid [| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Processes by _time span=5m Processes.process_name Processes.dest Processes.process_guid Processes.user
+| `drop_dm_object_name(Processes)`]
+| stats count min(_time) as firstTime max(_time) as lastTime by dest process_name process_guid file_name file_path file_create_time user
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_file_without_extension_in_critical_folder_filter`

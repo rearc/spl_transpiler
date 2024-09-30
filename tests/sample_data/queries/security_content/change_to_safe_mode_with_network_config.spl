@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where Processes.process_name = bcdedit.exe Processes.process="*/set*" Processes.process="*{current}*"  Processes.process="*safeboot*" Processes.process="*network*" by Processes.process_name Processes.process Processes.parent_process_name Processes.dest Processes.user
+|`drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `change_to_safe_mode_with_network_config_filter`

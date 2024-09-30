@@ -1,0 +1,6 @@
+`gws_reports_login` event.type = login event.name = login_failure| bucket span=5m _time
+| stats  dc(user_name) AS unique_accounts values(user_name) as tried_accounts values(authentication_method) AS authentication_method by _time, src
+| eventstats  avg(unique_accounts) as ip_avg , stdev(unique_accounts) as ip_std by _time
+| eval  upperBound=(ip_avg+ip_std*3)
+| eval  isOutlier=if(unique_accounts > 10 and unique_accounts >= upperBound, 1, 0)
+| where isOutlier =1| `gcp_unusual_number_of_failed_authentications_from_ip_filter`

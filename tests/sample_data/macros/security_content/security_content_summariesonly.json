@@ -1,0 +1,5 @@
+{
+  "definition": "summariesonly=`summariesonly_config` allow_old_summaries=`oldsummaries_config` fillnull_value=`fillnull_config`",
+  "description": "search data model's summaries only",
+  "name": "security_content_summariesonly"
+}

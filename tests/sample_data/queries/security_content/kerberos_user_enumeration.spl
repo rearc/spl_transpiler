@@ -1,0 +1,7 @@
+ `wineventlog_security` EventCode=4768 Status=0x6 TargetUserName!="*$"
+| bucket span=2m _time
+| stats dc(TargetUserName) AS unique_accounts values(TargetUserName) as tried_accounts by _time, src_ip
+| eventstats avg(unique_accounts) as comp_avg , stdev(unique_accounts) as comp_std by src_ip
+| eval upperBound=(comp_avg+comp_std*3)
+| eval isOutlier=if(unique_accounts > 10 and unique_accounts >= upperBound, 1, 0)
+| search isOutlier=1| `kerberos_user_enumeration_filter`

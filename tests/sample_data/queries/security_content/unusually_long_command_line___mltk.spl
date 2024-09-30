@@ -1,0 +1,10 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime FROM datamodel=Endpoint.Processes by Processes.user Processes.dest Processes.process_name Processes.process
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`| eval processlen=len(process)
+| search user!=unknown
+| apply cmdline_pdfmodel threshold=0.01
+| rename "IsOutlier(processlen)" as isOutlier
+| search isOutlier > 0
+| table firstTime lastTime user dest process_name process processlen count
+| `unusually_long_command_line___mltk_filter`

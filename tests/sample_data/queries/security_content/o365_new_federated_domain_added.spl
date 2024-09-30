@@ -1,0 +1,5 @@
+`o365_management_activity` Operation IN ("*add*", "*new*") AND Operation="*domain*"
+| stats count values(ModifiedProperties{}.NewValue) as new_value by  user user_agent authentication_service action Workload Operation
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_new_federated_domain_added_filter`

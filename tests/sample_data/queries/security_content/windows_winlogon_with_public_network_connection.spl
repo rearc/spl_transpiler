@@ -1,0 +1,10 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where Processes.process_name IN (winlogon.exe)  Processes.process!=unknown by Processes.dest Processes.user Processes.parent_process_name Processes.process_name Processes.process Processes.process_id Processes.parent_process_id
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| join  process_id [| tstats `security_content_summariesonly` count FROM datamodel=Network_Traffic.All_Traffic where All_Traffic.dest_port != 0 NOT (All_Traffic.dest IN (127.0.0.1,10.0.0.0/8,172.16.0.0/12, 192.168.0.0/16, 0:0:0:0:0:0:0:1)) by All_Traffic.process_id All_Traffic.dest All_Traffic.dest_port
+| `drop_dm_object_name(All_Traffic)`
+| rename dest as publicIp ]
+| table dest parent_process_name process_name process_path process process_id dest_port publicIp
+| `windows_winlogon_with_public_network_connection_filter`

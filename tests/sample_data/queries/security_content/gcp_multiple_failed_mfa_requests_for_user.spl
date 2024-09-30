@@ -1,0 +1,5 @@
+`gws_reports_login` event.name=login_failure `gws_login_mfa_methods`
+| bucket span=5m _time
+| stats dc(_raw) AS mfa_prompts values(user) AS user by src_ip, login_challenge_method,  _time
+| where mfa_prompts >= 10
+| `gcp_multiple_failed_mfa_requests_for_user_filter`

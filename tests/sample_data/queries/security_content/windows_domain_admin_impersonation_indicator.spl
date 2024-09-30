@@ -1,0 +1,7 @@
+ `wineventlog_security`  EventCode=4627 LogonType=3 NOT TargetUserName IN ("*$", "SYSTEM", "DWM-*","LOCAL SERVICE","NETWORK SERVICE", "ANONYMOUS LOGON", "UMFD-*")
+| where match(GroupMembership, "Domain Admins")
+| stats  count by _time, TargetUserName, GroupMembership, host
+| lookup domain_admins username as TargetUserName OUTPUT username
+| fillnull value=NotDA username
+| search username = "NotDA"
+| `windows_domain_admin_impersonation_indicator_filter`

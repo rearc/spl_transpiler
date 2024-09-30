@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime FROM datamodel=Endpoint.Registry where Registry.registry_path= "*\\Windows Defender Security Center\\Firewall and network protection\\UILockdown" Registry.registry_value_data="0x00000001" by Registry.registry_key_name Registry.user Registry.registry_path Registry.registry_value_data Registry.action Registry.dest
+| `drop_dm_object_name(Registry)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_impair_defense_disable_defender_firewall_and_network_filter`

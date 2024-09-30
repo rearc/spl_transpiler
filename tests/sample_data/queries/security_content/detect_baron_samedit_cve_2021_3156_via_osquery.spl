@@ -1,0 +1,3 @@
+`osquery_process`
+| search "columns.cmdline"="sudoedit -s \\*"
+| `detect_baron_samedit_cve_2021_3156_via_osquery_filter`

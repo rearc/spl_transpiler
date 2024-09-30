@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` min(_time) as _time from datamodel=Endpoint.Registry where Registry.registry_path IN ("*\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\LsaCfgFlags", "*\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceGuard\\*", "*\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\RunAsPPL") Registry.action IN (deleted, unknown) by Registry.action Registry.registry_path Registry.process_guid Registry.dest Registry.user| `drop_dm_object_name(Registry)`
+| join type=outer process_guid [| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Processes by Processes.user Processes.process_name Processes.process Processes.dest Processes.parent_process_name Processes.parent_process Processes.process_guid
+| `drop_dm_object_name(Processes)`]
+| table _time action dest user parent_process_name parent_process process_name process process_guid registry_path
+| `disabling_windows_local_security_authority_defences_via_registry_filter`

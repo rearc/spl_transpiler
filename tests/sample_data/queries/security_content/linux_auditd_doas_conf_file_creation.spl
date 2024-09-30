@@ -1,0 +1,4 @@
+`linux_auditd` type=PATH name ="/etc/doas.conf*"
+| rename host as dest
+| stats count min(_time) as firstTime max(_time) as lastTime by name nametype OGID type dest
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`| `linux_auditd_doas_conf_file_creation_filter`

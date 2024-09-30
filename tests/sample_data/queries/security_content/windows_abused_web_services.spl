@@ -1,0 +1,6 @@
+`sysmon` EventCode=22 QueryName IN ("*pastebin*",""*textbin*"", "*ngrok.io*", "*discord*", "*duckdns.org*", "*pasteio.com*")
+| stats count min(_time) as firstTime max(_time) as lastTime by Image QueryName QueryStatus process_name QueryResults Computer
+| rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_abused_web_services_filter`

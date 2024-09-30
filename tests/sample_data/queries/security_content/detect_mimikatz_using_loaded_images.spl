@@ -1,0 +1,5 @@
+`sysmon` EventCode=7
+| stats values(ImageLoaded) as ImageLoaded values(ProcessId) as ProcessId by dest, Image
+| search ImageLoaded=*WinSCard.dll ImageLoaded=*cryptdll.dll ImageLoaded=*hid.dll ImageLoaded=*samlib.dll ImageLoaded=*vaultcli.dll
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `detect_mimikatz_using_loaded_images_filter`

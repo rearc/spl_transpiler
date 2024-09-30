@@ -1,0 +1,5 @@
+`sysmon` EventCode=7 Image = "*\calc.exe" AND NOT (Image IN ("*:\\windows\\system32\\*", "*:\\windows\\sysWow64\\*")) AND NOT(ImageLoaded IN("*:\\windows\\system32\\*", "*:\\windows\\sysWow64\\*", "*:\\windows\\WinSXS\\*"))
+| stats count min(_time) as firstTime max(_time) as lastTime by Image ImageLoaded OriginalFileName Product process_name dest EventCode Signed ProcessId
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_dll_side_loading_in_calc_filter`

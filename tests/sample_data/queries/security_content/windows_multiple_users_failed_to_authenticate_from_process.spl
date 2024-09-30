@@ -1,0 +1,6 @@
+ `wineventlog_security` EventCode=4625 Logon_Type=2 ProcessName!="-"
+| bucket span=5m _time
+| stats dc(TargetUserName) AS unique_accounts values(TargetUserName) as tried_accounts by _time, ProcessName, SubjectUserName, Computer
+| rename Computer as dest
+| where unique_accounts > 30
+| `windows_multiple_users_failed_to_authenticate_from_process_filter`

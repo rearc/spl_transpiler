@@ -1,0 +1,4 @@
+`suricata` ((http.url="*?jsp=*" AND http.url="*;.jsp*") http.status=200 http_method=POST) OR (http.url IN ("*jsp=/app/rest/users;.jsp","*?jsp=/app/rest/users;.jsp","*?jsp=.*/app/rest/users/id:*/tokens;*") http.status=200 http_method=POST )
+| stats count min(_time) as firstTime max(_time) as lastTime by src, dest, http.http_user_agent, http.url, http.status,http_method
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `jetbrains_teamcity_authentication_bypass_suricata_cve_2024_27198_filter`

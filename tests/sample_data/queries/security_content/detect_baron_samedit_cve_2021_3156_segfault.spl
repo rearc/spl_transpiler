@@ -1,0 +1,4 @@
+`linux_hosts` TERM(sudoedit) TERM(segfault)
+| stats count min(_time) as firstTime max(_time) as lastTime by host
+| where count > 5
+| `detect_baron_samedit_cve_2021_3156_segfault_filter`

@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count values(Processes.process) AS Processes.process min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where `process_netsh` by Processes.parent_process_name Processes.parent_process Processes.original_file_name Processes.process_name Processes.user Processes.dest
+|`drop_dm_object_name("Processes")`
+|`security_content_ctime(firstTime)`
+|`security_content_ctime(lastTime)`
+|`processes_launching_netsh_filter`

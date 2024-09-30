@@ -1,0 +1,6 @@
+`zscaler_proxy` action=blocked urlclass="Privacy Risk"
+|  stats count min(_time) as firstTime max(_time) as lastTime by action deviceowner user urlcategory url src dest
+| dedup urlcategory
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `zscaler_privacy_risk_destinations_threat_blocked_filter`

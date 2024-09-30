@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime  from datamodel=Network_Resolution where DNS.query IN ("*.ngrok.com","*.ngrok.io", "ngrok.*.tunnel.com", "korgn.*.lennut.com") by DNS.src DNS.query DNS.answer
+|  `drop_dm_object_name("DNS")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `ngrok_reverse_proxy_on_network_filter`

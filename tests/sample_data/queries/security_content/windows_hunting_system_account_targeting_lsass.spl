@@ -1,0 +1,5 @@
+`sysmon` EventCode=10 TargetImage=*lsass.exe
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, TargetImage, GrantedAccess, SourceImage, SourceProcessId, SourceUser, TargetUser
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_hunting_system_account_targeting_lsass_filter`

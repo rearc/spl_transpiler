@@ -1,0 +1,5 @@
+`sysmon` EventCode=8 TargetImage = "*.exe" AND NOT(SourceImage IN("C:\\Windows\\*", "C:\\Program File*", "%systemroot%\\*"))
+| stats count min(_time) as firstTime max(_time) as lastTime by SourceImage TargetImage signature TargetProcessGuid SourceProcessGuid TargetProcessId SourceProcessId StartAddress EventCode dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_process_injection_with_public_source_path_filter`

@@ -1,0 +1,7 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime FROM datamodel=Endpoint.Processes where Processes.process_name=notepad.exe AND Processes.action!="blocked" by host _time span=1h Processes.process_id Processes.process_name Processes.dest Processes.process_path Processes.process Processes.parent_process_name Processes.parent_process
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| regex process="(?i)(notepad\.exe.{0,4}$)"
+| `notepad_with_no_command_line_arguments_filter`

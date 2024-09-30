@@ -1,0 +1,5 @@
+`wineventlog_security` EventCode IN (4727,4731,4744,4749,4754,4759,4783,4790) TargetUserName IN ("Account Operators", "Administrators", "Admins DNS", "Backup Operators", "DnsAdmins", "Domain Admins", "Enterprise Admins", "Enterprise Key Admins", "ESX Admins", "ESXi Admins", "Group Policy Creator Owners", "Hyper-V Administrators", "Key Admins", "Print Operators", "Remote Desktop Users", "Remote Management Users", "Replicators", "Schema Admins", "Server Operators")
+| eval object_category=case( EventCode="4731", "Local Group (Security)", EventCode="4744", "Local Group (Distribution)", EventCode="4727", "Global Group (Security)", EventCode="4749", "Global Group (Distribution)", EventCode="4754", "Universal Group (Security)", EventCode="4759", "Universal Group (Distribution)", EventCode="4783", "Basic Application Group", EventCode="4790", "LDAP Query Group")
+| rename Computer as dest, result AS change_type, TargetUserName AS object, TargetSid AS object_path
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode src_user object_category object object_path dest change_type status
+| `windows_privileged_group_modification_filter`

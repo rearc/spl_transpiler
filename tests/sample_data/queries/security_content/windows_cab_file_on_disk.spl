@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count values(Filesystem.file_path) as file_path min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Filesystem where (Filesystem.file_name=*.cab) by Filesystem.dest Filesystem.action Filesystem.process_id Filesystem.file_name
+| `drop_dm_object_name("Filesystem")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_cab_file_on_disk_filter`

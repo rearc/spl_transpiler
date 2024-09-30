@@ -1,0 +1,10 @@
+`kube_objects_events` object.message IN ("Pulling image *kube-hunter*", "Pulling image *kube-bench*", "Pulling image *kube-recon*", "Pulling image *kube-recon*")
+| rename object.* AS *
+| rename involvedObject.* AS *
+| rename source.host AS host
+| eval phase="operate"
+| eval severity="high"
+| stats min(_time) as firstTime max(_time) as lastTime count by host, name, namespace, kind, reason, message, phase, severity
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `kubernetes_scanner_image_pulling_filter`

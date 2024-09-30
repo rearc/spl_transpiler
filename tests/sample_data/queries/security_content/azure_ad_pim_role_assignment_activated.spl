@@ -1,0 +1,7 @@
+ `azure_monitor_aad` operationName="Add member to role completed (PIM activation)"
+| rename properties.* as *
+| rename initiatedBy.user.userPrincipalName as initiatedBy
+| stats count min(_time) as firstTime max(_time) as lastTime values(user) as user values(targetResources{}.displayName) as displayName by initiatedBy, result, operationName
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_pim_role_assignment_activated_filter`

@@ -1,0 +1,5 @@
+{
+  "definition": "search *",
+  "description": "This macro is deprecated. Update this macro to look for prohibited softwares in your environment",
+  "name": "prohibited_softwares"
+}

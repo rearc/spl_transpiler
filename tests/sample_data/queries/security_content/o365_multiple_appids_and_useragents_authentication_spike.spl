@@ -1,0 +1,5 @@
+ `o365_management_activity` Workload=AzureActiveDirectory (Operation=UserLoggedIn OR Operation=UserLoginFailed)
+| bucket span=5m _time
+| stats  dc(_raw) as failed_attempts dc(ApplicationId) as unique_app_ids dc(UserAgent) as unique_user_agents values(ApplicationId) values(OS) by _time user src_ip
+| where failed_attempts > 5 and unique_user_agents > 5 and unique_app_ids > 2
+| `o365_multiple_appids_and_useragents_authentication_spike_filter`

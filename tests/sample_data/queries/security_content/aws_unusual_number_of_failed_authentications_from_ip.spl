@@ -1,0 +1,8 @@
+`cloudtrail` eventName=ConsoleLogin action=failure
+| bucket span=10m _time
+| stats  dc(_raw) AS distinct_attempts values(user_name) as tried_accounts by _time, src_ip
+| eventstats  avg(distinct_attempts) as avg_attempts , stdev(distinct_attempts) as ip_std by _time
+| eval  upperBound=(avg_attempts+ip_std*3)
+| eval  isOutlier=if(distinct_attempts > 10 and distinct_attempts >= upperBound, 1, 0)
+| where isOutlier = 1
+|`aws_unusual_number_of_failed_authentications_from_ip_filter`

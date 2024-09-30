@@ -1,0 +1,6 @@
+index=something
+| tstats count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where Web.url IN ("/_api/web/siteusers*","/_api/web/currentuser*") Web.status=200 Web.http_method=GET by Web.http_user_agent, Web.status Web.http_method, Web.url, Web.url_length, Web.src, Web.dest, sourcetype
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `microsoft_sharepoint_server_elevation_of_privilege_filter`

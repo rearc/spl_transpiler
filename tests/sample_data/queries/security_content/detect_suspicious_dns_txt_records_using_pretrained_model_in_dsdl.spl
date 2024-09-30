@@ -1,0 +1,12 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Network_Resolution where DNS.message_type=response AND DNS.record_type=TXT by DNS.src DNS.dest DNS.answer DNS.record_type
+| `drop_dm_object_name("DNS")`
+| rename answer as text
+| fields firstTime, lastTime, message_type,record_type,src,dest, text
+| apply detect_suspicious_dns_txt_records_using_pretrained_model_in_dsdl
+| rename predicted_is_unknown as is_suspicious_score
+| where is_suspicious_score > 0.5
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| table src,dest,text,record_type, firstTime, lastTime,is_suspicious_score
+| `detect_suspicious_dns_txt_records_using_pretrained_model_in_dsdl_filter`

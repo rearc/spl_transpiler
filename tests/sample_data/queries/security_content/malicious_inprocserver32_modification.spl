@@ -1,0 +1,10 @@
+index=something
+| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Processes by _time Processes.process_id Processes.process_name Processes.dest Processes.process_guid Processes.user
+| `drop_dm_object_name(Processes)`
+| join process_guid [| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Registry where Registry.registry_path= "*\\CLSID\\{89565275-A714-4a43-912E-978B935EDCCC}\\InProcServer32\\(Default)" by Registry.registry_path Registry.registry_key_name Registry.registry_value_name Registry.dest Registry.process_guid Registry.user
+| `drop_dm_object_name(Registry)`
+| fields _time dest registry_path registry_key_name registry_value_name process_name process_path process process_guid user]
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, process_name registry_path registry_key_name registry_value_name user
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `malicious_inprocserver32_modification_filter`

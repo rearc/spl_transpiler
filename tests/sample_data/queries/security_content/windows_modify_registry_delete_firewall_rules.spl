@@ -1,0 +1,7 @@
+`sysmon` EventCode=12 TargetObject = "*\\System\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\FirewallRules\\*" EventType=DeleteValue
+|  rename Computer as dest
+|  rename User as user
+|  stats count min(_time) as firstTime max(_time) as lastTime by EventCode EventType TargetObject Image user dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_modify_registry_delete_firewall_rules_filter`

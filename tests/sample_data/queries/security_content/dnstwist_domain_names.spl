@@ -1,0 +1,7 @@
+index=something
+| dnstwist domainlist=domains.csv
+| `remove_valid_domains`
+| eval domain_abuse="true"
+| table domain, domain_abuse
+| outputlookup brandMonitoring_lookup
+| stats count

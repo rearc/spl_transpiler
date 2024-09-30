@@ -1,0 +1,7 @@
+ `azure_monitor_aad` category=AuditLogs operationName="User registered security info" properties.operationType=Add
+| rename properties.* as *
+| rename targetResources{}.* as *
+| stats count min(_time) as firstTime max(_time) as lastTime by user, resultDescription, result, src_ip
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_new_mfa_method_registered_for_user_filter`

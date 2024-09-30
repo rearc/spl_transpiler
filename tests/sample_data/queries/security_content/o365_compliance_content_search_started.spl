@@ -1,0 +1,6 @@
+ `o365_management_activity` Workload=SecurityComplianceCenter Operation=SearchCreated
+| rename user_id as user
+| stats count earliest(_time) as firstTime latest(_time) as lastTime by Operation, ObjectId, ExchangeLocations, user, Query
+|`security_content_ctime(firstTime)`
+|`security_content_ctime(lastTime)`
+| `o365_compliance_content_search_started_filter`

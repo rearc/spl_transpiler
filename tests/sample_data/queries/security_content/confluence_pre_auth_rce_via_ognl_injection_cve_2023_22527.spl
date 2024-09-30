@@ -1,0 +1,6 @@
+index=something
+| tstats count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where Web.url="*/template/aui/text-inline.vm*" Web.http_method=POST Web.status IN (200, 202) by Web.src, Web.dest, Web.http_user_agent, Web.url, Web.status
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `confluence_pre_auth_rce_via_ognl_injection_cve_2023_22527_filter`

@@ -1,0 +1,9 @@
+`cloudtrail` eventName = CreateLoginProfile
+| rename requestParameters.userName as new_login_profile
+| table src_ip eventName new_login_profile userIdentity.userName
+| join new_login_profile src_ip [| search `cloudtrail` eventName = ConsoleLogin
+| rename userIdentity.userName  as new_login_profile
+| stats count values(eventName) min(_time) as firstTime max(_time) as lastTime by eventSource aws_account_id errorCode userAgent eventID awsRegion userIdentity.principalId user_arn new_login_profile src_ip
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`]
+| `aws_createloginprofile_filter`

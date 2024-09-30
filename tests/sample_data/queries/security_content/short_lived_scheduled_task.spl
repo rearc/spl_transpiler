@@ -1,0 +1,7 @@
+ `wineventlog_security` EventCode=4698 OR EventCode=4699
+| xmlkv Message
+| transaction Task_Name  startswith=(EventCode=4698) endswith=(EventCode=4699)
+| eval short_lived=case((duration<30),"TRUE")
+| search  short_lived = TRUE
+| rename ComputerName as dest| table _time, dest, Account_Name, Command, Task_Name, short_lived
+| `short_lived_scheduled_task_filter`

@@ -1,0 +1,5 @@
+`sysmon` EventCode=6 ImageLoaded = "*.sys" NOT (ImageLoaded IN("*\\WINDOWS\\inf","*\\WINDOWS\\System32\\drivers\\*", "*\\WINDOWS\\System32\\DriverStore\\FileRepository\\*"))
+|  stats  min(_time) as firstTime max(_time) as lastTime count by dest ImageLoaded Hashes IMPHASH Signature Signed| rename ImageLoaded as file_name
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `suspicious_driver_loaded_path_filter`

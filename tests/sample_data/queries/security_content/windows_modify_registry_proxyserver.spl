@@ -1,0 +1,7 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Registry where Registry.registry_path = "*\\Internet Settings\\ProxyServer" by  Registry.registry_path Registry.registry_value_name Registry.registry_value_data Registry.process_guid Registry.action Registry.user Registry.dest
+| `drop_dm_object_name(Registry)`
+| where isnotnull(registry_value_data)
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_modify_registry_proxyserver_filter`

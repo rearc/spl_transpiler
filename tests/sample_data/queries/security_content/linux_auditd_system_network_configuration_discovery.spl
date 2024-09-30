@@ -1,0 +1,8 @@
+`linux_auditd` type=SYSCALL comm IN ("arp", "ifconfig", "ip", "netstat", "firewall-cmd", "ufw", "iptables", "ss", "route")
+| bucket _time span=15m
+| rename host as dest
+| stats dc(comm) as unique_commands, values(comm) as comm, values(exe) as exe, values(SYSCALL) as SYSCALL, values(UID) as UID, values(ppid) as ppid, values(pid) as pid, count, min(_time) as firstTime, max(_time) as lastTime by success dest
+| where unique_commands >= 4
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `linux_auditd_system_network_configuration_discovery_filter`

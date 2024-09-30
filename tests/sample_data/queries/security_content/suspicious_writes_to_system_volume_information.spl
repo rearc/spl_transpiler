@@ -1,0 +1,4 @@
+(`sysmon` OR tag=process) EventCode=11 process_id!=4 file_path=*System\ Volume Information*
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, Image, file_path
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `suspicious_writes_to_system_volume_information_filter`

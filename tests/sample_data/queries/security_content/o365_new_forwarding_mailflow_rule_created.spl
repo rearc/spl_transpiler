@@ -1,0 +1,12 @@
+`o365_management_activity` Workload=Exchange Operation="New-TransportRule"
+| eval match1=mvfind('Parameters{}.Name', "BlindCopyTo")
+| eval match2=mvfind('Parameters{}.Name', "CopyTo")
+| eval match3=mvfind('Parameters{}.Name', "RedirectMessageTo")
+| where match1>= 0 OR match2>= 0 OR match3>=0
+| eval ForwardTo=coalesce(BlindCopyTo, CopyTo, RedirectMessageTo)
+| search ForwardTo!=""
+| rename UserId as user
+| stats count earliest(_time) as firstTime latest(_time) as lastTime by Operation, user, Name, ForwardTo
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_new_forwarding_mailflow_rule_created_filter`

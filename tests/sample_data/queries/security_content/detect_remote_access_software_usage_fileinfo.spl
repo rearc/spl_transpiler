@@ -1,0 +1,6 @@
+`sysmon` EventCode=1
+| stats count min(_time) as firstTime max(_time) as lastTime, values(Company) as Company values(Product) as Product by dest, user, parent_process_name, process_name, process
+| lookup remote_access_software remote_utility_fileinfo AS Product OUTPUT isutility, description as signature, comment_reference as desc, category
+| search isutility = True
+| `remote_access_software_usage_exceptions`
+| `detect_remote_access_software_usage_fileinfo_filter`

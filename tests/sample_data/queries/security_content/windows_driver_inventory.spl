@@ -1,0 +1,6 @@
+`driverinventory`
+| stats values(Path) min(_time) as firstTime max(_time) as lastTime count by host DriverType
+| rename host as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_driver_inventory_filter`

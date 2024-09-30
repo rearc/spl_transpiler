@@ -1,0 +1,7 @@
+ `azure_monitor_aad`  operationName="Add unverified domain" properties.result=success
+| rename properties.* as *
+| rename targetResources{}.displayName as domain
+| stats count min(_time) as firstTime max(_time) as lastTime by user, domain, result, operationName, src_ip
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_new_custom_domain_added_filter`

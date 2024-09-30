@@ -1,0 +1,5 @@
+index=something
+|tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime values(All_UEBA_Events.category) as category from datamodel=UEBA where nodename=All_UEBA_Events.UEBA_Anomalies All_UEBA_Events.UEBA_Anomalies.uba_model = "SuspiciousEmailDetectionModel" by All_UEBA_Events.description All_UEBA_Events.severity All_UEBA_Events.user All_UEBA_Events.uba_event_type All_UEBA_Events.link All_UEBA_Events.signature All_UEBA_Events.url All_UEBA_Events.UEBA_Anomalies.uba_model
+| `drop_dm_object_name(All_UEBA_Events)`
+| `drop_dm_object_name(UEBA_Anomalies)`| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `suspicious_email___uba_anomaly_filter`

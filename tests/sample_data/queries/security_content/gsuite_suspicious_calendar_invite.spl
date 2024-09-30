@@ -1,0 +1,5 @@
+`gsuite_calendar`
+|bin span=5m _time
+|rename parameters.* as *
+|search target_calendar_id!=null email="*yourdomain.com"| stats  count values(target_calendar_id) values(event_title) values(event_guest) by email _time
+| where count >100| `gsuite_suspicious_calendar_invite_filter`

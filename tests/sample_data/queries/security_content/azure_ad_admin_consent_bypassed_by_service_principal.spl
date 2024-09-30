@@ -1,0 +1,11 @@
+`azure_monitor_aad` (operationName="Add app role assignment to service principal" OR operationName="Add member to role*") src_user_type=servicePrincipal
+| rename properties.* as *
+| eval roleId = mvindex('targetResources{}.modifiedProperties{}.newValue', 0)
+| eval roleValue = mvindex('targetResources{}.modifiedProperties{}.newValue', 1)
+| eval roleDescription = mvindex('targetResources{}.modifiedProperties{}.newValue', 2)
+| eval user_id = mvindex('targetResources{}.id', 0), user=coalesce(user,mvindex('targetResources{}.displayName', 0))
+| rename initiatedBy.app.displayName as src_user
+| stats count earliest(_time) as firstTime latest(_time) as lastTime by src_user user user_id roleId roleValue roleDescription
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_admin_consent_bypassed_by_service_principal_filter`

@@ -1,0 +1,7 @@
+`powershell` EventCode=4104 (ScriptBlockText="*New-ADGroup*" OR ScriptBlockText="*New-LocalGroup*") ScriptBlockText="*ESX Admins*"
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer UserID
+| rename Computer as dest
+| rename UserID as user
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_esx_admins_group_creation_via_powershell_filter`

@@ -1,0 +1,6 @@
+`kube_audit` requestObject.message="Pulling image*"
+| search NOT `kube_allowed_images`
+| fillnull
+| stats count by objectRef.name objectRef.namespace objectRef.resource requestReceivedTimestamp requestURI responseStatus.code sourceIPs{} stage user.groups{} user.uid user.username userAgent verb
+| rename sourceIPs{} as src_ip, user.username as user
+| `kubernetes_suspicious_image_pulling_filter`

@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count from datamodel=Endpoint.Registry where Registry.registry_path IN ("*\\Schedule\\TaskCache\\Tree\\*") Registry.user="SYSTEM" Registry.registry_value_name="SD" (Registry.action=Deleted OR Registry.action=modified) by _time  Registry.dest Registry.process_guid Registry.user Registry.registry_path Registry.registry_value_name Registry.registry_key_name Registry.registry_value_data Registry.status Registry.action
+| `drop_dm_object_name(Registry)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_registry_delete_task_sd_filter`

@@ -1,0 +1,4 @@
+`aws_description`
+| rename id as networkAclId
+| search  networkAclId=$networkAclId$
+| table id account_id vpc_id network_acl_entries{}.*

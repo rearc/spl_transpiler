@@ -1,0 +1,4 @@
+`sysmon` EventID=8 TargetImage=*lsass.exe
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, EventCode, TargetImage, TargetProcessId
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `create_remote_thread_into_lsass_filter`

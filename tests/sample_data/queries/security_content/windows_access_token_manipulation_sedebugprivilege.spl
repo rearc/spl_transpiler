@@ -1,0 +1,5 @@
+`wineventlog_security` EventCode=4703 EnabledPrivilegeList = "*SeDebugPrivilege*" AND NOT(ProcessName IN ("*\\Program File*", "*\\System32\\lsass.exe*", "*\\SysWOW64\\lsass.exe*", "*\\SysWOW64\\svchost.exe*", "*\\System32\\svchost.exe*"))
+| stats count min(_time) as firstTime max(_time) as lastTime by Computer ProcessName ProcessId SubjectDomainName SubjectUserName SubjectUserSid TargetUserName TargetLogonId TargetDomainName EnabledPrivilegeList action
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_access_token_manipulation_sedebugprivilege_filter`

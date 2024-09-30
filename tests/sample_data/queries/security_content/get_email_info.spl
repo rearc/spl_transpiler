@@ -1,0 +1,3 @@
+index=something
+| from datamodel Email.All_Email
+| search message_id=$message_id$

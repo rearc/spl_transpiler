@@ -1,0 +1,9 @@
+index=something
+| tstats earliest(_time) as firstTime latest(_time) as lastTime from datamodel=Authentication where Authentication.signature=AssumeRole by Authentication.vendor_account Authentication.user Authentication.src Authentication.user_role
+| `drop_dm_object_name(Authentication)`
+| rex field=user_role "arn:aws:sts:*:(?<dest_account>.*):"
+| where vendor_account != dest_account
+| rename vendor_account as requestingAccountId dest_account as requestedAccountId
+| inputlookup append=t previously_seen_aws_cross_account_activity
+| stats min(firstTime) as firstTime max(lastTime) as lastTime by requestingAccountId requestedAccountId
+| outputlookup previously_seen_aws_cross_account_activity

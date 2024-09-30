@@ -1,0 +1,4 @@
+index=something
+| tstats `security_content_summariesonly` count values(Processes.process_name) as process_name_list values(Processes.process) as process_list values(Processes.process_id) as process_id_list values(Processes.parent_process_id) as parent_process_id_list values(Processes.process_guid) as process_guid_list dc(Processes.process_name) as process_name_count from datamodel=Endpoint.Processes where Processes.process_name IN ("arp", "ifconfig", "ip", "netstat", "firewall-cmd", "ufw", "iptables", "ss", "route") by _time span=30m Processes.dest Processes.user
+| where process_name_count >=4
+| `drop_dm_object_name(Processes)`| `linux_system_network_discovery_filter`

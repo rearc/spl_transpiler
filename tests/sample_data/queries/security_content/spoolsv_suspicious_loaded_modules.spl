@@ -1,0 +1,7 @@
+`sysmon` EventCode=7 Image ="*\\spoolsv.exe" ImageLoaded="*\\Windows\\System32\\spool\\drivers\\x64\\*" ImageLoaded = "*.dll"
+| stats dc(ImageLoaded) as countImgloaded values(ImageLoaded) as ImageLoaded count min(_time) as firstTime max(_time) as lastTime by Image Computer ProcessId EventCode
+| rename Computer as dest
+| where countImgloaded >= 3
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `spoolsv_suspicious_loaded_modules_filter`

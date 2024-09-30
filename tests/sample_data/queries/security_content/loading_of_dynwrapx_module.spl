@@ -1,0 +1,5 @@
+`sysmon` EventCode=7 (ImageLoaded = "*\\dynwrapx.dll" OR OriginalFileName = "dynwrapx.dll" OR  Product = "DynamicWrapperX")
+| stats count min(_time) as firstTime max(_time) as lastTime by Image ImageLoaded OriginalFileName Product process_name dest EventCode Signed ProcessId
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `loading_of_dynwrapx_module_filter`

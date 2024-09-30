@@ -1,0 +1,11 @@
+ `azure_monitor_aad` operationName="Add service principal" properties.initiatedBy.app.appId=*
+| rename properties.* as *
+| bucket span=10m _time
+| rename targetResources{}.displayName as displayName
+| rename targetResources{}.type as type
+| rename initiatedBy.app.displayName as src_user
+| stats min(_time) as firstTime max(_time) as lastTime values(displayName) as displayName dc(displayName) as unique_apps by src_user
+| where unique_apps > 3
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_multiple_service_principals_created_by_sp_filter`

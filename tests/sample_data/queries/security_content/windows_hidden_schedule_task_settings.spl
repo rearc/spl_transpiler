@@ -1,0 +1,7 @@
+`wineventlog_security` EventCode=4698
+| xmlkv Message
+| search Hidden = true
+| stats count min(_time) as firstTime max(_time) as lastTime by  Task_Name, Command, Author, Hidden, dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_hidden_schedule_task_settings_filter`

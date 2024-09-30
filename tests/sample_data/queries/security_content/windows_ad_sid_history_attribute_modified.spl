@@ -1,0 +1,4 @@
+ `wineventlog_security` EventCode=5136 AttributeLDAPDisplayName=sIDHistory OperationType="%%14674"
+| stats values(ObjectDN) as ObjectDN by _time, Computer, SubjectUserName, AttributeValue
+| rename Computer as dest
+| `windows_ad_sid_history_attribute_modified_filter`

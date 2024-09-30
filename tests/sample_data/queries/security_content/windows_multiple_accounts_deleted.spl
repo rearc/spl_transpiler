@@ -1,0 +1,5 @@
+ `wineventlog_security` EventCode=4726 status=success
+| bucket span=10m _time
+| stats count dc(user) as unique_users values(user) as user by EventCode signature _time src_user SubjectDomainName TargetDomainName Logon_ID
+| where unique_users > 5
+| `windows_multiple_accounts_deleted_filter`

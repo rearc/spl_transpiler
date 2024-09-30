@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 ScriptBlockText IN("*get-WebConfigurationProperty*","*Set-ItemProperty*") AND ScriptBlockText IN ("*httpLogging*","*Logfile.enabled*") AND ScriptBlockText IN ("*dontLog*", "*false*")
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer user_id
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_powershell_disable_http_logging_filter`

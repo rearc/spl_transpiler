@@ -1,0 +1,5 @@
+`okta` eventType IN ("system.idp.lifecycle.activate","system.idp.lifecycle.create","system.idp.lifecycle.delete","system.idp.lifecycle.deactivate")
+|  stats count  min(_time) as firstTime max(_time) as lastTime values(target{}.id) as target_id values(target{}.type) as target_modified by src dest src_user_id user user_agent command description
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `okta_idp_lifecycle_modifications_filter`

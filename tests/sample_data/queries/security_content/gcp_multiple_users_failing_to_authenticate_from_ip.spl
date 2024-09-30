@@ -1,0 +1,7 @@
+`gws_reports_login` event.type = login event.name = login_failure
+| bucket span=5m _time
+| stats count dc(user) AS unique_accounts values(user) as tried_accounts values(authentication_method) AS authentication_method earliest(_time) as firstTime latest(_time) as lastTime by _time event.name src app id.applicationName
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+|  where unique_accounts > 20
+| `gcp_multiple_users_failing_to_authenticate_from_ip_filter`

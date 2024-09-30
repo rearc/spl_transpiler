@@ -1,0 +1,5 @@
+ `wineventlog_security` EventCode=4776 TargetUserName!=*$ Status=0xC000006A
+| bucket span=5m _time
+| stats dc(TargetUserName) AS unique_accounts values(TargetUserName) as tried_accounts by _time, Workstation
+| where unique_accounts > 30
+| `windows_multiple_users_failed_to_authenticate_from_host_using_ntlm_filter`

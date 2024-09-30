@@ -1,0 +1,7 @@
+`cloudtrail` eventName=PutBucketLifecycle user_type=IAMUser errorCode=success
+|  spath path=requestParameters{}.LifecycleConfiguration{}.Rule{}.Expiration{}.Days output=expiration_days
+|  spath path=requestParameters{}.bucketName output=bucket_name
+| stats count min(_time) as firstTime max(_time) as lastTime  by src region eventName userAgent user_arn aws_account_id expiration_days  bucket_name user_type| `security_content_ctime(firstTime)`
+|  `security_content_ctime(lastTime)`
+| where expiration_days < 3
+| `aws_defense_evasion_putbucketlifecycle_filter`

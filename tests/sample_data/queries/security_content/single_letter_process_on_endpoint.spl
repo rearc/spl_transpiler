@@ -1,0 +1,9 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes by Processes.dest, Processes.user, Processes.process, Processes.process_name
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(lastTime)`
+| `security_content_ctime(firstTime)`
+| eval process_name_length = len(process_name), endExe = if(substr(process_name, -4) == ".exe", 1, 0)
+| search process_name_length=5 AND endExe=1
+| table count, firstTime, lastTime, dest, user, process, process_name
+| `single_letter_process_on_endpoint_filter`

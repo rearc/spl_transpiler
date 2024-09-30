@@ -1,0 +1,5 @@
+`cloudtrail` (eventName=Run* OR eventName=Create*)
+| iplocation sourceIPAddress
+| stats earliest(_time) as firstTime, latest(_time) as lastTime by sourceIPAddress, City, Region, Country
+| outputlookup previously_seen_provisioning_activity_src
+| stats count

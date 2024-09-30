@@ -1,0 +1,6 @@
+ `wineventlog_security` EventCode=5137 OR EventCode=5141 ObjectDN="*CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration*"
+| transaction ObjectDN startswith=(EventCode=5137) endswith=(EventCode=5141)
+| eval short_lived=case((duration<30),"TRUE")
+| search short_lived = TRUE
+| stats values(ObjectDN) values(signature) values(EventCode) by _time, Computer, SubjectUserName
+| `windows_ad_short_lived_server_object_filter`

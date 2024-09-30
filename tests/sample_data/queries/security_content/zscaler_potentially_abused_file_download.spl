@@ -1,0 +1,5 @@
+`zscaler_proxy` url IN ("*.scr", "*.dll", "*.bat", "*.lnk")
+| stats count min(_time) as firstTime max(_time) as lastTime by deviceowner user urlcategory url src filename dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `zscaler_potentially_abused_file_download_filter`

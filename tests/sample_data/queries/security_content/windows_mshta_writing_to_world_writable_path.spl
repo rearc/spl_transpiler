@@ -1,0 +1,6 @@
+`sysmon` EventCode=11 Image="*\\mshta.exe" TargetFilename IN ("*\\Windows\\Tasks\\*", "*\\Windows\\Temp\\*", "*\\Windows\\tracing\\*", "*\\Windows\\PLA\\Reports\\*", "*\\Windows\\PLA\\Rules\\*", "*\\Windows\\PLA\\Templates\\*", "*\\Windows\\PLA\\Reports\\en-US\\*", "*\\Windows\\PLA\\Rules\\en-US\\*", "*\\Windows\\Registration\\CRMLog\\*", "*\\Windows\\System32\\Tasks\\*", "*\\Windows\\System32\\Com\\dmp\\*", "*\\Windows\\System32\\LogFiles\\WMI\\*", "*\\Windows\\System32\\Microsoft\\Crypto\\RSA\\MachineKeys\\*", "*\\Windows\\System32\\spool\\PRINTERS\\*", "*\\Windows\\System32\\spool\\SERVERS\\*", "*\\Windows\\System32\\spool\\drivers\\color\\*", "*\\Windows\\System32\\Tasks\\Microsoft\\Windows\\RemoteApp and Desktop Connections Update\\*", "*\\Windows\\SysWOW64\\Tasks\\*", "*\\Windows\\SysWOW64\\Com\\dmp\\*", "*\\Windows\\SysWOW64\\Tasks\\Microsoft\\Windows\\PLA\\*", "*\\Windows\\SysWOW64\\Tasks\\Microsoft\\Windows\\RemoteApp and Desktop Connections Update\\*", "*\\Windows\\SysWOW64\\Tasks\\Microsoft\\Windows\\PLA\\System\\*")
+| rename Computer as dest, User as user
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, user, Image, TargetFilename
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_mshta_writing_to_world_writable_path_filter`

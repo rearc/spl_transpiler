@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 ScriptBlockText = "*Invoke-RestMethod *" AND ScriptBlockText = "* -Uri *" AND ScriptBlockText = "* -Method *" AND ScriptBlockText = "* Post *" AND ScriptBlockText = "* -InFile *"
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer UserID
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_exfiltration_over_c2_via_invoke_restmethod_filter`

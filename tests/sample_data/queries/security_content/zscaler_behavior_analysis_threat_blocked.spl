@@ -1,0 +1,5 @@
+`zscaler_proxy` action=blocked threatname!="None" threatclass="Behavior Analysis"
+| stats count min(_time) as firstTime max(_time) as lastTime by action deviceowner user threatname url src dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `zscaler_behavior_analysis_threat_blocked_filter`

@@ -1,0 +1,7 @@
+`wmi` EventCode=5861 Binding
+| rex field=Message "Consumer =\s+(?<consumer>[^;|^$]+)"
+| search consumer!="NTEventLogEventConsumer=\"SCM Event Log Consumer\""
+| stats count min(_time) as firstTime max(_time) as lastTime by ComputerName, consumer, Message
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| rename ComputerName as dest
+| `wmi_permanent_event_subscription_filter`

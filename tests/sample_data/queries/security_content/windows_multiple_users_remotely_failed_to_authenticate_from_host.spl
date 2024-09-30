@@ -1,0 +1,5 @@
+ `wineventlog_security` EventCode=4625 Logon_Type=3 IpAddress!="-"
+| bucket span=5m _time
+| stats dc(TargetUserName) AS unique_accounts values(TargetUserName) as tried_accounts by _time, IpAddress, Computer
+| rename Computer as dest| where unique_accounts > 30
+| `windows_multiple_users_remotely_failed_to_authenticate_from_host_filter`

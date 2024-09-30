@@ -1,0 +1,5 @@
+`o365_management_activity` Workload=AzureActiveDirectory Operation=UserLoginFailed record_type=AzureActiveDirectoryStsLogon
+| bucket span=5m _time
+| stats dc(_raw) AS failed_attempts values(user) as user values(LogonError) as LogonError values(signature) as signature values(UserAgent) as UserAgent by _time, src_ip
+| where failed_attempts > 10
+| `high_number_of_login_failures_from_a_single_source_filter`

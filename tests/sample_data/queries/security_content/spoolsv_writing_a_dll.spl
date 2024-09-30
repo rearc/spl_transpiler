@@ -1,0 +1,9 @@
+index=something
+| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Processes where Processes.process_name=spoolsv.exe by _time Processes.process_guid Processes.process_name Processes.dest
+| `drop_dm_object_name(Processes)`
+| join process_guid, _time [| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime FROM datamodel=Endpoint.Filesystem where Filesystem.file_path="*\\spool\\drivers\\x64\\*" Filesystem.file_name="*.dll" by _time Filesystem.dest Filesystem.process_guid Filesystem.file_create_time Filesystem.file_name Filesystem.file_path
+| `drop_dm_object_name(Filesystem)`
+| fields _time dest file_create_time file_name file_path process_name process_path process_guid process]
+| dedup file_create_time
+| table  dest file_create_time, file_name, file_path, process_name process_guid
+| `spoolsv_writing_a_dll_filter`

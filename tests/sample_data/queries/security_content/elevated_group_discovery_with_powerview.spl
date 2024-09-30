@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 (ScriptBlockText = "*Get-DomainGroupMember*") AND ScriptBlockText IN ("*Domain Admins*","*Enterprise Admins*", "*Schema Admins*", "*Account Operators*" , "*Server Operators*", "*Protected Users*",  "*Dns Admins*")
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer UserID
+| rename Computer as dest, UserID as user
+| `security_content_ctime(firstTime)`
+| `elevated_group_discovery_with_powerview_filter`

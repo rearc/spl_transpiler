@@ -1,0 +1,5 @@
+{
+  "definition": "eventtype=wineventlog_security OR Channel=security OR source=XmlWinEventLog:Security",
+  "description": "customer specific splunk configurations(eg- index, source, sourcetype). Replace the macro definition with configurations for your Splunk Environmnent.",
+  "name": "wineventlog_security"
+}

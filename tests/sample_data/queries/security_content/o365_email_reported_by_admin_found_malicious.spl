@@ -1,0 +1,7 @@
+`o365_management_activity` Workload=SecurityComplianceCenter Operation=AdminSubmission
+| search RescanVerdict IN (Phish,Malware)
+| stats values(Subject) as subject, values(RescanVerdict) as result, values(SenderIP) as src, values(P2Sender) as sender, values(P1Sender) as src_user, values(Recipients{}) as user, count min(_time) as firstTime, max(_time) as lastTime, by Id,Operation,UserId
+| rename Name as signature, Id as signature_id, UserId as o365_adminuser
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_email_reported_by_admin_found_malicious_filter`

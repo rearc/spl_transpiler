@@ -1,0 +1,3 @@
+`subjectinterfacepackage` Dll=*\\*.dll
+| stats count min(_time) as firstTime max(_time) as lastTime values(Dll) by Path host| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `windows_sip_provider_inventory_filter`

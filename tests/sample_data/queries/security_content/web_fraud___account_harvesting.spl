@@ -1,0 +1,8 @@
+`stream_http` http_content_type=text* uri="/magento2/customer/account/loginPost/"
+| rex field=cookie "form_key=(?<SessionID>\w+)"
+| rex field=form_data "login\[username\]=(?<Username>[^&|^$]+)"
+| search Username=*
+| rex field=Username "@(?<email_domain>.*)"
+| stats dc(Username) as UniqueUsernames list(Username) as src_user by email_domain
+| where UniqueUsernames> 25
+| `web_fraud___account_harvesting_filter`

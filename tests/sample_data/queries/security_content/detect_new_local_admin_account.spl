@@ -1,0 +1,7 @@
+`wineventlog_security` EventCode=4720 OR (EventCode=4732 Group_Name=Administrators)
+| transaction src_user connected=false maxspan=180m
+| rename src_user as user
+| stats count min(_time) as firstTime max(_time) as lastTime by user dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `detect_new_local_admin_account_filter`

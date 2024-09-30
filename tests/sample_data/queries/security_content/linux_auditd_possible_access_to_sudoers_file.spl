@@ -1,0 +1,4 @@
+`linux_auditd` type=PATH name="/etc/sudoers*"
+| rename host as dest
+| stats count min(_time) as firstTime max(_time) as lastTime by name nametype OGID type dest
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`| `linux_auditd_possible_access_to_sudoers_file_filter`

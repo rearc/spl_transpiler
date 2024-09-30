@@ -1,0 +1,8 @@
+index=something
+| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Filesystem where Filesystem.action=created by _time span=1h, Filesystem.dest
+| `drop_dm_object_name(Filesystem)`
+| eventstats max(_time) as maxtime
+| stats count as num_data_samples max(eval(if(_time >= relative_time(maxtime, "-1d@d"), count, null))) as "count" avg(eval(if(_time<relative_time(maxtime, "-1d@d"), count,null))) as avg stdev(eval(if(_time<relative_time(maxtime, "-1d@d"), count, null))) as stdev by "dest"
+| eval upperBound=(avg+stdev*4), isOutlier=if((count > upperBound) AND num_data_samples >=20, 1, 0)
+| search isOutlier=1
+| `spike_in_file_writes_filter`

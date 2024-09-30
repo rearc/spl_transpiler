@@ -1,0 +1,5 @@
+index=something
+| tstats count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where ((Web.url="*?jsp=*" AND Web.url="*;.jsp*") Web.status=200 Web.http_method=POST) OR (Web.url IN ("*jsp=/app/rest/users;.jsp","*?jsp=/app/rest/users;.jsp","*?jsp=.*/app/rest/users/id:*/tokens;*") Web.status=200 Web.http_method=POST ) by Web.src, Web.dest, Web.http_user_agent, Web.url, Web.status, Web.http_method, sourcetype, source
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `jetbrains_teamcity_authentication_bypass_cve_2024_27198_filter`

@@ -1,0 +1,17 @@
+`o365_management_activity` Workload=Exchange Operation=UpdateInboxRules
+| eval match1=mvfind('OperationProperties{}.Value', "ForwardToRecipientsAction")
+| eval match2=mvfind('OperationProperties{}.Value', "ForwardAsAttachmentToRecipientsAction")
+| eval match3=mvfind('OperationProperties{}.Value', "RedirectToRecipientsAction")
+| eval index = mvfind('OperationProperties{}.Name', "ServerRule")
+| where match1>= 0 OR match2>= 0 OR match3>= 0
+| eval ServerRule = mvindex('OperationProperties{}.Value', index-1)
+| spath input=ServerRule path=Actions{}.Recipients{}.Values{}.Value output=valueExtracted
+| mvexpand valueExtracted
+| search valueExtracted="*@*.*"
+| eval ForwardTo=if(match(valueExtracted, "^[^@]+@[^@]+\\.[^@]+$"), valueExtracted, null)
+| dedup ForwardTo
+| where isnotnull(ForwardTo)
+| stats count min(_time) as firstTime max(_time) as lastTime values(Name) as Name by user Operation ForwardTo
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_new_email_forwarding_rule_enabled_filter`

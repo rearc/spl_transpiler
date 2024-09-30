@@ -1,0 +1,9 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime values(Processes.process_name) as process_name from datamodel=Endpoint.Processes where Processes.dest!=unknown Processes.user!=unknown NOT (Processes.process_path IN ("*\\system32\\*", "*\\syswow64\\*","*\\winsxs\\*","*\\wbem\\*"))  by Processes.dest Processes.user Processes.parent_process_name Processes.process_name Processes.process_path
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `drop_dm_object_name(Processes)`
+| lookup hijacklibs library AS process_name OUTPUT islibrary
+| search islibrary = True
+| rename parent_process_name as process_name , process_name AS ImageLoaded, process_path AS Module_Path
+| `windows_dll_search_order_hijacking_hunt_filter`

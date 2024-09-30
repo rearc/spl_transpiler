@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime values(Processes.process) as process max(_time) as lastTime from datamodel=Endpoint.Processes where Processes.process_name=fltMC.exe AND Processes.process=*unload* AND Processes.process=*SysmonDrv*  by Processes.process_name Processes.process_id Processes.parent_process_name Processes.process Processes.dest Processes.user
+| `drop_dm_object_name("Processes")`
+| `security_content_ctime(firstTime)`|`security_content_ctime(lastTime)`
+| table firstTime lastTime dest user count process_name process_id parent_process_name process
+| `unload_sysmon_filter_driver_filter`

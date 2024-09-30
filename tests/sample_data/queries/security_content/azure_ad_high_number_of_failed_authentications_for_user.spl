@@ -1,0 +1,8 @@
+ `azure_monitor_aad` category= SignInLogs properties.status.errorCode=50126 properties.authenticationDetails{}.succeeded=false
+| rename properties.* as *
+| bucket span=10m _time
+| stats count min(_time) as firstTime max(_time) as lastTime values(src_ip) as src_ip by user
+| where count > 20
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_high_number_of_failed_authentications_for_user_filter`

@@ -1,0 +1,5 @@
+`okta` eventType="user.authentication.auth_via_mfa" AND result="FAILURE" AND outcome.reason="FastPass declined phishing attempt"
+| stats count min(_time) as firstTime max(_time) as lastTime values(displayMessage) by user eventType client.userAgent.rawUserAgent client.userAgent.browser outcome.reason
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `okta_phishing_detection_with_fastpass_origin_check_filter`

@@ -1,0 +1,5 @@
+`sysmon` EventCode=11 process_name = "wermgr.exe" TargetFilename = "*.exe"
+| stats  min(_time) as firstTime max(_time) as lastTime count by  Image TargetFilename process_name dest EventCode ProcessId
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `wermgr_process_create_executable_file_filter`

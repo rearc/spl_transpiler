@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime  values(Authentication.app) as app values(Authentication.reason) as reason values(Authentication.signature) as signature  values(Authentication.method) as method  from datamodel=Authentication where  Authentication.signature=user.authentication.auth_via_mfa Authentication.action = failure by _time Authentication.src Authentication.user Authentication.dest Authentication.action
+| `drop_dm_object_name("Authentication")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| iplocation src
+| `okta_authentication_failed_during_mfa_challenge_filter`

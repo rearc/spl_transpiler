@@ -1,0 +1,8 @@
+ `o365_management_activity` Workload=Exchange (Operation="Set-MailboxFolderPermission" OR Operation="Add-MailboxFolderPermission" )
+| eval isReadRole=if(match(AccessRights, "^(ReadItems|Author|NonEditingAuthor|Owner|PublishingAuthor|Reviewer)$"), "true", "false")
+| search isReadRole="true"
+| rename UserId as user
+| stats count earliest(_time) as firstTime latest(_time) as lastTime by Operation, user, Identity, AccessRights
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_mailbox_folder_read_permission_granted_filter`

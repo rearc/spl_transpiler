@@ -1,0 +1,5 @@
+`wineventlog_system` EventCode=7045 ServiceName="RemCom Service"
+| stats count min(_time) as firstTime max(_time) as lastTime by dest ImagePath ServiceName ServiceType
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_service_create_remcomsvc_filter`

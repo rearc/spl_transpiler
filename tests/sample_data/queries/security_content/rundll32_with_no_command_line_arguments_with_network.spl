@@ -1,0 +1,10 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime FROM datamodel=Endpoint.Processes where `process_rundll32` AND Processes.action!="blocked" by host _time span=1h Processes.process_id Processes.process_name Processes.dest Processes.process_path Processes.process Processes.parent_process_name Processes.parent_process
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| regex process="(?i)(rundll32\.exe.{0,4}$)"
+| rename dest as src
+| join host process_id [| tstats `security_content_summariesonly` count latest(All_Traffic.dest) as dest latest(All_Traffic.dest_ip) as dest_ip latest(All_Traffic.dest_port) as dest_port FROM datamodel=Network_Traffic.All_Traffic where All_Traffic.dest_port != 0 by host All_Traffic.process_id
+| `drop_dm_object_name(All_Traffic)`]
+| `rundll32_with_no_command_line_arguments_with_network_filter`

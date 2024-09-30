@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count earliest(_time) as firstTime latest(_time) as lastTime values(All_Traffic.action) values(All_Traffic.bytes) from datamodel=Network_Traffic where All_Traffic.action !=blocked All_Traffic.dest_category !=internal (All_Traffic.protocol=icmp OR All_Traffic.transport=icmp) All_Traffic.bytes > 1000 by All_Traffic.src_ip All_Traffic.dest_ip
+| `drop_dm_object_name("All_Traffic")`
+| search ( dest_ip!=10.0.0.0/8 AND dest_ip!=172.16.0.0/12 AND dest_ip!=192.168.0.0/16)
+| `security_content_ctime(firstTime)`|`security_content_ctime(lastTime)`
+| `detect_large_outbound_icmp_packets_filter`

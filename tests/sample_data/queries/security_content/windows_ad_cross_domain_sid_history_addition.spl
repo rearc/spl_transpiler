@@ -1,0 +1,7 @@
+`wineventlog_security` (EventCode=4742 OR EventCode=4738) NOT SidHistory IN ("%%1793", -)
+| rex field=SidHistory "(^%{|^)(?P<SidHistoryMatch>.*)(\-|\\\)"
+| rex field=TargetSid "^(?P<TargetSidmatch>.*)(\-|\\\)"
+| where SidHistoryMatch!=TargetSidmatch AND SidHistoryMatch!=TargetDomainName
+| rename TargetSid as userSid
+| table _time action status host user userSid SidHistory Logon_ID src_user
+| `windows_ad_cross_domain_sid_history_addition_filter`

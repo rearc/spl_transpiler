@@ -1,0 +1,9 @@
+index=something
+| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Processes where `process_msiexec` by _time Processes.user Processes.process_id Processes.process_name Processes.dest Processes.process_path Processes.process Processes.parent_process_name
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| join  process_id [| tstats `security_content_summariesonly` count FROM datamodel=Network_Traffic.All_Traffic where All_Traffic.dest_port IN ("80","443") by All_Traffic.process_id All_Traffic.dest All_Traffic.dest_port All_Traffic.dest_ip
+| `drop_dm_object_name(All_Traffic)` ]
+| table _time user dest parent_process_name process_name process_path process process_id dest_port dest_ip
+| `windows_msiexec_with_network_connections_filter`

@@ -1,0 +1,5 @@
+`wineventlog_security`  EventCode=4624 LogonType=3 AuthenticationPackageName=Kerberos action=success src=127.0.0.1
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, subject, action, SubjectLogonId, user, TargetUserName, src
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_kerberos_local_successful_logon_filter`

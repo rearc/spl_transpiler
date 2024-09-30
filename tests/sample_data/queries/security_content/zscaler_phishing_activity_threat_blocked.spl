@@ -1,0 +1,5 @@
+`zscaler_proxy` action=blocked threatname="HTML.Phish*"
+| stats count min(_time) as firstTime max(_time) as lastTime by action deviceowner user threatname url src dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `zscaler_phishing_activity_threat_blocked_filter`

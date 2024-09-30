@@ -1,0 +1,3 @@
+`wineventlog_security` EventCode=4624 OR EventCode=4742 TargetUserName="ANONYMOUS LOGON" LogonType=3
+| stats count values(host) as host, values(TargetDomainName) as Domain, values(user) as user
+| `detect_computer_changed_with_anonymous_account_filter`

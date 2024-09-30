@@ -1,0 +1,7 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime values(All_Changes.user) as user from datamodel=Change.All_Changes where All_Changes.result="*lock*" by All_Changes.dest All_Changes.result
+|`drop_dm_object_name("All_Changes")`
+|`drop_dm_object_name("Account_Management")`| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| search count > 5
+| `detect_excessive_account_lockouts_from_endpoint_filter`

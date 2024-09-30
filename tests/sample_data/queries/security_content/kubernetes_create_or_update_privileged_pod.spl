@@ -1,0 +1,5 @@
+`kube_audit` objectRef.resource=pods verb=create OR verb=update requestObject.metadata.annotations.kubectl.kubernetes.io/last-applied-configuration=*\"privileged\":true*
+| fillnull
+| stats count values(user.groups{}) as user_groups by kind objectRef.name objectRef.namespace objectRef.resource requestObject.kind responseStatus.code sourceIPs{} stage user.username userAgent verb requestObject.metadata.annotations.kubectl.kubernetes.io/last-applied-configuration
+| rename sourceIPs{} as src_ip, user.username as user
+| `kubernetes_create_or_update_privileged_pod_filter`

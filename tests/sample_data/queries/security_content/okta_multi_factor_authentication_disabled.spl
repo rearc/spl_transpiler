@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count max(_time) as lastTime, min(_time) as firstTime from datamodel=Change where sourcetype="OktaIM2:log" All_Changes.object_category=User AND All_Changes.action=modified All_Changes.command=user.mfa.factor.deactivate by All_Changes.user All_Changes.result All_Changes.command sourcetype All_Changes.src
+| `drop_dm_object_name("All_Changes")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `okta_multi_factor_authentication_disabled_filter`

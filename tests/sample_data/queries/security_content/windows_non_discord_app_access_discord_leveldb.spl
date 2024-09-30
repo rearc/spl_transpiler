@@ -1,0 +1,5 @@
+`wineventlog_security` EventCode=4663 object_file_path IN ("*\\discord\\Local Storage\\leveldb*") AND process_name != *\\discord.exe AND NOT (process_path IN ("*:\\Windows\\System32\\*", "*:\\Windows\\SysWow64\\*", "*:\\Program Files*", "*:\\Windows\\*"))
+| stats count min(_time) as firstTime max(_time) as lastTime by object_file_name object_file_path process_name process_path  process_id EventCode dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_non_discord_app_access_discord_leveldb_filter`

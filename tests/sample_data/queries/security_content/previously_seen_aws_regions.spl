@@ -1,0 +1,3 @@
+`cloudtrail` StartInstances
+| stats earliest(_time) as earliest latest(_time) as latest by awsRegion
+| outputlookup previously_seen_aws_regions| stats count

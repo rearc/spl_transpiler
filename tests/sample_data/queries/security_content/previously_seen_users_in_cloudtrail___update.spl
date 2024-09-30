@@ -1,0 +1,8 @@
+index=something
+| tstats earliest(_time) as firstTime latest(_time) as lastTime from datamodel=Authentication where Authentication.signature=ConsoleLogin by Authentication.user Authentication.src
+| iplocation Authentication.src
+| rename Authentication.user as user Authentication.src as src
+| table user src City Region Country firstTime lastTime
+| inputlookup append=t previously_seen_users_console_logins
+| stats min(firstTime) as firstTime max(lastTime) as lastTime by user src City Region Country
+| outputlookup previously_seen_users_console_logins

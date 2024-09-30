@@ -1,0 +1,7 @@
+`powershell` EventCode=4104 ScriptBlockText = "*frombase64string*" OR ScriptBlockText = "*gnirtS46esaBmorF*"
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer UserID
+| rename Computer as dest
+|rename UserID as user
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `powershell_fileless_script_contains_base64_encoded_content_filter`

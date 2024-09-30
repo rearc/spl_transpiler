@@ -1,0 +1,5 @@
+`sysmon` EventCode= 15 process_name = "telegram.exe" TargetFilename = "*:Zone.Identifier"
+|stats count min(_time) as firstTime max(_time) as lastTime by dest EventCode process_name process_id TargetFilename Hash
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `download_files_using_telegram_filter`

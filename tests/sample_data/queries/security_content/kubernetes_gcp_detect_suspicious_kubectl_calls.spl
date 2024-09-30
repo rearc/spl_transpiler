@@ -1,0 +1,4 @@
+`google_gcp_pubsub_message` data.protoPayload.requestMetadata.callerSuppliedUserAgent=kubectl* src_user=system:unsecured OR src_user=system:anonymous
+| table src_ip src_user data.protoPayload.requestMetadata.callerSuppliedUserAgent data.protoPayload.authorizationInfo{}.granted object_path
+|dedup src_ip src_user
+|`kubernetes_gcp_detect_suspicious_kubectl_calls_filter`

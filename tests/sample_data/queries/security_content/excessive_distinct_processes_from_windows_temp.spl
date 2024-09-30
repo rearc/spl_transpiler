@@ -1,0 +1,7 @@
+index=something
+| tstats `security_content_summariesonly` values(Processes.process) as process distinct_count(Processes.process) as distinct_process_count  min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where Processes.process_path = "*\\Windows\\Temp\\*" by Processes.dest Processes.user  _time span=20m
+| where distinct_process_count > 37
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `excessive_distinct_processes_from_windows_temp_filter`

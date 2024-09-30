@@ -1,0 +1,4 @@
+`wineventlog_security` EventCode=4876| stats count min(_time) as firstTime max(_time) as lastTime by dest, name, action, Caller_Domain ,Caller_User_Name
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_steal_authentication_certificates_cs_backup_filter`

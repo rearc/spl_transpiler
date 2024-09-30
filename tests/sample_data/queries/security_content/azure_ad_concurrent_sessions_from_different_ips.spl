@@ -1,0 +1,8 @@
+ `azure_monitor_aad` properties.authenticationDetails{}.succeeded=true category=NonInteractiveUserSignInLogs action=success
+| rename properties.* as *
+| bucket span=5m _time
+| stats count min(_time) as firstTime max(_time) as lastTime dc(src_ip) AS unique_ips dc(location.city) as dc_city values(location.city) as city values(src_ip) as src_ip values(appDisplayName) as appDisplayName values(location.countryOrRegion) by user _time
+| where unique_ips > 1
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_concurrent_sessions_from_different_ips_filter`

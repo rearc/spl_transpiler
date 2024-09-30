@@ -1,0 +1,4 @@
+ `wineventlog_security` EventCode=4738 MSADChangedAttributes="*Don't Require Preauth' - Enabled*"
+|rename Account_Name as user
+| table EventCode, user, dest, Security_ID, MSADChangedAttributes
+| `kerberos_pre_authentication_flag_disabled_in_useraccountcontrol_filter`

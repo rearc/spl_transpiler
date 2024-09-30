@@ -1,0 +1,5 @@
+ `o365_management_activity` Workload=AzureActiveDirectory Operation=UserLoginFailed ResultStatus=Success  ErrorNumber=500121
+| bucket span=10m _time
+| stats  dc(_raw) as mfa_prompts values(LogonError) as LogonError values(signature) as signature by user, _time
+| where  mfa_prompts  > 9
+| `o365_multiple_failed_mfa_requests_for_user_filter`

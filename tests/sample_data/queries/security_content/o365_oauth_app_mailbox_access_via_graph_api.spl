@@ -1,0 +1,5 @@
+ `o365_management_activity` Workload=Exchange Operation=MailItemsAccessed AppId=* AppId=00000003-0000-0000-c000-000000000000
+|  stats count earliest(_time) as firstTime latest(_time) as lastTime values(ClientIPAddress) by user ClientAppId OperationCount AppId
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_oauth_app_mailbox_access_via_graph_api_filter`

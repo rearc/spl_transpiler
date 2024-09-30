@@ -1,0 +1,5 @@
+`stream_http` http_method=POST form_data IN ("*wermgr.exe*","*svchost.exe*", "*name=\"proclist\"*","*ipconfig*", "*name=\"sysinfo\"*", "*net view*")
+|stats values(form_data) as http_request_body min(_time) as firstTime max(_time) as lastTime count by src_ip dest_ip http_method http_user_agent uri_path url bytes_in bytes_out
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `plain_http_post_exfiltrated_data_filter`

@@ -1,0 +1,5 @@
+`o365_management_activity` Category=ThreatManagement Name="eDiscovery search started or exported"
+| stats count earliest(_time) as firstTime latest(_time) as lastTime by Source Severity AlertEntityId Operation Name
+|`security_content_ctime(firstTime)`
+|`security_content_ctime(lastTime)`
+| `o365_pst_export_alert_filter`

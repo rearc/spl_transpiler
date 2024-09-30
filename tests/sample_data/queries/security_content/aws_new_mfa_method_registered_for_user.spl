@@ -1,0 +1,5 @@
+ `cloudtrail` eventName=CreateVirtualMFADevice
+| stats count values(requestParameters.virtualMFADeviceName) as virtualMFADeviceName min(_time) as firstTime max(_time) as lastTime by eventSource aws_account_id errorCode userAgent eventID awsRegion userIdentity.principalId user_arn src_ip
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `aws_new_mfa_method_registered_for_user_filter`

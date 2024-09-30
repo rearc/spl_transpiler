@@ -1,0 +1,8 @@
+`cloudtrail` eventName=AssumeRole
+| spath output=requestingAccountId path=userIdentity.accountId
+| spath output=requestedAccountId path=resources{}.accountId
+| search requestingAccountId=*
+| where requestingAccountId!=requestedAccountId
+| stats earliest(_time) as firstTime latest(_time) as lastTime by requestingAccountId, requestedAccountId
+| outputlookup previously_seen_aws_cross_account_activity
+| stats count

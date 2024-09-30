@@ -1,0 +1,5 @@
+`sysmon` EventCode=7 process_name IN ("WINWORD.EXE", "EXCEL.EXE", "POWERPNT.EXE","onenote.exe","onenotem.exe","onenoteviewer.exe","onenoteim.exe","msaccess.exe") loaded_file_path IN ("*\\VBE7INTL.DLL","*\\VBE7.DLL", "*\\VBEUI.DLL")
+| stats min(_time) as firstTime max(_time) as lastTime values(loaded_file) as loaded_file count by dest EventCode process_name process_guid
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `office_document_executing_macro_code_filter`

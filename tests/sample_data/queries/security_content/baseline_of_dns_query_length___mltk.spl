@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count from datamodel=Network_Resolution by DNS.query DNS.record_type
+| search DNS.record_type=*
+| `drop_dm_object_name("DNS")`
+| eval query_length = len(query)
+| fit DensityFunction query_length by record_type into dns_query_pdfmodel

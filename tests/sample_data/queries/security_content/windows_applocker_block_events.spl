@@ -1,0 +1,8 @@
+`applocker`  EventCode IN (8007, 8004, 8022, 8025, 8029, 8040)
+| spath input=UserData_Xml
+| rename RuleAndFileData.* as *, TargetUser as user, Computer as dest
+| stats count min(_time) as firstTime max(_time) as lastTime by dest, PolicyName, RuleId, user, TargetProcessId, FilePath, FullFilePath, EventCode
+| lookup applockereventcodes EventCode OUTPUT Description
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_applocker_block_events_filter`

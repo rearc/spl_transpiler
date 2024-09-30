@@ -1,0 +1,7 @@
+`osquery_macro` name=es_process_events columns.cmdline IN ("find*", "crontab*", "screencapture*", "openssl*", "curl*", "wget*", "killall*", "funzip*")
+| rename columns.* as *
+| stats  min(_time) as firstTime max(_time) as lastTime values(cmdline) as cmdline, values(pid) as pid, values(parent) as parent, values(path) as path, values(signing_id) as signing_id,  dc(path) as dc_path by username host
+| rename username as user, cmdline as process, path as process_path, host as dest
+| where dc_path > 3
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `macos_lolbin_filter`

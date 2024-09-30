@@ -1,0 +1,5 @@
+`powershell` EventCode=4104  (ScriptBlockText=Invoke-ShareFinder*)
+| stats count min(_time) as firstTime max(_time) as lastTime by Opcode Computer UserID EventCode ScriptBlockText
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_file_share_discovery_with_powerview_filter`

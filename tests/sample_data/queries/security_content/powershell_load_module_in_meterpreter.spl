@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 ScriptBlockText IN ("*MSF.Powershell*","*MSF.Powershell.Meterpreter*","*MSF.Powershell.Meterpreter.Kiwi*","*MSF.Powershell.Meterpreter.Transport*")
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer user_id
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `powershell_load_module_in_meterpreter_filter`

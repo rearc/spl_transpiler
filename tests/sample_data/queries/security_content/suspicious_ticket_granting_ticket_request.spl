@@ -1,0 +1,8 @@
+ `wineventlog_security` (EventCode=4781 OldTargetUserName="*$" NewTargetUserName!="*$") OR (EventCode=4768 TargetUserName!="*$")
+| eval RenamedComputerAccount = coalesce(NewTargetUserName, TargetUserName)
+| transaction RenamedComputerAccount startswith=(EventCode=4781) endswith=(EventCode=4768)
+| eval short_lived=case((duration<2),"TRUE")
+| search short_lived = TRUE
+| table _time, Computer, EventCode, TargetUserName, RenamedComputerAccount, short_lived
+| rename Computer as dest
+| `suspicious_ticket_granting_ticket_request_filter`

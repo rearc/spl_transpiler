@@ -1,0 +1,14 @@
+`o365_management_activity` Workload=AzureActiveDirectory  Operation="Update user."
+| eval propertyName = mvindex('ModifiedProperties{}.Name', 0)
+| search propertyName = StrongAuthenticationMethod
+| eval oldvalue = mvindex('ModifiedProperties{}.OldValue',0)
+| eval newvalue = mvindex('ModifiedProperties{}.NewValue',0)
+| rex field=newvalue max_match=0 "(?i)(?<new_method_type>\"MethodType\")"
+| rex field=oldvalue max_match=0 "(?i)(?<old_method_type>\"MethodType\")"
+| eval count_new_method_type = coalesce(mvcount(new_method_type), 0)
+| eval count_old_method_type = coalesce(mvcount(old_method_type), 0)
+|  where count_new_method_type > count_old_method_type
+|  stats earliest(_time) as firstTime latest(_time) as lastTime values(propertyName) by user newvalue oldvalue
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_new_mfa_method_registered_filter`

@@ -1,0 +1,5 @@
+ `admon` admonEventType=Update objectCategory="CN=Group-Policy-Container,CN=Schema,CN=Configuration,DC=*" versionNumber=0 displayName!="New Group Policy Object"
+| stats min(_time) as firstTime max(_time) as lastTime values(gPCFileSysPath) by dcName, displayName
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_admon_group_policy_object_created_filter`

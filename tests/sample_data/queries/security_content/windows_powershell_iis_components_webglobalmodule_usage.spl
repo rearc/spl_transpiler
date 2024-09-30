@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 ScriptBlockText IN("*New-WebGlobalModule*","*Enable-WebGlobalModule*","*Set-WebGlobalModule*")
+| stats count min(_time) as firstTime max(_time) as lastTime by EventCode ScriptBlockText Computer user_id
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_powershell_iis_components_webglobalmodule_usage_filter`

@@ -1,0 +1,9 @@
+`pingid` "result.message"="Device Paired*" result.status="SUCCESS"
+| rex field=result.message "Device (Unp)?(P)?aired (?<device_extract>.+)"
+| eval src = coalesce('resources{}.ipaddress','resources{}.devicemodel'), user = upper('actors{}.name'), reason = 'result.message'
+| eval object=CASE(ISNOTNULL('resources{}.devicemodel'),'resources{}.devicemodel',true(),device_extract)
+| eval action=CASE(match('result.message',"Device Paired*"),"created",match('result.message', "Device Unpaired*"),"deleted")
+| stats count min(_time) as firstTime, max(_time) as lastTime by src,user,object,action,reason
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `pingid_new_mfa_method_registered_for_user_filter`

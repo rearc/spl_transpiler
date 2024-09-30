@@ -1,0 +1,4 @@
+`aws_cloudwatchlogs_eks`
+|rename sourceIPs{} as src_ip
+|search src_ip=$src_ip$
+| stats count min(_time) as firstTime max(_time) as lastTime values(user.username) values(requestURI) values(verb) values(userAgent) by source annotations.authorization.k8s.io/decision src_ip

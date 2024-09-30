@@ -1,0 +1,9 @@
+`sysmon` EventCode=7 Company="Microsoft Corporation" Signed=false SignatureStatus != Valid NOT (Image IN("C:\\Windows\\System32\\*", "C:\\Windows\\SysWow64\\*", "C:\\Program Files*")) NOT (ImageLoaded IN("C:\\Windows\\System32\\*", "C:\\Windows\\SysWow64\\*", "C:\\Program Files*"))
+| rex field=Image "(?<ImageFolderPath>.+\\\)"
+| rex field=ImageLoaded "(?<ImageLoadedFolderPath>.+\\\)"
+| where ImageFolderPath = ImageLoadedFolderPath
+| stats count min(_time) as firstTime max(_time) as lastTime by Image ProcessGuid ImageLoaded user Computer EventCode ImageFolderPath ImageLoadedFolderPath Company Description Product Signed SignatureStatus
+| rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `windows_unsigned_ms_dll_side_loading_filter`

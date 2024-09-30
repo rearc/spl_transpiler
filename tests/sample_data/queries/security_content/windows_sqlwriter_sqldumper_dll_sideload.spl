@@ -1,0 +1,5 @@
+`sysmon` EventCode=7 (Image="*\\SQLDumper.exe" OR Image="*\\SQLWriter.exe") ImageLoaded="*\\vcruntime140.dll" NOT ImageLoaded="C:\\Windows\\System32\\*"
+| stats values(ImageLoaded) count min(_time) as firstTime max(_time) as lastTime by Image,ImageLoaded, user, Computer, EventCode
+| rename Computer as dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `windows_sqlwriter_sqldumper_dll_sideload_filter`

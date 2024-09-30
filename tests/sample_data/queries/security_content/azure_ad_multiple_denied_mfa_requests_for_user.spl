@@ -1,0 +1,9 @@
+`azure_monitor_aad` category=SignInLogs operationName="Sign-in activity"
+| rename properties.* as *
+| search status.errorCode=500121 status.additionalDetails="MFA denied; user declined the authentication"
+| bucket span=10m _time
+| stats count min(_time) as firstTime max(_time) as lastTime by user, status.additionalDetails, appDisplayName, user_agent
+| where count > 9
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_multiple_denied_mfa_requests_for_user_filter`

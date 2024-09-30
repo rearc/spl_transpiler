@@ -1,0 +1,6 @@
+index=something
+| from datamodel Web.Web
+| regex _raw="[jJnNdDiI]{4}(\:|\%3A|\/|\%2F)\w+(\:\/\/|\%3A\%2F\%2F)(\$\{.*?\}(\.)?)?"
+| fillnull
+| stats count by action, category, dest, dest_port, http_content_type, http_method, http_referrer, http_user_agent, site, src, url, url_domain, user
+| `log4shell_jndi_payload_injection_attempt_filter`

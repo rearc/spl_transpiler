@@ -1,0 +1,7 @@
+`github` workflow_run.event=push OR workflow_run.event=pull_request
+| stats values(workflow_run.name) as workflow_run.name by workflow_run.head_commit.id workflow_run.event workflow_run.head_branch workflow_run.head_commit.author.email workflow_run.head_commit.author.name workflow_run.head_commit.message workflow_run.head_commit.timestamp workflow_run.head_repository.full_name workflow_run.head_repository.owner.id workflow_run.head_repository.owner.login workflow_run.head_repository.owner.type
+| rename workflow_run.head_commit.author.name as user, workflow_run.head_commit.author.email as user_email, workflow_run.head_repository.full_name as repository, workflow_run.head_branch as branch
+| search NOT workflow_run.name=*security-testing*
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `github_actions_disable_security_workflow_filter`

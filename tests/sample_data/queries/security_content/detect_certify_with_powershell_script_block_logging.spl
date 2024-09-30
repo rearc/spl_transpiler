@@ -1,0 +1,8 @@
+`powershell` EventCode=4104 (ScriptBlockText IN ("*find *") AND ScriptBlockText IN ("* /vulnerable*","* -vulnerable*","* /enrolleeSuppliesSubject *","* /json /outfile*")) OR (ScriptBlockText IN (,"*auth *","*req *",) AND ScriptBlockText IN ("* -ca *","* -username *","* -u *")) OR (ScriptBlockText IN ("*request *","*download *") AND ScriptBlockText IN ("* /ca:*"))
+| stats count min(_time) as firstTime max(_time) as lastTime list(ScriptBlockText) as command Values(OpCode) as reason values(Path) as file_name values(UserID) as user by _time Computer EventCode
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| eval file_name = case(isnotnull(file_name),file_name,true(),"unknown")
+| eval signature = substr(command,0,256)
+| rename Computer as dest,EventCode as signature_id
+| `detect_certify_with_powershell_script_block_logging_filter`

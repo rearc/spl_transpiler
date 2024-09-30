@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where (Processes.process_name = setcap OR Processes.process = "*setcap *") AND Processes.process IN ("* cap_setuid=ep *", "* cap_setuid+ep *", "* cap_net_bind_service+p *", "* cap_net_raw+ep *", "* cap_dac_read_search+ep *") by Processes.dest Processes.user Processes.parent_process_name Processes.process_name Processes.process Processes.process_id Processes.parent_process_id Processes.process_guid
+| `drop_dm_object_name(Processes)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `linux_setuid_using_setcap_utility_filter`

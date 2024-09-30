@@ -1,0 +1,7 @@
+`crowdstrike_stream`
+| rename event.EndpointIp as src_ip, event.EndpointName as src_host, event.UserName as user, event.IncidentDescription as description, event.IncidentType as type, event.NumbersOfAlerts as count_alerts, event.SeverityName as severity
+| stats count min(_time) as firstTime max(_time) as lastTime by src_ip, src_host, user, description, type, count_alerts, severity
+| where LIKE (severity, "%MEDIUM%")
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `crowdstrike_medium_severity_alert_filter`

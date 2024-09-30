@@ -1,0 +1,11 @@
+ `azure_monitor_aad`  operationName="Add owner to application"
+| rename properties.* as *
+| rename initiatedBy.user.userPrincipalName as initiatedBy
+| rename targetResources{}.userPrincipalName as newOwner
+| rename targetResources{}.modifiedProperties{}.newValue as displayName
+| eval displayName = mvindex(displayName,1)
+| where initiatedBy!=newOwner
+| stats count min(_time) as firstTime max(_time) as lastTime values(displayName) as displayName by initiatedBy, result, operationName, newOwner
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_service_principal_owner_added_filter`

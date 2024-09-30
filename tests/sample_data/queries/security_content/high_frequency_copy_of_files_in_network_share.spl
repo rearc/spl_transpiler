@@ -1,0 +1,8 @@
+`wineventlog_security` EventCode=5145 RelativeTargetName IN ("*.doc","*.docx","*.xls","*.xlsx","*.ppt","*.pptx","*.log","*.txt","*.db","*.7z","*.zip","*.rar","*.tar","*.gz","*.jpg","*.gif","*.png","*.bmp","*.pdf","*.rtf","*.key") ObjectType=File ShareName IN ("\\\\*\\C$","\\\\*\\IPC$","\\\\*\\admin$") AccessMask= "0x2"
+|  bucket _time span=5m
+| stats values(RelativeTargetName) as valRelativeTargetName, values(ShareName) as valShareName, values(ObjectType) as valObjectType, values(AccessMask) as valAccessmask, values(src_port) as valSrcPort, values(SourceAddress) as valSrcAddress count as numShareName by dest, _time, EventCode, src_user, src_ip
+| eventstats avg(numShareName) as avgShareName, stdev(numShareName) as stdShareName, count as numSlots by dest, _time, EventCode, src_user
+|  eval upperThreshold=(avgShareName + stdShareName *3)
+|  eval isOutlier=if(avgShareName > 20 and avgShareName >= upperThreshold, 1, 0)
+|  search isOutlier=1
+| `high_frequency_copy_of_files_in_network_share_filter`

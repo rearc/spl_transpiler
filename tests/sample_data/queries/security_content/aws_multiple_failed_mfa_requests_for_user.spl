@@ -1,0 +1,4 @@
+`cloudtrail` eventName= ConsoleLogin "additionalEventData.MFAUsed"=Yes errorMessage="Failed authentication"
+| bucket span=5m _time
+|  stats dc(_raw) as mfa_prompts values(userAgent) as userAgent values(src) as src by _time user_name user_arn aws_account_id eventName errorMessage
+| where mfa_prompts > 10| `aws_multiple_failed_mfa_requests_for_user_filter`

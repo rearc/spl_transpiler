@@ -1,0 +1,7 @@
+`ms_defender` EventCode IN (1121, 1122, 1125, 1126, 1129, 1131, 1132, 1133, 1134, 5007)
+| stats count min(_time) as firstTime max(_time) as lastTime by host Parent_Commandline, Process_Name, Path, ID, EventCode
+| lookup asr_rules ID OUTPUT ASR_Rule
+| fillnull value=NULL
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| rename host as dest
+| `windows_defender_asr_rules_stacking_filter`

@@ -1,0 +1,13 @@
+`azure_monitor_aad` operationName="Consent to application" properties.result=failure
+| rename properties.* as *
+| eval reason_index = if(mvfind('targetResources{}.modifiedProperties{}.displayName', "ConsentAction.Reason") >= 0, mvfind('targetResources{}.modifiedProperties{}.displayName', "ConsentAction.Reason"), -1)
+| eval permissions_index = if(mvfind('targetResources{}.modifiedProperties{}.displayName', "ConsentAction.Permissions") >= 0, mvfind('targetResources{}.modifiedProperties{}.displayName', "ConsentAction.Permissions"), -1)
+| search reason_index >= 0
+| eval reason = mvindex('targetResources{}.modifiedProperties{}.newValue',reason_index)
+| eval permissions = mvindex('targetResources{}.modifiedProperties{}.newValue',permissions_index)
+| search reason = "\"Risky application detected\""
+| rex field=permissions "Scope: (?<Scope>[^,]+)"
+| stats count min(_time) as firstTime max(_time) as lastTime by operationName, user, reason, Scope
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_user_consent_blocked_for_risky_application_filter`

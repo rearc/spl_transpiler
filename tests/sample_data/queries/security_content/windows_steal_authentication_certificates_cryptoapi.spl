@@ -1,0 +1,6 @@
+`capi2_operational` EventCode=70
+| xmlkv UserData_Xml
+| stats count min(_time) as firstTime max(_time) as lastTime by Computer, UserData_Xml
+| rename Computer as dest
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `windows_steal_authentication_certificates_cryptoapi_filter`

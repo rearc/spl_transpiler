@@ -1,0 +1,4 @@
+`kube_container_falco` "A shell was spawned in a container"
+|  fillnull
+| stats count by container_image container_image_tag container_name parent proc_exepath process user
+| `kubernetes_falco_shell_spawned_filter`

@@ -1,0 +1,5 @@
+`wineventlog_system` EventCode=7045 ServiceType="kernel mode driver"
+| table _time dest EventCode ImagePath ServiceName ServiceType
+| lookup loldrivers driver_name AS ImagePath OUTPUT is_driver driver_description
+| search is_driver = TRUE
+| `windows_vulnerable_driver_installed_filter`

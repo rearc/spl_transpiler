@@ -1,0 +1,9 @@
+index=something
+| mstats count(udp.packets) as udp.packets_count where `kubernetes_metrics` AND earliest=-1h by k8s.cluster.name source.workload.name dest.workload.name
+| eval current="True"
+| append [ mstats count(udp.packets) as udp.packets_count where `kubernetes_metrics` AND earliest=-30d latest=-1h by source.workload.name dest.workload.name
+| eval current="false" ]
+| eventstats values(current) as current by source.workload.name dest.workload.name
+| search current="true" current!="false"
+| rename k8s.cluster.name as host
+| `kubernetes_newly_seen_udp_edge_filter`

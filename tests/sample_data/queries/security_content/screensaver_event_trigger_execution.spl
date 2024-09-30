@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count  min(_time) as firstTime max(_time) as lastTime FROM datamodel=Endpoint.Registry where (Registry.registry_path="*\\Control Panel\\Desktop\\SCRNSAVE.EXE*") by Registry.dest Registry.user Registry.registry_path Registry.registry_key_name Registry.registry_value_name
+| `security_content_ctime(lastTime)`
+| `security_content_ctime(firstTime)`
+| `drop_dm_object_name(Registry)`
+| `screensaver_event_trigger_execution_filter`

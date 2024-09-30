@@ -1,0 +1,5 @@
+ `wineventlog_security` EventCode=5140 OR EventCode=5145 (ShareName="\\\\*\\ADMIN$" OR ShareName="\\\\*\\IPC$" OR ShareName="\\\\*\\C$")
+| bucket span=5m _time
+| stats dc(Computer) AS unique_targets values(Computer) as host_targets values(ShareName) as shares by _time, IpAddress, SubjectUserName, EventCode
+| where unique_targets > 30
+| `windows_administrative_shares_accessed_on_multiple_hosts_filter`

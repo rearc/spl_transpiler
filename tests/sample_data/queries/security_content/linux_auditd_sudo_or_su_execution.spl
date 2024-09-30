@@ -1,0 +1,6 @@
+`linux_auditd` `linux_auditd_normalized_proctitle_process`
+| rename host as dest
+| where LIKE(process_exec, "%sudo %") OR LIKE(process_exec, "%su %")
+| stats count min(_time) as firstTime max(_time) as lastTime by process_exec proctitle normalized_proctitle_delimiter dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `linux_auditd_sudo_or_su_execution_filter`

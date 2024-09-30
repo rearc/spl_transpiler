@@ -1,0 +1,5 @@
+`zeek_x509`
+| rex field=san.email{} "\@(?<domain_detected>xn--.*)"
+| rex field=san.other_fields{} "\@(?<domain_detected>xn--.*)"
+| stats values(domain_detected) by  basic_constraints.ca source host
+| `zeek_x509_certificate_with_punycode_filter`

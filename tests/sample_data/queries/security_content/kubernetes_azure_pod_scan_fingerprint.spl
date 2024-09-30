@@ -1,0 +1,5 @@
+`kubernetes_azure` category=kube-audit
+| spath input=properties.log
+| search responseStatus.code=401
+| table  sourceIPs{} userAgent verb requestURI responseStatus.reason properties.pod
+|`kubernetes_azure_pod_scan_fingerprint_filter`

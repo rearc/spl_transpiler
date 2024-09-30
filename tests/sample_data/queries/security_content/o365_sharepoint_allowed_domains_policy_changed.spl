@@ -1,0 +1,9 @@
+`o365_management_activity` Workload=SharePoint Operation=SharingPolicyChanged "ModifiedProperties{}.Name"=AllowDomainList
+| eval signature_id = CorrelationId, signature=Operation, src = ClientIP, user = UserId, object_name='ModifiedProperties{}.Name', object_attrs_new = split(replace('ModifiedProperties{}.NewValue',"\.\.\.",""),","), object_attrs_old = split(replace('ModifiedProperties{}.OldValue',"\.\.\.",""),",")
+| stats values(object_attrs_new) as object_attrs_new, values(object_attrs_old) as object_attrs_old, values(src) as src, count, min(_time) as firstTime, max(_time) as lastTime by user,signature,signature_id,object_name
+| eval diff_add=mvmap(object_attrs_new,if(isnull(mvfind(object_attrs_old,object_attrs_new)),object_attrs_new,null))
+| eval diff_remove=mvmap(object_attrs_old,if(isnull(mvfind(object_attrs_new,object_attrs_old)),object_attrs_old,null))
+| eval result = case(isnotnull(diff_add),"Added ".mvjoin(diff_add,","),isnotnull(diff_remove),"Removed ".mvjoin(diff_remove,",")), action = case(isnotnull(diff_add),"created",isnotnull(diff_remove),"deleted")
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_sharepoint_allowed_domains_policy_changed_filter`

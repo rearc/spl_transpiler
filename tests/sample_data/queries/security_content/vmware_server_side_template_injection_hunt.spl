@@ -1,0 +1,6 @@
+index=something
+| tstats count from datamodel=Web where Web.http_method IN ("GET") Web.url="*deviceudid=*" AND Web.url IN ("*java.lang.ProcessBuilder*","*freemarker.template.utility.ObjectConstructor*") by Web.http_user_agent Web.http_method, Web.url,Web.url_length Web.src, Web.dest sourcetype
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `vmware_server_side_template_injection_hunt_filter`

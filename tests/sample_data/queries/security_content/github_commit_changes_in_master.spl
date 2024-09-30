@@ -1,0 +1,6 @@
+`github` branches{}.name = main OR branches{}.name = master
+|  stats count min(_time) as firstTime max(_time) as lastTime by commit.commit.author.email commit.author.login commit.commit.message repository.pushed_at commit.commit.committer.date repository.full_name
+| rename commit.author.login as user, repository.full_name as repository
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `github_commit_changes_in_master_filter`

@@ -1,0 +1,5 @@
+`nginx_access_logs` uri_path IN ("*/SetupWizard.aspx/*","*/SetupWizard/") status=200 http_method=POST
+| stats count min(_time) as firstTime max(_time) as lastTime by src, dest, http_user_agent, url, uri_path, status, http_method, sourcetype, source
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `nginx_connectwise_screenconnect_authentication_bypass_filter`

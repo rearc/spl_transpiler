@@ -1,0 +1,13 @@
+ `o365_management_activity` Workload=SecurityComplianceCenter Category=ThreatManagement Operation=AlertTriggered
+| spath input=Data path=f3u output=user
+| spath input=Data path=op output=operation
+| spath input=_raw path=wl
+| spath input=Data path=rid output=rule_id
+| spath input=Data path=ad output=alert_description
+| spath input=Data path=lon output=operation_name
+| spath input=Data path=an output=alert_name
+| spath input=Data path=sev output=severity
+|  stats count earliest(_time) as firstTime latest(_time) as lastTime by user, Name, operation, rule_id, alert_description, alert_name, severity
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_security_and_compliance_alert_triggered_filter`

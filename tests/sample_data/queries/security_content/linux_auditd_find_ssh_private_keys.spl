@@ -1,0 +1,6 @@
+`linux_auditd` `linux_auditd_normalized_execve_process`
+| rename host as dest
+| where  (LIKE (process_exec, "%find%") OR LIKE (process_exec, "%grep%")) AND (LIKE (process_exec, "%id_rsa%") OR LIKE (process_exec, "%id_dsa%")OR LIKE (process_exec, "%.key%") OR LIKE (process_exec, "%ssh_key%")OR LIKE (process_exec, "%authorized_keys%"))
+| stats count min(_time) as firstTime max(_time) as lastTime by argc process_exec dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`| `linux_auditd_find_ssh_private_keys_filter`

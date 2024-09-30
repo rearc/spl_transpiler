@@ -1,0 +1,6 @@
+ `o365_management_activity` Workload=AzureActiveDirectory  Operation=UserLoggedIn
+| stats min(_time) as firstTime max(_time) as lastTime values(src_ip) as ips values(user_agent) as user_agents by Operation, user, SessionId
+| where mvcount(ips) > 1
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `o365_concurrent_sessions_from_different_ips_filter`

@@ -1,0 +1,5 @@
+ `o365_management_activity` Operation=UserLoginFailed  record_type=AzureActiveDirectoryStsLogon Workload=AzureActiveDirectory
+| bucket span=5m _time
+| stats  dc(_raw) AS failed_attempts  values(src_ip) as src_ip by user, _time
+| where failed_attempts > 10
+| `o365_high_number_of_failed_authentications_for_user_filter`

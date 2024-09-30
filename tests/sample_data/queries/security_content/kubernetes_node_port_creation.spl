@@ -1,0 +1,5 @@
+`kube_audit` "objectRef.resource"=services verb=create requestObject.spec.type=NodePort
+| fillnull
+| stats count values(user.groups{}) as user_groups by kind objectRef.name objectRef.namespace objectRef.resource requestObject.kind requestObject.spec.type responseStatus.code sourceIPs{} stage user.username userAgent verb
+| rename sourceIPs{} as src_ip, user.username as user
+| `kubernetes_node_port_creation_filter`

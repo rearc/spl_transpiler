@@ -1,0 +1,11 @@
+index=something
+| tstats `security_content_summariesonly` values(All_Email.recipient) as recipients, min(_time) as firstTime, max(_time) as lastTime from datamodel=Email by All_Email.src_user, All_Email.message_id
+| `drop_dm_object_name("All_Email")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| eval temp=split(src_user, "@")
+| eval email_domain=mvindex(temp, 1)
+| lookup update=true brandMonitoring_lookup domain as email_domain OUTPUT domain_abuse
+| search domain_abuse=true
+| table message_id, src_user, email_domain, recipients, firstTime, lastTime
+| `monitor_email_for_brand_abuse_filter`

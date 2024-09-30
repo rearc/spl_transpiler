@@ -1,0 +1,5 @@
+`wineventlog_security` EventCode=4663 NOT (ProcessName IN ("*\\firefox.exe", "*\\explorer.exe", "*sql*")) ObjectName="*\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles*"
+| stats count min(_time) as firstTime max(_time) as lastTime by ObjectName ObjectType ProcessName AccessMask EventCode dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `non_firefox_process_access_firefox_profile_dir_filter`

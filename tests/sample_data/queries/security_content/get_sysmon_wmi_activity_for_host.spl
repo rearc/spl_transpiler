@@ -1,0 +1,3 @@
+`sysmon` EventCode>18 EventCode<22
+| rename host as dest
+| search dest=$dest$| table _time, dest, user, Name, Operation, EventType, Type, Query, Consumer, Filter

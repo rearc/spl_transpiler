@@ -1,0 +1,6 @@
+ `amazon_security_lake` api.operation=DescribeEventAggregates src_endpoint.domain!="AWS Internal"
+| bin span=5m _time
+| stats values(src_endpoint.ip) as src_ip dc(src_endpoint.ip) as distinct_ip_count by _time identity.user.credential_uid identity.user.name
+| where distinct_ip_count > 1
+| rename identity.user.name as user
+| `asl_aws_concurrent_sessions_from_different_ips_filter`

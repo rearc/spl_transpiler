@@ -1,0 +1,6 @@
+{
+  "arguments": ["x"],
+  "definition": "rename $x$.* AS *",
+  "description": "[PLACEHOLDER] - Not necessarily functional, just avoiding crashing for commonly used macro",
+  "name": "drop_dm_object_name"
+}

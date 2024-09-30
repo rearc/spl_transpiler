@@ -1,0 +1,4 @@
+`linux_auditd` type=PATH name="/etc/ld.so.preload*"
+| rename host as dest
+| stats count min(_time) as firstTime max(_time) as lastTime by name nametype OGID type dest
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`| `linux_auditd_preload_hijack_via_preload_file_filter`

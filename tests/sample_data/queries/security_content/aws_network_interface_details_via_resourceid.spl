@@ -1,0 +1,2 @@
+`aws_config` resourceId=$resourceId$
+| table _time ARN relationships{}.resourceType relationships{}.name relationships{}.resourceId  configuration.privateIpAddresses{}.privateIpAddress configuration.privateIpAddresses{}.association.publicIp

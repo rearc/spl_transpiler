@@ -1,0 +1,2 @@
+index=something
+| search `netbackup` dest=$dest$

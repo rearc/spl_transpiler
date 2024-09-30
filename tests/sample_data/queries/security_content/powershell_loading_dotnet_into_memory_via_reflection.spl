@@ -1,0 +1,5 @@
+`powershell` EventCode=4104 ScriptBlockText IN ("*[system.reflection.assembly]::load(*","*[reflection.assembly]*", "*reflection.assembly*")
+| stats count min(_time) as firstTime max(_time) as lastTime by Opcode Computer UserID EventCode ScriptBlockText
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `powershell_loading_dotnet_into_memory_via_reflection_filter`

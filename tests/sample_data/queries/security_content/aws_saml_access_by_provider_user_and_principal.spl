@@ -1,0 +1,4 @@
+`cloudtrail` eventName=Assumerolewithsaml
+| stats count min(_time) as firstTime max(_time) as lastTime by eventName requestParameters.principalArn requestParameters.roleArn requestParameters.roleSessionName recipientAccountId responseElements.issuer sourceIPAddress userAgent
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+|`aws_saml_access_by_provider_user_and_principal_filter`

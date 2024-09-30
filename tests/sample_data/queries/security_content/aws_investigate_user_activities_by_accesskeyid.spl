@@ -1,0 +1,5 @@
+`cloudtrail`
+| rename userIdentity.accessKeyId as accessKeyId| search accessKeyId=$accessKeyId$
+| spath output=user path=userIdentity.arn
+| rename sourceIPAddress as src_ip
+| table _time, user, src_ip, awsRegion, eventName, errorCode, errorMessage

@@ -1,0 +1,6 @@
+`certificateservices_lifecycle` EventCode=1007
+| xmlkv UserData_Xml
+| stats count min(_time) as firstTime max(_time) as lastTime by Computer, SubjectName, UserData_Xml
+| rename Computer as dest
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`
+| `windows_export_certificate_filter`

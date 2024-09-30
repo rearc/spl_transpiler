@@ -1,0 +1,5 @@
+`sysmon` EventCode= 11  (TargetFilename = "*\\passff.tar" OR TargetFilename = "*\\cookie.tar")
+|stats count min(_time) as firstTime max(_time) as lastTime by TargetFilename EventCode process_id  process_name dest
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `icedid_exfiltrated_archived_file_creation_filter`

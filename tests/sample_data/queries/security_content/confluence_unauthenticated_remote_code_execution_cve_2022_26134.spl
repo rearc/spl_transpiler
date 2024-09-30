@@ -1,0 +1,6 @@
+index=something
+| tstats count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where Web.url IN ("*${*", "*%2F%7B*") (Web.url="*org.apache.commons.io.IOUtils*" Web.url="*java.lang.Runtime@getRuntime().exec*") OR (Web.url="*java.lang.Runtime%40getRuntime%28%29.exec*") OR (Web.url="*getEngineByName*" AND Web.url="*nashorn*" AND Web.url="*ProcessBuilder*") by Web.http_user_agent Web.http_method, Web.url,Web.url_length Web.src, Web.dest sourcetype
+| `drop_dm_object_name("Web")`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `confluence_unauthenticated_remote_code_execution_cve_2022_26134_filter`

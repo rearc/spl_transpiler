@@ -1,0 +1,5 @@
+`printservice` EventCode=316 category = "Adding a printer driver" Message = "*kernelbase.dll,*" Message = "*UNIDRV.DLL,*" Message = "*.DLL.*"
+| stats  count min(_time) as firstTime max(_time) as lastTime by OpCode EventCode ComputerName Message
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `print_spooler_adding_a_printer_driver_filter`

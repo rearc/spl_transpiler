@@ -1,0 +1,9 @@
+ `azure_monitor_aad` category=SignInLogs properties.status.errorCode=50126 properties.authenticationDetails{}.succeeded=false
+| rename properties.* as *
+| bucket span=5m _time
+| eval uniqueIPUserCombo = src_ip . "-" . user
+| stats count min(_time) as firstTime max(_time) as lastTime dc(uniqueIPUserCombo) as uniqueIpUserCombinations, dc(user) as uniqueUsers, dc(src_ip) as uniqueIPs, dc(user_agent) as uniqueUserAgents, dc(location.countryOrRegion) as uniqueCountries values(user) as user, values(src_ip) as ips, values(user_agent) as user_agents, values(location.countryOrRegion) as countries
+| where uniqueIpUserCombinations > 20 AND uniqueUsers > 20 AND uniqueIPs > 20 AND uniqueUserAgents = 1
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_multi_source_failed_authentications_spike_filter`

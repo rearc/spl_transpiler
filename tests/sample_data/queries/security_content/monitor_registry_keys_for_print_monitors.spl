@@ -1,0 +1,6 @@
+index=something
+| tstats `security_content_summariesonly` count FROM datamodel=Endpoint.Registry WHERE (Registry.action=modified AND Registry.registry_path="*CurrentControlSet\\Control\\Print\\Monitors*") BY _time span=1h Registry.dest Registry.user Registry.registry_path Registry.registry_key_name Registry.registry_value_name Registry.registry_value_data Registry.process_guid
+| `drop_dm_object_name(Registry)`
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `monitor_registry_keys_for_print_monitors_filter`

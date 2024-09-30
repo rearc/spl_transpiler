@@ -1,0 +1,8 @@
+index=something
+| mstats count(process.memory.utilization) as process.memory.utilization_count where `kubernetes_metrics` AND earliest=-1h by host.name k8s.cluster.name k8s.node.name process.pid process.executable.path process.executable.name
+| eval current="True"
+| append [ mstats count(process.memory.utilization) as process.memory.utilization_count where `kubernetes_metrics` AND earliest=-30d latest=-1h by host.name k8s.cluster.name k8s.node.name process.pid process.executable.path process.executable.name ]
+| stats count values(current) as current by host.name k8s.cluster.name k8s.node.name process.pid process.executable.name process.executable.path
+| where count=1 and current="True"
+| rename host.name as host
+| `kubernetes_process_running_from_new_path_filter`

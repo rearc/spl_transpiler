@@ -1,0 +1,8 @@
+ `azure_monitor_aad`  category=SignInLogs properties.status.errorCode=50126 properties.authenticationDetails{}.succeeded=false
+| rename properties.* as *
+| bucket span=5m _time
+| stats count min(_time) as firstTime max(_time) as lastTime dc(user) AS unique_accounts values(user) as user by src_ip
+| where unique_accounts > 30
+| `security_content_ctime(firstTime)`
+| `security_content_ctime(lastTime)`
+| `azure_ad_multiple_users_failing_to_authenticate_from_ip_filter`

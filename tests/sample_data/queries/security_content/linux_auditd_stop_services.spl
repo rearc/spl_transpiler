@@ -1,0 +1,4 @@
+`linux_auditd` type=SERVICE_STOP
+| rename host as dest
+| stats count min(_time) as firstTime max(_time) as lastTime by type pid UID comm exe dest
+| `security_content_ctime(firstTime)`| `security_content_ctime(lastTime)`| `linux_auditd_stop_services_filter`

@@ -1,0 +1,6 @@
+ `wineventlog_security` EventCode=5137 OR (EventCode=5136 AttributeValue!="New Group Policy Object" AND (AttributeLDAPDisplayName=displayName OR AttributeLDAPDisplayName=gPCFileSysPath) ) ObjectClass=groupPolicyContainer
+| stats values(AttributeValue) as details values(SubjectUserSid) as User values(ObjectDN) as ObjectDN by ObjectGUID Computer
+| eval GPO_Name = mvindex(details, 0)
+| eval GPO_Path = mvindex(details, 1)
+| fields - details
+| `windows_group_policy_object_created_filter`

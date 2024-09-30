@@ -1,0 +1,3 @@
+ `gws_reports_login` event.name=login_failure `gws_login_mfa_methods`
+| stats count min(_time) as firstTime max(_time) as lastTime by user, src_ip, login_challenge_method
+| `gcp_authentication_failed_during_mfa_challenge_filter`
