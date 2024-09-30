@@ -1,6 +1,6 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Expr, Field, ParsedCommandOptions};
-use crate::spl::parser::{bool_, field_list, stats_call, ws};
+use crate::spl::parser::{bool_, comma_or_space_separated_list1, field, stats_call, ws};
 use crate::spl::python::impl_pyclass;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
@@ -72,7 +72,10 @@ impl SplCommand<StatsCommand> for StatsParser {
             tuple((
                 Self::Options::match_options,
                 stats_call,
-                opt(preceded(ws(tag_no_case("by")), field_list)),
+                opt(preceded(
+                    ws(tag_no_case("by")),
+                    comma_or_space_separated_list1(field),
+                )),
                 opt(preceded(
                     pair(ws(tag_no_case("dedup_splitvals")), ws(tag("="))),
                     bool_,
@@ -246,5 +249,39 @@ mod tests {
                 .into()
             ))
         )
+    }
+
+    #[test]
+    fn test_stats_1() {
+        let query = r#"stats
+        count min(_time) as firstTime max(_time) as lastTime
+        by action deviceowner user urlcategory url src dest"#;
+
+        assert_eq!(
+            StatsParser::parse(query),
+            Ok((
+                "",
+                StatsCommand {
+                    partitions: 1,
+                    all_num: false,
+                    delim: " ".to_string(),
+                    funcs: vec![
+                        _call!(count()).into(),
+                        _alias("firstTime", _call!(min(ast::Field::from("_time")))).into(),
+                        _alias("lastTime", _call!(max(ast::Field::from("_time")))).into(),
+                    ],
+                    by: vec![
+                        ast::Field::from("action"),
+                        ast::Field::from("deviceowner"),
+                        ast::Field::from("user"),
+                        ast::Field::from("urlcategory"),
+                        ast::Field::from("url"),
+                        ast::Field::from("src"),
+                        ast::Field::from("dest"),
+                    ],
+                    dedup_split_vals: false,
+                }
+            ))
+        );
     }
 }

@@ -158,4 +158,18 @@ mod tests {
             ))
         )
     }
+
+    #[test]
+    fn test_rename_5() {
+        assert_eq!(
+            RenameParser::parse(r#"rename "Web".* AS *"#),
+            Ok((
+                "",
+                RenameCommand {
+                    alias: vec![_alias("*", ast::Field::from("\"Web\".*")),],
+                }
+                .into()
+            ))
+        )
+    }
 }

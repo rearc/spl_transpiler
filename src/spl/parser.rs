@@ -276,7 +276,10 @@ pub fn _token_not_t_f(input: &str) -> IResult<&str, &str> {
 pub fn field(input: &str) -> IResult<&str, ast::Field> {
     // map(_token_not_t_f, |v: &str| ast::Field(v.into()))(input)
     map(
-        recognize(separated_list1(tag("."), _token_not_t_f)),
+        recognize(separated_list1(
+            tag("."),
+            alt((_token_not_t_f, double_quoted)),
+        )),
         |v: &str| ast::Field(v.into()),
     )(input)
 }

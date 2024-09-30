@@ -1,6 +1,10 @@
+import json
 import logging
 import re
-from typing import Protocol
+from functools import cache
+from itertools import islice
+from pathlib import Path
+from typing import Protocol, Mapping, Callable
 
 from pydantic import BaseModel
 
@@ -17,6 +21,64 @@ class MacroDefinition(BaseModel):
 class MacroLoader(Protocol):
     def __getitem__(self, item: str) -> dict | MacroDefinition:
         pass
+
+
+class RegistryMacroLoader(MacroLoader):
+    def __init__(self, values: Mapping[str, MacroDefinition]):
+        self.registry = {}
+        self.registry.update(values)
+
+    def register(self, name: str, definition: MacroDefinition):
+        self.registry[name] = definition
+
+    def __getitem__(self, item):
+        return self.registry[item]
+
+
+class FolderMacroLoader(MacroLoader):
+    def __init__(self, root_dir: Path, suffix: str = ".json", loader=json.load):
+        self.root_dir = root_dir
+        self.suffix = suffix
+        self.loader = loader
+
+    @cache
+    def __getitem__(self, item):
+        macro_files = list(islice(self.root_dir.rglob(f"{item}{self.suffix}"), 2))
+        if len(macro_files) > 1:
+            raise ValueError(
+                f"Multiple macro files found for `{item}`: {list(macro_files)}"
+            )
+        elif len(macro_files) < 1:
+            raise KeyError(f"No macro found for `{item}`")
+        macro_file = macro_files[0]
+
+        if not macro_file.is_file():
+            raise KeyError(f"Item found for `{item}` is not a file")
+
+        with macro_file.open() as file:
+            definition = self.loader(file)
+
+        return MacroDefinition.model_validate(definition)
+
+
+class CombinedMacroLoader(MacroLoader):
+    def __init__(
+        self, *loaders, fallback_fn: Callable[[str], MacroDefinition] | None = None
+    ):
+        self.loaders = loaders
+        self.fallback_fn = fallback_fn
+
+    def __getitem__(self, item):
+        for loader in self.loaders:
+            try:
+                return loader[item]
+            except KeyError:
+                pass
+
+        if self.fallback_fn is not None:
+            return self.fallback_fn(item)
+
+        raise KeyError(f"No macro found for `{item}`")
 
 
 def substitute_macros(code, macros: MacroLoader):

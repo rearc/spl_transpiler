@@ -1,4 +1,5 @@
-from spl_transpiler import substitute_macros, parse_with_macros, render_pyspark
+from spl_transpiler import render_pyspark
+from spl_transpiler.macros import substitute_macros, parse_with_macros
 
 
 def test_macro_substitution():

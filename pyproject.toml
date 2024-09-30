@@ -26,7 +26,12 @@ test = [
     "pytest",
     "pytest-dependency",
     "tabulate",
+    "pyparsing",
 ]
 cli = [
     "textual[syntax]"
 ]
+
+[tool.pytest.ini_options]
+# Ignore the bulk query test by default (it can still be run directly)
+addopts = "--ignore=tests/test_sample_files_parse.py"

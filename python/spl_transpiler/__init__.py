@@ -5,7 +5,7 @@ from spl_transpiler.spl_transpiler import (
     ast,
 )
 
-from .macros import substitute_macros, parse_with_macros, MacroDefinition
+from . import macros
 from .utils import convert_spl_to_pyspark
 
 __all__ = (
@@ -14,7 +14,5 @@ __all__ = (
     "render_pyspark",
     "convert_spl_to_pyspark",
     "ast",
-    "MacroDefinition",
-    "substitute_macros",
-    "parse_with_macros",
+    "macros",
 )

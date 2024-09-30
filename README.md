@@ -432,3 +432,10 @@ package, some may be provided by Databricks Sirens.
 - [ ] Support re-using intermediate results (saving off as tables or variables, `.cache()`)
 - [ ] Support Scala UDFs
 - [ ] Support SQL output
+
+# Acknowledgements
+
+This project is deeply indebted to several other projects:
+
+- [Databricks Labs' Transpiler](https://github.com/databrickslabs/transpiler) provided most of the starting point for this parser, including an unambiguous grammar definition and numerous test cases which have been copied mostly verbatim. The license for that transpiler can be found [here](https://github.com/databrickslabs/transpiler/blob/main/LICENSE). Copyright 2021-2022 Databricks, Inc.
+- Numerous real-world SPL queries have been provided by [Splunk Security Content](https://github.com/splunk/security_content/tree/develop) under [Apache 2.0 License](https://github.com/splunk/security_content/blob/5c0471784331db5ec3e28f105b955ae84c4ecf17/LICENSE). Copyright 2022 Splunk Inc.
