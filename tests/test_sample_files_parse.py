@@ -1,5 +1,7 @@
 import json
 import logging
+import re
+from collections import defaultdict
 from pathlib import Path
 from typing import Iterable
 
@@ -444,6 +446,46 @@ def _print_file_results(file_tests: list[FileTester]):
         f"Successful Preparses:  {num_files_preparsed} ({num_files_preparsed / num_files:.2%})"
     )
 
+    results = defaultdict(lambda: dict(prevented_parse=0, prevented_transpile=0))
+
+    for file_test in file_tests:
+        failed_to_parse = [c.command for c in file_test.command_tests if not c.parsed]
+        failed_to_transpile = [
+            c.command for c in file_test.command_tests if not c.transpiled
+        ]
+
+        failed_to_parse = ",".join(sorted(set(failed_to_parse)))
+        failed_to_transpile = ",".join(sorted(set(failed_to_transpile)))
+
+        if failed_to_parse:
+            results[failed_to_parse]["prevented_parse"] += 1
+
+        if failed_to_transpile:
+            results[failed_to_transpile]["prevented_transpile"] += 1
+
+    log.error(
+        "Top-Level Failure Results:\n"
+        + tabulate(
+            [
+                (cmd_set, counts["prevented_parse"], counts["prevented_transpile"])
+                for cmd_set, counts in sorted(
+                    results.items(),
+                    key=lambda x: (
+                        x[1]["prevented_transpile"],
+                        x[1]["prevented_parse"],
+                        x[0],
+                    ),
+                )
+            ],
+            headers=[
+                "Command Set",
+                "Prevented Parsing",
+                "Prevented Transpiling",
+            ],
+            tablefmt="github",
+        )
+    )
+
 
 def _print_query_results(query_tests: list[QueryTester]):
     num_queries_parsed = sum(bool(t.parsed) for t in query_tests)
@@ -462,7 +504,10 @@ def _print_query_results(query_tests: list[QueryTester]):
 def _print_command_results(command_tests: list[CommandTester]):
     results = []
 
-    for command in ALL_SPL_COMMANDS:
+    for command in sorted(
+        ALL_SPL_COMMANDS,
+        key=lambda c: sum(not bool(t.parsed) for t in command_tests if t.command == c),
+    ):
         relevant_tests = [t for t in command_tests if t.command == command]
         if not relevant_tests:
             continue
@@ -507,6 +552,44 @@ def _print_command_results(command_tests: list[CommandTester]):
     )
 
 
+def _print_function_results(command_tests: list[CommandTester]):
+    counts = defaultdict(lambda: dict(total=0, success=0, failure=0))
+
+    for command in command_tests:
+        for func in re.findall(r"\b([a-z_]+)\(", command.query):
+            counts[func]["total"] += 1
+            counts[func]["success" if command.transpiled else "failure"] += 1
+
+    log.error(
+        "Function Results:\n"
+        + tabulate(
+            [
+                (
+                    func,
+                    func_counts["total"],
+                    func_counts["success"],
+                    func_counts["failure"],
+                )
+                for func, func_counts in sorted(
+                    counts.items(),
+                    key=lambda item: (
+                        item[1]["failure"] / item[1]["total"],
+                        item[1]["total"],
+                        item[0],
+                    ),
+                )
+            ],
+            headers=[
+                "Function",
+                "Samples",
+                "Associated Successes",
+                "Associated Failures",
+            ],
+            tablefmt="github",
+        )
+    )
+
+
 def _save_results(file_tests: list[FileTester]):
     results_file = Path(__file__).resolve().parent / "sample_files_results.json"
 
@@ -526,6 +609,7 @@ def test_sample_queries(macros):
 
     _print_file_results(file_tests)
     _print_query_results(query_tests)
+    _print_function_results(command_tests)
     _print_command_results(command_tests)
     _save_results(file_tests)
     assert success, "Not all queries or commands parsed properly"

@@ -174,7 +174,6 @@ mod tests {
                         ast::Field::from("_no").into()
                     )]),
                 }
-                .into()
             ))
         )
     }
@@ -220,7 +219,6 @@ mod tests {
                         (Some("-".into()), ast::Field::from("ip").into()),
                     ]),
                 }
-                .into()
             ))
         )
     }

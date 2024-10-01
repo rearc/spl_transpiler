@@ -191,7 +191,7 @@ pub fn time_span_one(input: &str) -> IResult<&str, ast::TimeSpan> {
 
 //   def relativeTime[_: P]: P[SnapTime] = (
 //       (timeSpan|timeSpanOne).? ~~ "@" ~~ timeUnit ~~ timeSpan.?).map(SnapTime.tupled)
-pub fn relative_time(input: &str) -> IResult<&str, ast::SnapTime> {
+fn _relative_time_fmt(input: &str) -> IResult<&str, ast::SnapTime> {
     map(
         tuple((
             opt(alt((time_span, time_span_one))),
@@ -205,6 +205,13 @@ pub fn relative_time(input: &str) -> IResult<&str, ast::SnapTime> {
             snap_offset: rhs_span,
         },
     )(input)
+}
+
+pub fn relative_time(input: &str) -> IResult<&str, ast::SnapTime> {
+    alt((
+        _relative_time_fmt,
+        delimited(tag("\""), _relative_time_fmt, tag("\"")),
+    ))(input)
 }
 
 //   def token[_: P]: P[String] = ("_"|"*"|letter|digit).repX(1).!
@@ -273,8 +280,7 @@ pub fn _token_not_t_f(input: &str) -> IResult<&str, &str> {
 }
 
 //   def field[_: P]: P[Field] = token.filter(!Seq("t", "f").contains(_)) map Field
-pub fn field(input: &str) -> IResult<&str, ast::Field> {
-    // map(_token_not_t_f, |v: &str| ast::Field(v.into()))(input)
+fn _field_fmt(input: &str) -> IResult<&str, ast::Field> {
     map(
         recognize(separated_list1(
             tag("."),
@@ -282,6 +288,10 @@ pub fn field(input: &str) -> IResult<&str, ast::Field> {
         )),
         |v: &str| ast::Field(v.into()),
     )(input)
+}
+
+pub fn field(input: &str) -> IResult<&str, ast::Field> {
+    alt((_field_fmt, delimited(tag("'"), _field_fmt, tag("'"))))(input)
 }
 
 pub fn string(input: &str) -> IResult<&str, &str> {
@@ -401,13 +411,13 @@ pub fn constant(input: &str) -> IResult<&str, ast::Constant> {
         map(ipv4_cidr, ast::Constant::IPv4CIDR),
         map(ipv4_addr, |s| ast::Constant::Str(s.into())),
         map(ipv6_addr, |s| ast::Constant::Str(s.into())),
-        map(wildcard, ast::Constant::Wildcard),
-        map(str_value, ast::Constant::Str),
-        map(variable, ast::Constant::Variable),
         map(relative_time, ast::Constant::SnapTime),
         map(time_span, |v| {
             ast::Constant::SplSpan(ast::SplSpan::TimeSpan(v))
         }),
+        map(wildcard, ast::Constant::Wildcard),
+        map(str_value, ast::Constant::Str),
+        map(variable, ast::Constant::Variable),
         map(double, ast::Constant::Double),
         map(int, ast::Constant::Int),
         map(field, ast::Constant::Field),
@@ -2051,7 +2061,6 @@ mod tests {
                 EvalCommand {
                     fields: vec![(ast::Field::from("description"), _call_ast.into())],
                 }
-                .into()
             ))
         );
     }

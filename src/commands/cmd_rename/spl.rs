@@ -69,7 +69,6 @@ mod tests {
                 RenameCommand {
                     alias: vec![_alias("IPAddress", ast::Field::from("_ip"))],
                 }
-                .into()
             ))
         )
     }
@@ -105,7 +104,6 @@ mod tests {
                         _alias("port", ast::Field::from("_port")),
                     ],
                 }
-                .into()
             ))
         )
     }
@@ -130,7 +128,6 @@ mod tests {
                 RenameCommand {
                     alias: vec![_alias("bar*", ast::Field::from("foo*"))],
                 }
-                .into()
             ))
         )
     }
@@ -154,7 +151,6 @@ mod tests {
                 RenameCommand {
                     alias: vec![_alias("Count of Events", ast::Field::from("count"))],
                 }
-                .into()
             ))
         )
     }
@@ -168,7 +164,6 @@ mod tests {
                 RenameCommand {
                     alias: vec![_alias("*", ast::Field::from("\"Web\".*")),],
                 }
-                .into()
             ))
         )
     }

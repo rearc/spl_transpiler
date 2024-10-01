@@ -351,37 +351,34 @@ mod tests {
                     ],
                     datamodel: Some("Endpoint.Processes".into()),
                     nodename: None,
-                    where_condition: Some(
+                    where_condition: Some(_and(
                         _and(
                             _and(
-                                _and(
-                                    _or(
-                                        _eq(
-                                            ast::Field::from("Processes.process_name"),
-                                            ast::StrValue::from("wmic.exe")
-                                        ),
-                                        _eq(
-                                            ast::Field::from("Processes.original_file_name"),
-                                            ast::StrValue::from("wmic.exe")
-                                        )
+                                _or(
+                                    _eq(
+                                        ast::Field::from("Processes.process_name"),
+                                        ast::StrValue::from("wmic.exe")
                                     ),
                                     _eq(
-                                        ast::Field::from("Processes.process"),
-                                        ast::Wildcard::from("*os get*")
-                                    ),
+                                        ast::Field::from("Processes.original_file_name"),
+                                        ast::StrValue::from("wmic.exe")
+                                    )
                                 ),
                                 _eq(
                                     ast::Field::from("Processes.process"),
-                                    ast::Wildcard::from("*/format:*")
+                                    ast::Wildcard::from("*os get*")
                                 ),
                             ),
                             _eq(
                                 ast::Field::from("Processes.process"),
-                                ast::Wildcard::from("*.xsl*")
-                            )
+                                ast::Wildcard::from("*/format:*")
+                            ),
+                        ),
+                        _eq(
+                            ast::Field::from("Processes.process"),
+                            ast::Wildcard::from("*.xsl*")
                         )
-                        .into()
-                    ),
+                    )),
                     by_fields: Some(vec![
                         ast::Field::from("Processes.parent_process_name").into(),
                         ast::Field::from("Processes.parent_process").into(),
@@ -424,25 +421,22 @@ mod tests {
                     ],
                     datamodel: Some("Web".into()),
                     nodename: None,
-                    where_condition: Some(
+                    where_condition: Some(_and(
                         _and(
-                            _and(
-                                ast::FieldIn {
-                                    field: "Web.url".into(),
-                                    exprs: vec![ast::StrValue::from(
-                                        "/AHT/AhtApiService.asmx/AuthUser"
-                                    )
-                                    .into()],
-                                },
-                                _eq(ast::Field::from("Web.status"), ast::IntValue::from(200)),
-                            ),
-                            _eq(
-                                ast::Field::from("Web.http_method"),
-                                ast::StrValue::from("POST")
-                            )
+                            ast::FieldIn {
+                                field: "Web.url".into(),
+                                exprs: vec![ast::StrValue::from(
+                                    "/AHT/AhtApiService.asmx/AuthUser"
+                                )
+                                .into()],
+                            },
+                            _eq(ast::Field::from("Web.status"), ast::IntValue::from(200)),
+                        ),
+                        _eq(
+                            ast::Field::from("Web.http_method"),
+                            ast::StrValue::from("POST")
                         )
-                        .into()
-                    ),
+                    )),
                     by_fields: Some(vec![
                         ast::Field::from("Web.http_user_agent").into(),
                         ast::Field::from("Web.status").into(),
@@ -541,49 +535,46 @@ mod tests {
                     ],
                     datamodel: Some("Endpoint.Processes".into()),
                     nodename: None,
-                    where_condition: Some(
-                        _and(
+                    where_condition: Some(_and(
+                        _or(
                             _or(
                                 _or(
-                                    _or(
-                                        _eq(
-                                            ast::Field::from("Processes.process_name"),
-                                            ast::StrValue::from("7z.exe")
-                                        ),
-                                        _eq(
-                                            ast::Field::from("Processes.process_name"),
-                                            ast::StrValue::from("7za.exe")
-                                        ),
+                                    _eq(
+                                        ast::Field::from("Processes.process_name"),
+                                        ast::StrValue::from("7z.exe")
                                     ),
                                     _eq(
-                                        ast::Field::from("Processes.original_file_name"),
-                                        ast::StrValue::from("7z.exe")
+                                        ast::Field::from("Processes.process_name"),
+                                        ast::StrValue::from("7za.exe")
                                     ),
                                 ),
                                 _eq(
                                     ast::Field::from("Processes.original_file_name"),
-                                    ast::StrValue::from("7za.exe")
-                                )
+                                    ast::StrValue::from("7z.exe")
+                                ),
                             ),
+                            _eq(
+                                ast::Field::from("Processes.original_file_name"),
+                                ast::StrValue::from("7za.exe")
+                            )
+                        ),
+                        _or(
                             _or(
-                                _or(
-                                    _eq(
-                                        ast::Field::from("Processes.process"),
-                                        ast::Wildcard::from(r#"*\\C$\\*"#)
-                                    ),
-                                    _eq(
-                                        ast::Field::from("Processes.process"),
-                                        ast::Wildcard::from(r#"*\\Admin$\\*"#)
-                                    ),
+                                _eq(
+                                    ast::Field::from("Processes.process"),
+                                    ast::Wildcard::from(r#"*\\C$\\*"#)
                                 ),
                                 _eq(
                                     ast::Field::from("Processes.process"),
-                                    ast::Wildcard::from(r#"*\\IPC$\\*"#)
-                                )
+                                    ast::Wildcard::from(r#"*\\Admin$\\*"#)
+                                ),
+                            ),
+                            _eq(
+                                ast::Field::from("Processes.process"),
+                                ast::Wildcard::from(r#"*\\IPC$\\*"#)
                             )
                         )
-                        .into()
-                    ),
+                    )),
                     by_fields: Some(vec![
                         ast::Field::from("Processes.original_file_name").into(),
                         ast::Field::from("Processes.parent_process_name").into(),

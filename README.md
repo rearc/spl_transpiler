@@ -307,7 +307,7 @@ However, there is no goal at this time to support all Splunk functions.
 | Eval     | Cryptographic               | `sha256`                | Yes     | Yes    |
 | Eval     | Cryptographic               | `sha512`                | Yes     | Yes    |
 | Eval     | Date and Time               | `now`                   | Yes     | Yes    |
-| Eval     | Date and Time               | `relative_time`         | No      | Yes    |
+| Eval     | Date and Time               | `relative_time`         | Yes     | Yes    |
 | Eval     | Date and Time               | `strftime`              | Partial | Yes    |
 | Eval     | Date and Time               | `strptime`              | Partial | Yes    |
 | Eval     | Date and Time               | `time`                  | Yes     | Yes    |
@@ -353,7 +353,7 @@ However, there is no goal at this time to support all Splunk functions.
 | Eval     | Multivalue                  | `mvmap`                 | No      |        |
 | Eval     | Multivalue                  | `mvrange`               | No      |        |
 | Eval     | Multivalue                  | `mvsort`                | No      |        |
-| Eval     | Multivalue                  | `mvzip`                 | No      |        |
+| Eval     | Multivalue                  | `mvzip`                 | Yes     |        |
 | Eval     | Multivalue                  | `mv_to_json_array`      | No      |        |
 | Eval     | Multivalue                  | `split`                 | Yes     | Yes    |
 | Eval     | Statistical                 | `avg`                   | Yes     | Yes    |

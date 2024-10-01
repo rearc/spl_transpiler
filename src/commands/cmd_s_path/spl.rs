@@ -94,7 +94,6 @@ mod tests {
                     output: Some("myfield".into()),
                     path: "vendorProductSet.product.desc".into(),
                 }
-                .into()
             ))
         );
         assert_eq!(
@@ -121,7 +120,6 @@ mod tests {
                     output: Some("y".into()),
                     path: "key.subkey".into(),
                 }
-                .into()
             ))
         );
     }

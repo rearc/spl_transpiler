@@ -114,7 +114,6 @@ mod tests {
                         alias: None,
                     },],
                 }
-                .into()
             ))
         )
     }

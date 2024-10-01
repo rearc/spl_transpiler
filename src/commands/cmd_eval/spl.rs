@@ -49,9 +49,9 @@ impl SplCommand<EvalCommand> for EvalParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::spl::ast;
     use crate::spl::parser::*;
     use crate::spl::utils::test::*;
+    use crate::spl::{ast, operators};
 
     //
     //   test("eval mitre_category=\"Discovery\"") {
@@ -176,5 +176,28 @@ mod tests {
                 }
             ))
         )
+    }
+
+    #[test]
+    fn test_eval_5() {
+        let query = r#"eval key='dest.workload.name' + ":" + 'dest.process.name'"#;
+        assert_eq!(
+            EvalParser::parse(query),
+            Ok((
+                "",
+                EvalCommand {
+                    fields: vec![(
+                        ast::Field::from("key"),
+                        _binop::<operators::Add>(
+                            ast::Field::from("dest.workload.name"),
+                            _binop::<operators::Add>(
+                                ast::StrValue::from(":"),
+                                ast::Field::from("dest.process.name"),
+                            ),
+                        )
+                    )],
+                }
+            ))
+        );
     }
 }

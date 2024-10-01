@@ -5,6 +5,7 @@ use crate::pyspark::ast::column_like;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::utils::convert_time_format;
 use crate::spl::ast;
+use crate::spl::ast::TimeSpan;
 use anyhow::{bail, ensure, Result};
 use log::warn;
 use std::any::type_name;
@@ -144,6 +145,27 @@ tan(X)                                              	 Computes the tangent of X.
 tanh(X)                                             	 Computes the hyperbolic tangent of X.
  */
 
+fn offset_time(time_col: impl Into<Expr>, offset: TimeSpan) -> ColumnLike {
+    let TimeSpan { value, scale } = offset;
+    column_like!([time_col] + [expr("INTERVAL {} {}", value, scale.to_ascii_uppercase())])
+}
+
+fn round_time(time_col: impl Into<Expr>, scale: String) -> Result<ColumnLike> {
+    let round_to = match scale.as_str() {
+        "years" => "year",
+        "months" => "month",
+        "weeks" => "week",
+        "days" => "day",
+        "hours" => "hour",
+        "minutes" => "minute",
+        "seconds" => "second",
+        "milliseconds" => "millisecond",
+        "microseconds" => "microsecond",
+        _ => bail!("Invalid snap time specifier"),
+    };
+    Ok(column_like!(date_trunc([py_lit(round_to)], [time_col])))
+}
+
 pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
     let ast::Call { name, args } = call;
 
@@ -281,9 +303,24 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         // now()                                               	 Returns the time that the search was started.
         "now" => function_transform!(now [args] () { column_like!(current_timestamp()) }),
         // relative_time(<time>,<specifier>)                   	 Adjusts the time by a relative time specifier.
-        "relative_time" => {
-            bail!("UNIMPLEMENTED: Unsupported function: {}", name)
-        }
+        "relative_time" => function_transform!(now [args ...] (time) {
+            let relative_time_spec = match args.get(1) {
+                Some(ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::SnapTime(snap_time)))) => snap_time,
+                Some(v) => bail!("`relative_time` function requires a second argument of type SnapTime, got {:?}", v),
+                None => bail!("`relative_time` function requires a second argument"),
+            };
+            let time = column_like!(to_timestamp([time]));
+            let time = match relative_time_spec.span.clone() {
+                None => time,
+                Some(time_span) => offset_time(time, time_span)
+            };
+            let time = round_time(time, relative_time_spec.snap.clone())?;
+
+            match relative_time_spec.snap_offset.clone() {
+                None => time,
+                Some(snap_offset) => offset_time(time, snap_offset)
+            }
+        }),
         // strftime(<time>,<format>)                           	 Takes a UNIX time and renders it into a human readable format.
         "strftime" => function_transform!(strftime [args] (date, format: String) {
             let converted_time_format = convert_time_format(format)?;
@@ -430,8 +467,14 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
             bail!("UNIMPLEMENTED: Unsupported function: {}", name)
         }
         // mvindex(<mv>,<start>,<end>)                         	 Returns a subset of the multivalue field using the start and end index values.
-        "mvindex" => function_transform!(mvindex [args] (x, start: i64, end: i64) {
-             column_like!(slice([x], [py_lit(start + 1)], [py_lit(end - start + 1)]))
+        "mvindex" => function_transform!(mvindex [args ...] (x, start: i64) {
+            match args.get(2) {
+                None => column_like!(get([x], [py_lit(start)])),
+                Some(end) => {
+                    let end: i64 = map_arg(end) ?;
+                    column_like!(slice([x], [py_lit(start + 1)], [py_lit(end - start + 1)]))
+                },
+            }
         }),
         // mvjoin(<mv>,<delim>)                                	 Takes all of the values in a multivalue field and appends the values together using a delimiter.
         "mvjoin" => {
@@ -450,15 +493,30 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
             bail!("UNIMPLEMENTED: Unsupported function: {}", name)
         }
         // mvzip(<mv_left>,<mv_right>,<delim>)                 	 Combines the values in two multivalue fields. The delimiter is used to specify a delimiting character to join the two values.
-        "mvzip" => {
-            bail!("UNIMPLEMENTED: Unsupported function: {}", name)
-        }
+        "mvzip" => function_transform!(mvzip [args -> _mapped_args] (left, right) {
+            let delim: String = match args.get(2) {
+                None => ",".into(),
+                Some(delim) => map_arg(delim) ?,
+            };
+            let zip_function: Expr = Raw(
+                format !(r#"lambda left_, right_: F.concat_ws(r"{}", left_, right_)"#, delim)
+            ).into();
+            column_like!(
+                zip_with(
+                    [left],
+                    [right],
+                    [zip_function]
+                )
+            )
+        }),
         // mv_to_json_array(<field>, <inver_types>)            	 Maps the elements of a multivalue field to a JSON array.
         "mv_to_json_array" => {
             bail!("UNIMPLEMENTED: Unsupported function: {}", name)
         }
         // split(<str>,<delim>)                                	 Splits the string values on the delimiter and returns the string values as a multivalue field.
-        "split" => function_transform!(split [args] (x) { column_like!(split([x])) }),
+        "split" => function_transform!(split [args] (x, delim: String) {
+            column_like!(split([x], [py_lit(delim)]))
+        }),
 
         // Statistical eval functions
         // avg(<values>)                                       	 Returns the average of numerical values as an integer.
@@ -592,6 +650,8 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pyspark::utils::test::assert_python_code_eq;
+    use crate::pyspark::TemplateNode;
 
     #[test]
     fn test_simple_function_max() {
@@ -612,5 +672,56 @@ mod tests {
             args: vec![],
         });
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_mvindex_split() {
+        let (_, ast) =
+            crate::spl::parser::call(r#"mvindex(split(mvindex(BoundaryRanges, -1), ":"), 0)"#)
+                .unwrap();
+        let result = eval_fn(ast);
+        assert_eq!(
+            result.unwrap().unaliased(),
+            column_like!(get(
+                [split(
+                    [get([col("BoundaryRanges")], [py_lit(-1)])],
+                    [py_lit(":")]
+                )],
+                [py_lit(0)]
+            ))
+        );
+    }
+
+    #[test]
+    fn test_mvzip_1() {
+        let (_, ast) = crate::spl::parser::call(r#"mvzip(x,y)"#).unwrap();
+        let result = eval_fn(ast);
+        assert_python_code_eq(
+            result.unwrap().unaliased().to_spark_query().unwrap(),
+            "F.zip_with(F.col('x'), F.col('y'), lambda left_, right_: F.concat_ws(r',', left_, right_))",
+        );
+    }
+
+    #[test]
+    fn test_mvzip_2() {
+        let (_, ast) = crate::spl::parser::call(r#"mvzip(x,y,"_")"#).unwrap();
+        let result = eval_fn(ast);
+        assert_python_code_eq(
+            result.unwrap().unaliased().to_spark_query().unwrap(),
+            "F.zip_with(F.col('x'), F.col('y'), lambda left_, right_: F.concat_ws(r'_', left_, right_))",
+        );
+    }
+
+    #[test]
+    fn test_relative_time_1() {
+        let (_, ast) = crate::spl::parser::call(r#"relative_time(now(), "-70m@m")"#).unwrap();
+        let result = eval_fn(ast);
+        assert_python_code_eq(
+            result.unwrap().unaliased().to_spark_query().unwrap(),
+            r#"F.date_trunc(
+                "minute",
+                (F.to_timestamp(F.current_timestamp()) + F.expr("INTERVAL -70 MINUTES"))
+            )"#,
+        );
     }
 }

@@ -119,6 +119,14 @@ macro_rules! function_transform {
             Ok(column_like!([$out.unaliased()].alias(stringify!($name))).into())
         }
     };
+    ($name:ident [$arg_vec:ident ...] $args:tt $out:block ) => {
+        {
+            let mut _i: usize = 0;
+            _function_args!([$arg_vec, _i] $args);
+            // ensure!(_i == $arg_vec.len(), "Mistmatched number of arguments (code: {}, runtime: {}); fix arg list or assign remaining arguments using `eval_fn!({} [{} -> mapped_args] ...`", _i, $arg_vec.len(), stringify!($name), stringify!($arg_vec));
+            Ok(column_like!([$out.unaliased()].alias(stringify!($name))).into())
+        }
+    };
     ($name:ident [$arg_vec:ident -> $mapped_arg_name:ident] $args:tt $out:block ) => {
         {
             let mut _i: usize = 0;

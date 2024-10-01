@@ -101,7 +101,6 @@ mod tests {
                     keep_last: BoolValue(false),
                     null_option: BoolValue(false),
                 }
-                .into()
             ))
         )
     }
@@ -126,7 +125,6 @@ mod tests {
                     keep_last: BoolValue(false),
                     null_option: BoolValue(false),
                 }
-                .into()
             ))
         )
     }
@@ -152,7 +150,6 @@ mod tests {
                     keep_last: BoolValue(true),
                     null_option: BoolValue(false),
                 }
-                .into()
             ))
         )
     }
@@ -182,7 +179,6 @@ mod tests {
                     keep_last: BoolValue(false),
                     null_option: BoolValue(false),
                 }
-                .into()
             ))
         )
     }
@@ -198,7 +194,6 @@ mod tests {
                     keep_last: BoolValue(true),
                     null_option: BoolValue(false),
                 }
-                .into()
             ))
         )
     }

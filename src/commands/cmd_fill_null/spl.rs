@@ -116,9 +116,8 @@ mod tests {
                 "",
                 FillNullCommand {
                     value: Some("NULL".into()),
-                    fields: Some(vec![ast::Field::from("host"), ast::Field::from("port"),].into()),
+                    fields: Some(vec![ast::Field::from("host"), ast::Field::from("port"),]),
                 }
-                .into()
             ))
         )
     }

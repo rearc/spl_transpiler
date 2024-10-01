@@ -148,7 +148,6 @@ mod tests {
                     }
                     .into()],
                 }
-                .into()
             ))
         )
     }
@@ -246,7 +245,6 @@ mod tests {
                     }
                     .into()],
                 }
-                .into()
             ))
         )
     }

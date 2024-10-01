@@ -3,6 +3,14 @@ pub mod test {
     use crate::format_python::format_python_code;
     use crate::pyspark::{convert, TemplateNode};
 
+    pub fn assert_python_code_eq(generated_code: impl ToString, reference_code: impl ToString) {
+        let formatted_generated = format_python_code(generated_code.to_string().replace(",)", ")"))
+            .expect("Failed to format rendered Spark query");
+        let formatted_reference = format_python_code(reference_code.to_string().replace(",)", ")"))
+            .expect("Failed to format target Spark query");
+        assert_eq!(formatted_generated, formatted_reference);
+    }
+
     pub fn generates(spl_query: &str, spark_query: &str) {
         let (_, pipeline_ast) =
             crate::parser::pipeline(spl_query).expect("Failed to parse SPL query");
@@ -10,10 +18,6 @@ pub mod test {
         let rendered = converted
             .to_spark_query()
             .expect("Failed to render Spark query");
-        let formatted_rendered = format_python_code(rendered.replace(",)", ")"))
-            .expect("Failed to format rendered Spark query");
-        let formatted_spark_query = format_python_code(spark_query.replace(",)", ")"))
-            .expect("Failed to format target Spark query");
-        assert_eq!(formatted_rendered, formatted_spark_query);
+        assert_python_code_eq(rendered, spark_query);
     }
 }
