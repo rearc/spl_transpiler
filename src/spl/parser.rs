@@ -35,10 +35,9 @@ use crate::commands::cmd_where::spl::WhereParser;
 use crate::commands::spl::SplCommand;
 use crate::spl::operators::{OperatorSymbol, OperatorSymbolTrait};
 use crate::spl::{ast, operators};
-use log::error;
-use nom::bytes::complete::{tag_no_case, take_while, take_while1};
+use nom::bytes::complete::{tag_no_case, take, take_while, take_while1};
 use nom::character::complete::{alphanumeric1, anychar, multispace0, multispace1, one_of};
-use nom::combinator::{all_consuming, eof, into, map_parser, peek, verify};
+use nom::combinator::{all_consuming, eof, into, map_parser, peek, value, verify};
 use nom::error::ParseError;
 use nom::multi::{many0, separated_list0, separated_list1};
 use nom::sequence::{delimited, preceded, separated_pair, terminated};
@@ -241,11 +240,19 @@ pub fn relative_time(input: &str) -> IResult<&str, ast::SnapTime> {
 
 //   def token[_: P]: P[String] = ("_"|"*"|letter|digit).repX(1).!
 pub fn token(input: &str) -> IResult<&str, &str> {
-    recognize(many1(alt((recognize(one_of("_*:/-")), alphanumeric1))))(input)
+    recognize(many1(alt((
+        recognize(one_of("_*:/-")),
+        alphanumeric1,
+        recognize(pair(tag("\\"), take(1usize))),
+    ))))(input)
 }
 
 pub fn token_with_extras(input: &str) -> IResult<&str, &str> {
-    recognize(many1(alt((recognize(one_of("_*:/-@$.")), alphanumeric1))))(input)
+    recognize(many1(alt((
+        recognize(one_of("_*:/-\\@$.")),
+        alphanumeric1,
+        recognize(pair(tag("\\"), take(1usize))),
+    ))))(input)
 }
 
 // Boolean parser
@@ -778,9 +785,8 @@ pub fn term_call(input: &str) -> IResult<&str, ast::Call> {
 */
 
 pub fn expr_base(input: &str) -> IResult<&str, ast::Expr> {
-    error!("expr_base: {}", input);
     alt((
-        parenthesized(expr),
+        parenthesized(expr9_with_whitespace),
         map(term_call, ast::Expr::Call),
         map(call, ast::Expr::Call),
         map(constant, |v| ast::Expr::Leaf(ast::LeafExpr::Constant(v))),
@@ -788,12 +794,10 @@ pub fn expr_base(input: &str) -> IResult<&str, ast::Expr> {
 }
 
 pub fn expr2(input: &str) -> IResult<&str, ast::Expr> {
-    error!("expr2: {}", input);
     alt((expr_base,))(input)
 }
 
 pub fn expr3(input: &str) -> IResult<&str, ast::Expr> {
-    error!("expr3: {}", input);
     alt((map(
         pair(
             expr2,
@@ -818,7 +822,6 @@ pub fn expr3(input: &str) -> IResult<&str, ast::Expr> {
 }
 
 pub fn expr4(input: &str) -> IResult<&str, ast::Expr> {
-    error!("expr4: {}", input);
     alt((map(
         pair(
             expr3,
@@ -840,7 +843,6 @@ pub fn expr4(input: &str) -> IResult<&str, ast::Expr> {
 }
 
 pub fn expr5(input: &str) -> IResult<&str, ast::Expr> {
-    error!("expr5: {}", input);
     alt((map(
         pair(
             expr4,
@@ -859,7 +861,6 @@ pub fn expr5(input: &str) -> IResult<&str, ast::Expr> {
 }
 
 pub fn expr6(input: &str) -> IResult<&str, ast::Expr> {
-    error!("expr6: {}", input);
     alt((
         into(field_in),
         map(
@@ -892,10 +893,15 @@ pub fn expr6(input: &str) -> IResult<&str, ast::Expr> {
 }
 
 pub fn expr7(input: &str) -> IResult<&str, ast::Expr> {
-    error!("expr7: {}", input);
     alt((
         map(
-            tuple((ws(alt((operators::UnaryNot::pattern,))), expr7)),
+            alt((
+                separated_pair(operators::UnaryNot::pattern, multispace1, expr7),
+                pair(
+                    ws(operators::InList::pattern),
+                    parenthesized(expr9_with_whitespace),
+                ),
+            )),
             |(op, right)| {
                 ast::Unary {
                     symbol: op.to_string(),
@@ -909,9 +915,8 @@ pub fn expr7(input: &str) -> IResult<&str, ast::Expr> {
 }
 
 pub fn expr8(input: &str) -> IResult<&str, ast::Expr> {
-    error!("expr8: {}", input);
     alt((map(
-        pair(expr7, opt(pair(ws(alt((operators::Or::pattern,))), expr8))),
+        pair(expr7, opt(pair(ws(operators::Or::pattern), expr8))),
         |(left, maybe_op_right)| match maybe_op_right {
             None => left,
             Some((op, right)) => ast::Binary {
@@ -924,10 +929,12 @@ pub fn expr8(input: &str) -> IResult<&str, ast::Expr> {
     ),))(input)
 }
 
-pub fn expr9(input: &str) -> IResult<&str, ast::Expr> {
-    error!("expr9: {}", input);
-    alt((map(
-        pair(expr8, opt(pair(ws(alt((operators::And::pattern,))), expr9))),
+pub fn expr9_no_whitespace(input: &str) -> IResult<&str, ast::Expr> {
+    map(
+        pair(
+            expr8,
+            opt(pair(ws(operators::And::pattern), expr9_no_whitespace)),
+        ),
         |(left, maybe_op_right)| match maybe_op_right {
             None => left,
             Some((op, right)) => ast::Binary {
@@ -937,11 +944,32 @@ pub fn expr9(input: &str) -> IResult<&str, ast::Expr> {
             }
             .into(),
         },
-    ),))(input)
+    )(input)
+}
+
+pub fn expr9_with_whitespace(input: &str) -> IResult<&str, ast::Expr> {
+    map(
+        pair(
+            expr8,
+            opt(pair(
+                alt((ws(operators::And::pattern), value("AND", multispace1))),
+                expr9_with_whitespace,
+            )),
+        ),
+        |(left, maybe_op_right)| match maybe_op_right {
+            None => left,
+            Some((op, right)) => ast::Binary {
+                left: Box::new(left),
+                symbol: op.to_string(),
+                right: Box::new(right),
+            }
+            .into(),
+        },
+    )(input)
 }
 
 pub fn expr(input: &str) -> IResult<&str, ast::Expr> {
-    expr9(input)
+    expr9_no_whitespace(input)
 }
 
 //
@@ -1133,7 +1161,6 @@ pub fn logical_expression_group(input: &str) -> IResult<&str, ast::Expr> {
 }
 
 pub fn logical_expression_term(input: &str) -> IResult<&str, ast::Expr> {
-    error!("logical_expression: {}", input);
     alt((
         parenthesized(logical_expression),
         map(
@@ -1158,7 +1185,6 @@ pub fn logical_expression_term(input: &str) -> IResult<&str, ast::Expr> {
 // <comparison-expression>
 // Syntax: <field><comparison-operator><value> | <field> IN (<value-list>)
 pub fn comparison_expression(input: &str) -> IResult<&str, ast::Expr> {
-    error!("comparison_expression: {}", input);
     alt((
         map(
             tuple((field, ws(comparison_operator), literal)),
@@ -1178,7 +1204,6 @@ pub fn comparison_expression(input: &str) -> IResult<&str, ast::Expr> {
 // Syntax: "<string>" | <term> | <search-modifier>
 #[allow(dead_code)]
 pub fn index_expression(input: &str) -> IResult<&str, ast::Expr> {
-    error!("index_expression: {}", input);
     alt((
         map(double_quoted, |t| ast::StrValue::from(t).into()),
         map(term, |t| ast::StrValue::from(t).into()),
@@ -1213,7 +1238,6 @@ pub fn index_expression(input: &str) -> IResult<&str, ast::Expr> {
 // Syntax: splunk_server=<string>
 // Description: Search for events from a specific server. Use "local" to refer to the search head.
 pub fn search_modifier(input: &str) -> IResult<&str, ast::Expr> {
-    error!("search_modifier: {}", input);
     alt((
         // sourcetype_specifier,
         map(preceded(tag_no_case("sourcetype="), string), |s| {
@@ -1257,7 +1281,6 @@ pub fn search_modifier(input: &str) -> IResult<&str, ast::Expr> {
 // <time-opts>
 // Syntax: [<timeformat>] (<time-modifier>)...
 pub fn time_opts(input: &str) -> IResult<&str, Vec<ast::Expr>> {
-    error!("time_opts: {}", input);
     map(
         pair(time_format, space_separated_list1(time_modifier)),
         |(fmt, mods)| {
@@ -1272,7 +1295,6 @@ pub fn time_opts(input: &str) -> IResult<&str, Vec<ast::Expr>> {
 // Syntax: timeformat=<string>
 // Default: timeformat=%m/%d/%Y:%H:%M:%S.
 pub fn time_format(input: &str) -> IResult<&str, &str> {
-    error!("time_format: {}", input);
     map(
         opt(preceded(tag_no_case("timeformat="), double_quoted)),
         |fmt| fmt.unwrap_or("%m/%d/%Y:%H:%M:%S."),
@@ -1282,7 +1304,6 @@ pub fn time_format(input: &str) -> IResult<&str, &str> {
 // <time-modifier>
 // Syntax: starttime=<string> | endtime=<string> | earliest=<time_modifier> | latest=<time_modifier>
 pub fn time_modifier(input: &str) -> IResult<&str, ast::TimeModifier> {
-    error!("time_modifier: {}", input);
     alt((
         map(preceded(tag_no_case("starttime="), double_quoted), |v| {
             ast::TimeModifier::StartTime(v.into())
@@ -2548,5 +2569,16 @@ mod tests {
     fn test_int_in_string_1() {
         assert_eq!(expr("3"), Ok(("", ast::IntValue::from(3).into())));
         assert_eq!(expr("3x"), Ok(("", ast::Field::from("3x").into())));
+    }
+
+    #[test]
+    fn test_field_starting_with_not() {
+        assert_eq!(
+            expr("note!=ESCU*"),
+            Ok((
+                "",
+                _neq(ast::Field::from("note"), ast::Wildcard::from("ESCU*"))
+            ))
+        );
     }
 }

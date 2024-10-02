@@ -429,4 +429,71 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    fn test_search_10() {
+        let query = r#"
+        eventtype=wineventlog_security OR Channel=security OR source=XmlWinEventLog:Security
+        EventCode=5137 OR (
+            EventCode=5136
+            AttributeValue!="New Group Policy Object" AND
+            (
+                AttributeLDAPDisplayName=displayName OR
+                AttributeLDAPDisplayName=gPCFileSysPath
+            )
+        )
+        ObjectClass=groupPolicyContainer"#;
+
+        assert_eq!(
+            SearchParser::parse(query),
+            Ok((
+                "",
+                SearchCommand {
+                    expr: _and(
+                        _and(
+                            _or(
+                                _eq(
+                                    ast::Field::from("eventtype"),
+                                    ast::Field::from("wineventlog_security")
+                                ),
+                                _or(
+                                    _eq(ast::Field::from("Channel"), ast::Field::from("security")),
+                                    _eq(
+                                        ast::Field::from("source"),
+                                        ast::Field::from("XmlWinEventLog:Security")
+                                    ),
+                                ),
+                            ),
+                            _or(
+                                _eq(ast::Field::from("EventCode"), ast::IntValue::from(5137)),
+                                _and(
+                                    _eq(ast::Field::from("EventCode"), ast::IntValue::from(5136)),
+                                    _and(
+                                        _neq(
+                                            ast::Field::from("AttributeValue"),
+                                            ast::StrValue::from("New Group Policy Object")
+                                        ),
+                                        _or(
+                                            _eq(
+                                                ast::Field::from("AttributeLDAPDisplayName"),
+                                                ast::Field::from("displayName")
+                                            ),
+                                            _eq(
+                                                ast::Field::from("AttributeLDAPDisplayName"),
+                                                ast::Field::from("gPCFileSysPath")
+                                            )
+                                        )
+                                    )
+                                )
+                            ),
+                        ),
+                        _eq(
+                            ast::Field::from("ObjectClass"),
+                            ast::Field::from("groupPolicyContainer")
+                        )
+                    ),
+                }
+            ))
+        );
+    }
 }

@@ -312,7 +312,7 @@ mod tests {
                 where (Processes.process_name=wmic.exe OR Processes.original_file_name=wmic.exe) Processes.process = "*os get*" Processes.process="*/format:*" Processes.process = "*.xsl*"
                 by Processes.parent_process_name Processes.parent_process Processes.process_name Processes.process_id Processes.process Processes.dest Processes.user"#;
         assert_eq!(
-            all_consuming(TStatsParser::parse)(query),
+            TStatsParser::parse(query),
             Ok((
                 "",
                 TStatsCommand {
@@ -908,6 +908,72 @@ mod tests {
                         ast::Field::from("Processes.process").into(),
                         ast::Field::from("Processes.process_id").into(),
                         ast::Field::from("Processes.original_file_name").into(),
+                        ast::Field::from("Processes.parent_process_id").into(),
+                    ]),
+                    by_prefix: None,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_tstats_10() {
+        let query = r#"tstats
+        summariesonly=false allow_old_summaries=true fillnull_value=null
+        count min(_time) as firstTime max(_time) as lastTime
+        from datamodel=Endpoint.Processes
+        where (Processes.process_name=sc.exe OR Processes.original_file_name=sc.exe) (Processes.process=*\\\\* AND Processes.process=*start*)
+        by Processes.dest Processes.user Processes.parent_process_name Processes.process_name Processes.process Processes.process_id Processes.parent_process_id"#;
+
+        assert_eq!(
+            TStatsParser::parse(query),
+            Ok((
+                "",
+                TStatsCommand {
+                    prestats: false,
+                    local: false,
+                    append: false,
+                    summaries_only: false,
+                    include_reduced_buckets: false,
+                    allow_old_summaries: true,
+                    chunk_size: 10000000,
+                    fillnull_value: Some("null".into()),
+                    exprs: vec![
+                        _call!(count()).into(),
+                        _alias("firstTime", _call!(min(ast::Field::from("_time")))).into(),
+                        _alias("lastTime", _call!(max(ast::Field::from("_time")))).into(),
+                    ],
+                    datamodel: Some("Endpoint.Processes".into()),
+                    nodename: None,
+                    where_condition: Some(_and(
+                        _or(
+                            _eq(
+                                ast::Field::from("Processes.process_name"),
+                                ast::StrValue::from("sc.exe")
+                            ),
+                            _eq(
+                                ast::Field::from("Processes.original_file_name"),
+                                ast::StrValue::from("sc.exe")
+                            ),
+                        ),
+                        _and(
+                            _eq(
+                                ast::Field::from("Processes.process"),
+                                ast::Wildcard::from(r#"*\\\\*"#)
+                            ),
+                            _eq(
+                                ast::Field::from("Processes.process"),
+                                ast::Wildcard::from(r#"*start*"#)
+                            ),
+                        )
+                    )),
+                    by_fields: Some(vec![
+                        ast::Field::from("Processes.dest").into(),
+                        ast::Field::from("Processes.user").into(),
+                        ast::Field::from("Processes.parent_process_name").into(),
+                        ast::Field::from("Processes.process_name").into(),
+                        ast::Field::from("Processes.process").into(),
+                        ast::Field::from("Processes.process_id").into(),
                         ast::Field::from("Processes.parent_process_id").into(),
                     ]),
                     by_prefix: None,

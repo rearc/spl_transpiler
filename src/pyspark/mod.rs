@@ -1088,4 +1088,12 @@ mod tests {
     fn test_tail_1() {
         generates(r#"tail 5"#, r#"spark.table("main").tail(5)"#);
     }
+
+    #[test]
+    fn test_neq_wildcard_1() {
+        generates(
+            r#"search note!=ESCU*"#,
+            r#"spark.table("main").where(~F.col("note").like("ESCU%"))"#,
+        )
+    }
 }
