@@ -33,8 +33,8 @@ use crate::commands::cmd_tail::spl::TailParser;
 use crate::commands::cmd_top::spl::TopParser;
 use crate::commands::cmd_where::spl::WhereParser;
 use crate::commands::spl::SplCommand;
-use crate::spl::operators::OperatorSymbolTrait;
-use crate::spl::{ast, operators, operators::OperatorSymbol};
+use crate::spl::operators::{OperatorSymbol, OperatorSymbolTrait};
+use crate::spl::{ast, operators};
 use log::error;
 use nom::bytes::complete::{tag_no_case, take_while, take_while1};
 use nom::character::complete::{alphanumeric1, anychar, multispace0, multispace1, one_of};
@@ -63,6 +63,30 @@ where
     delimited(multispace0, inner, multispace0)
 }
 
+// https://github.com/rust-bakery/nom/blob/main/doc/nom_recipes.md#wrapper-combinators-that-eat-whitespace-before-and-after-a-parser
+pub fn ws_left<'a, O, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, O, E>
+where
+    F: Parser<&'a str, O, E>,
+{
+    preceded(multispace0, inner)
+}
+
+// https://github.com/rust-bakery/nom/blob/main/doc/nom_recipes.md#wrapper-combinators-that-eat-whitespace-before-and-after-a-parser
+pub fn ws_right<'a, O, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, O, E>
+where
+    F: Parser<&'a str, O, E>,
+{
+    terminated(inner, multispace0)
+}
+
+// https://github.com/rust-bakery/nom/blob/main/doc/nom_recipes.md#wrapper-combinators-that-eat-whitespace-before-and-after-a-parser
+pub fn parenthesized<'a, O, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, O, E>
+where
+    F: Parser<&'a str, O, E>,
+{
+    delimited(ws_right(tag("(")), inner, ws_left(tag(")")))
+}
+
 pub fn unwrapped<'a, O, InnerE, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, O, E>
 where
     F: Parser<&'a str, Result<O, InnerE>, E>,
@@ -74,6 +98,7 @@ where
     )
 }
 
+#[allow(dead_code)]
 pub fn unwrapped_option<'a, O, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, O, E>
 where
     F: Parser<&'a str, Option<O>, E>,
@@ -219,6 +244,10 @@ pub fn token(input: &str) -> IResult<&str, &str> {
     recognize(many1(alt((recognize(one_of("_*:/-")), alphanumeric1))))(input)
 }
 
+pub fn token_with_extras(input: &str) -> IResult<&str, &str> {
+    recognize(many1(alt((recognize(one_of("_*:/-@$.")), alphanumeric1))))(input)
+}
+
 // Boolean parser
 pub fn bool_(input: &str) -> IResult<&str, ast::BoolValue> {
     map(
@@ -247,11 +276,24 @@ pub fn double_quoted(input: &str) -> IResult<&str, &str> {
     )(input)
 }
 
+pub fn single_quoted(input: &str) -> IResult<&str, &str> {
+    delimited(
+        tag("\'"),
+        ws(recognize(many0(alt((
+            recognize(pair(tag(r#"\"#), anychar)),
+            recognize(none_of(r#"'\"#)),
+        ))))),
+        tag("\'"),
+    )(input)
+}
+
 //   def wildcard[_: P]: P[Wildcard] = (
 //       doubleQuoted.filter(_.contains("*")) | token.filter(_.contains("*"))) map Wildcard
 pub fn wildcard(input: &str) -> IResult<&str, ast::Wildcard> {
     map(
-        verify(alt((double_quoted, token)), |v: &str| v.contains("*")),
+        verify(alt((double_quoted, token_with_extras)), |v: &str| {
+            v.contains("*")
+        }),
         |v| ast::Wildcard(v.into()),
     )(input)
 }
@@ -353,10 +395,7 @@ pub fn int(input: &str) -> IResult<&str, ast::IntValue> {
     map(
         pair(
             opt(alt((tag("+"), tag("-")))),
-            map(
-                verify(map(digit1, str::parse::<i64>), Result::is_ok),
-                Result::unwrap,
-            ),
+            unwrapped(map(digit1, str::parse::<i64>)),
         ),
         |(sign, numeric_value)| {
             let sign_multiplier = if sign == Some("-") { -1 } else { 1 };
@@ -407,22 +446,25 @@ pub fn literal(input: &str) -> IResult<&str, ast::Constant> {
 }
 
 pub fn constant(input: &str) -> IResult<&str, ast::Constant> {
-    alt((
-        map(ipv4_cidr, ast::Constant::IPv4CIDR),
-        map(ipv4_addr, |s| ast::Constant::Str(s.into())),
-        map(ipv6_addr, |s| ast::Constant::Str(s.into())),
-        map(relative_time, ast::Constant::SnapTime),
-        map(time_span, |v| {
+    let (remaining, content) =
+        recognize(alt((double_quoted, single_quoted, token_with_extras)))(input)?;
+    let (_, parsed_value) = alt((
+        map(all_consuming(ipv4_cidr), ast::Constant::IPv4CIDR),
+        map(all_consuming(ipv4_addr), |s| ast::Constant::Str(s.into())),
+        map(all_consuming(ipv6_addr), |s| ast::Constant::Str(s.into())),
+        map(all_consuming(relative_time), ast::Constant::SnapTime),
+        map(all_consuming(time_span), |v| {
             ast::Constant::SplSpan(ast::SplSpan::TimeSpan(v))
         }),
-        map(wildcard, ast::Constant::Wildcard),
-        map(str_value, ast::Constant::Str),
-        map(variable, ast::Constant::Variable),
-        map(double, ast::Constant::Double),
-        map(int, ast::Constant::Int),
-        map(field, ast::Constant::Field),
-        map(bool_, ast::Constant::Bool),
-    ))(input)
+        map(all_consuming(wildcard), ast::Constant::Wildcard),
+        map(all_consuming(str_value), ast::Constant::Str),
+        map(all_consuming(variable), ast::Constant::Variable),
+        map(all_consuming(double), ast::Constant::Double),
+        map(all_consuming(int), ast::Constant::Int),
+        map(all_consuming(field), ast::Constant::Field),
+        map(all_consuming(bool_), ast::Constant::Bool),
+    ))(content)?;
+    Ok((remaining, parsed_value))
 }
 
 //   def fieldAndValue[_: P]: P[FV] = (
@@ -533,42 +575,42 @@ pub fn comparison_operator(input: &str) -> IResult<&str, OperatorSymbol> {
 }
 
 /// Matches any operator that combines two expressions into a logical/boolean result
-pub fn logical_operator(input: &str) -> IResult<&str, OperatorSymbol> {
-    alt((
-        comparison_operator,
-        map(operators::Or::pattern, |_| {
-            OperatorSymbol::Or(operators::Or {})
-        }),
-        map(operators::And::pattern, |_| {
-            OperatorSymbol::And(operators::And {})
-        }),
-        map(operators::InList::pattern, |_| {
-            OperatorSymbol::InList(operators::InList {})
-        }),
-    ))(input)
-}
+// pub fn logical_operator(input: &str) -> IResult<&str, OperatorSymbol> {
+//     alt((
+//         comparison_operator,
+//         map(operators::Or::pattern, |_| {
+//             OperatorSymbol::Or(operators::Or {})
+//         }),
+//         map(operators::And::pattern, |_| {
+//             OperatorSymbol::And(operators::And {})
+//         }),
+//         map(operators::InList::pattern, |_| {
+//             OperatorSymbol::InList(operators::InList {})
+//         }),
+//     ))(input)
+// }
 
 /// Matches any operator that combines two expressions into a new expression
-pub fn operator(input: &str) -> IResult<&str, OperatorSymbol> {
-    alt((
-        logical_operator,
-        map(operators::Add::pattern, |_| {
-            OperatorSymbol::Add(operators::Add {})
-        }),
-        map(operators::Subtract::pattern, |_| {
-            OperatorSymbol::Subtract(operators::Subtract {})
-        }),
-        map(operators::Multiply::pattern, |_| {
-            OperatorSymbol::Multiply(operators::Multiply {})
-        }),
-        map(operators::Divide::pattern, |_| {
-            OperatorSymbol::Divide(operators::Divide {})
-        }),
-        map(operators::Concatenate::pattern, |_| {
-            OperatorSymbol::Concatenate(operators::Concatenate {})
-        }),
-    ))(input)
-}
+// pub fn operator(input: &str) -> IResult<&str, OperatorSymbol> {
+//     alt((
+//         logical_operator,
+//         map(operators::Add::pattern, |_| {
+//             OperatorSymbol::Add(operators::Add {})
+//         }),
+//         map(operators::Subtract::pattern, |_| {
+//             OperatorSymbol::Subtract(operators::Subtract {})
+//         }),
+//         map(operators::Multiply::pattern, |_| {
+//             OperatorSymbol::Multiply(operators::Multiply {})
+//         }),
+//         map(operators::Divide::pattern, |_| {
+//             OperatorSymbol::Divide(operators::Divide {})
+//         }),
+//         map(operators::Concatenate::pattern, |_| {
+//             OperatorSymbol::Concatenate(operators::Concatenate {})
+//         }),
+//     ))(input)
+// }
 
 //   private def binaryOf[_: P](a: => P[Expr], b: => P[OperatorSymbol]): P[Expr] =
 //     (a ~ (b ~ a).rep).map {
@@ -592,52 +634,52 @@ pub fn operator(input: &str) -> IResult<&str, OperatorSymbol> {
 //         } else Binary(left, sym,
 //           climb(next, rights.tail, sym.precedence + 1))
 //     }
-pub fn climb(left: ast::Expr, rights: Vec<(OperatorSymbol, ast::Expr)>, prec: i32) -> ast::Expr {
-    if rights.is_empty() {
-        left
-    } else {
-        let (sym, next): (OperatorSymbol, ast::Expr) = rights[0].clone();
-        let remainder: Vec<_> = rights.into_iter().skip(1).collect();
-        let symbol = sym.symbol_string().into();
-        let precedence = sym.precedence();
-        if precedence < prec {
-            match left {
-                ast::Expr::Binary(ast::Binary {
-                    left: first,
-                    symbol: prev_symbol,
-                    right,
-                }) => ast::Expr::Binary(ast::Binary {
-                    left: first,
-                    symbol: prev_symbol,
-                    right: Box::new(climb(
-                        ast::Expr::Binary(ast::Binary {
-                            left: right,
-                            symbol,
-                            right: Box::new(next),
-                        }),
-                        remainder,
-                        precedence + 1,
-                    )),
-                }),
-                _ => climb(
-                    ast::Expr::Binary(ast::Binary {
-                        left: Box::new(left),
-                        symbol,
-                        right: Box::new(next),
-                    }),
-                    remainder,
-                    precedence + 1,
-                ),
-            }
-        } else {
-            ast::Expr::Binary(ast::Binary {
-                left: Box::new(left),
-                symbol,
-                right: Box::new(climb(next, remainder, precedence + 1)),
-            })
-        }
-    }
-}
+// pub fn climb(left: ast::Expr, rights: Vec<(OperatorSymbol, ast::Expr)>, prec: i32) -> ast::Expr {
+//     if rights.is_empty() {
+//         left
+//     } else {
+//         let (sym, next): (OperatorSymbol, ast::Expr) = rights[0].clone();
+//         let remainder: Vec<_> = rights.into_iter().skip(1).collect();
+//         let symbol = sym.symbol_string().into();
+//         let precedence = sym.precedence();
+//         if precedence < prec {
+//             match left {
+//                 ast::Expr::Binary(ast::Binary {
+//                                       left: first,
+//                                       symbol: prev_symbol,
+//                                       right,
+//                                   }) => ast::Expr::Binary(ast::Binary {
+//                     left: first,
+//                     symbol: prev_symbol,
+//                     right: Box::new(climb(
+//                         ast::Expr::Binary(ast::Binary {
+//                             left: right,
+//                             symbol,
+//                             right: Box::new(next),
+//                         }),
+//                         remainder,
+//                         precedence + 1,
+//                     )),
+//                 }),
+//                 _ => climb(
+//                     ast::Expr::Binary(ast::Binary {
+//                         left: Box::new(left),
+//                         symbol,
+//                         right: Box::new(next),
+//                     }),
+//                     remainder,
+//                     precedence + 1,
+//                 ),
+//             }
+//         } else {
+//             ast::Expr::Binary(ast::Binary {
+//                 left: Box::new(left),
+//                 symbol,
+//                 right: Box::new(climb(next, remainder, precedence + 1)),
+//             })
+//         }
+//     }
+// }
 
 //   def fieldIn[_: P]: P[FieldIn] =
 //     token ~ "IN" ~ "(" ~ constant.rep(sep = ",".?) ~ ")" map FieldIn.tupled
@@ -646,7 +688,7 @@ pub fn field_in(input: &str) -> IResult<&str, ast::FieldIn> {
         separated_pair(
             field,
             ws(tag_no_case("IN")),
-            delimited(ws(tag("(")), comma_separated_list0(constant), ws(tag(")"))),
+            parenthesized(comma_separated_list0(constant)),
         ),
         |(field, constants)| ast::FieldIn {
             field: field.0,
@@ -661,10 +703,7 @@ pub fn field_in(input: &str) -> IResult<&str, ast::FieldIn> {
 //   def call[_: P]: P[Call] = (token ~~ "(" ~~ expr.rep(sep = ",") ~~ ")").map(Call.tupled)
 pub fn call(input: &str) -> IResult<&str, ast::Call> {
     map(
-        pair(
-            token,
-            delimited(tag("("), comma_separated_list0(expr), tag(")")),
-        ),
+        pair(token, parenthesized(comma_separated_list0(expr))),
         |(token, exprs)| ast::Call {
             name: token.into(),
             args: exprs,
@@ -677,10 +716,7 @@ pub fn call(input: &str) -> IResult<&str, ast::Call> {
 //   )
 pub fn term_call(input: &str) -> IResult<&str, ast::Call> {
     map(
-        preceded(
-            tag_no_case("TERM"),
-            delimited(ws(tag("(")), take_while(|c| c != ')'), ws(tag(")"))),
-        ),
+        preceded(tag_no_case("TERM"), parenthesized(take_while(|c| c != ')'))),
         |term| ast::Call {
             name: "TERM".into(),
             args: vec![ast::Expr::Leaf(ast::LeafExpr::Constant(
@@ -691,43 +727,221 @@ pub fn term_call(input: &str) -> IResult<&str, ast::Call> {
 }
 
 //   def argu[_: P]: P[Expr] = termCall | call | constant
-pub fn argu(input: &str) -> IResult<&str, ast::Expr> {
+// pub fn argu(input: &str) -> IResult<&str, ast::Expr> {
+//     alt((
+//         map(term_call, ast::Expr::Call),
+//         map(call, ast::Expr::Call),
+//         map(constant, |v| ast::Expr::Leaf(ast::LeafExpr::Constant(v))),
+//     ))(input)
+// }
+//
+// //   def parens[_: P]: P[Expr] = "(" ~ expr ~ ")"
+// pub fn parens(input: &str) -> IResult<&str, ast::Expr> {
+//     parenthesized(expr).parse(input)
+// }
+//
+// //   def primary[_: P]: P[Expr] = unaryOf(expr) | fieldIn | parens | argu
+// pub fn primary(input: &str) -> IResult<&str, ast::Expr> {
+//     alt((
+//         map(
+//             preceded(pair(operators::UnaryNot::pattern, multispace1), expr),
+//             |e| {
+//                 ast::Expr::Unary(ast::Unary {
+//                     symbol: operators::UnaryNot::SYMBOL.into(),
+//                     right: Box::new(e),
+//                 })
+//             },
+//         ),
+//         into(field_in),
+//         parens,
+//         argu,
+//     ))(input)
+// }
+//
+// //   def expr[_: P]: P[Expr] = binaryOf(primary, ALL)
+// pub fn expr(input: &str) -> IResult<&str, ast::Expr> {
+//     map(
+//         pair(primary, many0(pair(ws(operator), primary))),
+//         |(expr, tuples)| climb(expr, tuples, 100),
+//     )(input)
+// }
+
+/*
+   Operator precedence for search expressions, lower numbers mean higher precedence
+   precedence 2: UnaryNot
+   precedence 3: Multiply, Divide
+   precedence 4: Add, Subtract
+   precedence 5: Concatenate
+   precedence 7: InList, Equals, StrictlyEquals, NotEquals, LessThan, GreaterThan, GreaterEquals, LessEquals
+   precedence 8: And
+   precedence 9: Or
+*/
+
+pub fn expr_base(input: &str) -> IResult<&str, ast::Expr> {
+    error!("expr_base: {}", input);
     alt((
+        parenthesized(expr),
         map(term_call, ast::Expr::Call),
         map(call, ast::Expr::Call),
         map(constant, |v| ast::Expr::Leaf(ast::LeafExpr::Constant(v))),
     ))(input)
 }
 
-//   def parens[_: P]: P[Expr] = "(" ~ expr ~ ")"
-pub fn parens(input: &str) -> IResult<&str, ast::Expr> {
-    delimited(ws(tag("(")), expr, ws(tag(")")))(input)
+pub fn expr2(input: &str) -> IResult<&str, ast::Expr> {
+    error!("expr2: {}", input);
+    alt((expr_base,))(input)
 }
 
-//   def primary[_: P]: P[Expr] = unaryOf(expr) | fieldIn | parens | argu
-pub fn primary(input: &str) -> IResult<&str, ast::Expr> {
+pub fn expr3(input: &str) -> IResult<&str, ast::Expr> {
+    error!("expr3: {}", input);
+    alt((map(
+        pair(
+            expr2,
+            opt(pair(
+                ws(alt((
+                    operators::Multiply::pattern,
+                    operators::Divide::pattern,
+                ))),
+                expr3,
+            )),
+        ),
+        |(left, maybe_op_right)| match maybe_op_right {
+            None => left,
+            Some((op, right)) => ast::Binary {
+                left: Box::new(left),
+                symbol: op.to_string(),
+                right: Box::new(right),
+            }
+            .into(),
+        },
+    ),))(input)
+}
+
+pub fn expr4(input: &str) -> IResult<&str, ast::Expr> {
+    error!("expr4: {}", input);
+    alt((map(
+        pair(
+            expr3,
+            opt(pair(
+                ws(alt((operators::Add::pattern, operators::Subtract::pattern))),
+                expr4,
+            )),
+        ),
+        |(left, maybe_op_right)| match maybe_op_right {
+            None => left,
+            Some((op, right)) => ast::Binary {
+                left: Box::new(left),
+                symbol: op.to_string(),
+                right: Box::new(right),
+            }
+            .into(),
+        },
+    ),))(input)
+}
+
+pub fn expr5(input: &str) -> IResult<&str, ast::Expr> {
+    error!("expr5: {}", input);
+    alt((map(
+        pair(
+            expr4,
+            opt(pair(ws(alt((operators::Concatenate::pattern,))), expr5)),
+        ),
+        |(left, maybe_op_right)| match maybe_op_right {
+            None => left,
+            Some((op, right)) => ast::Binary {
+                left: Box::new(left),
+                symbol: op.to_string(),
+                right: Box::new(right),
+            }
+            .into(),
+        },
+    ),))(input)
+}
+
+pub fn expr6(input: &str) -> IResult<&str, ast::Expr> {
+    error!("expr6: {}", input);
     alt((
+        into(field_in),
         map(
-            preceded(pair(operators::UnaryNot::pattern, multispace1), expr),
-            |e| {
-                ast::Expr::Unary(ast::Unary {
-                    symbol: operators::UnaryNot::SYMBOL.into(),
-                    right: Box::new(e),
-                })
+            pair(
+                expr5,
+                opt(pair(
+                    ws(alt((
+                        operators::StrictlyEquals::pattern,
+                        operators::Equals::pattern,
+                        operators::NotEquals::pattern,
+                        operators::LessEquals::pattern,
+                        operators::LessThan::pattern,
+                        operators::GreaterEquals::pattern,
+                        operators::GreaterThan::pattern,
+                    ))),
+                    expr6,
+                )),
+            ),
+            |(left, maybe_op_right)| match maybe_op_right {
+                None => left,
+                Some((op, right)) => ast::Binary {
+                    left: Box::new(left),
+                    symbol: op.to_string(),
+                    right: Box::new(right),
+                }
+                .into(),
             },
         ),
-        into(field_in),
-        parens,
-        argu,
     ))(input)
 }
 
-//   def expr[_: P]: P[Expr] = binaryOf(primary, ALL)
+pub fn expr7(input: &str) -> IResult<&str, ast::Expr> {
+    error!("expr7: {}", input);
+    alt((
+        map(
+            tuple((ws(alt((operators::UnaryNot::pattern,))), expr7)),
+            |(op, right)| {
+                ast::Unary {
+                    symbol: op.to_string(),
+                    right: Box::new(right),
+                }
+                .into()
+            },
+        ),
+        expr6,
+    ))(input)
+}
+
+pub fn expr8(input: &str) -> IResult<&str, ast::Expr> {
+    error!("expr8: {}", input);
+    alt((map(
+        pair(expr7, opt(pair(ws(alt((operators::Or::pattern,))), expr8))),
+        |(left, maybe_op_right)| match maybe_op_right {
+            None => left,
+            Some((op, right)) => ast::Binary {
+                left: Box::new(left),
+                symbol: op.to_string(),
+                right: Box::new(right),
+            }
+            .into(),
+        },
+    ),))(input)
+}
+
+pub fn expr9(input: &str) -> IResult<&str, ast::Expr> {
+    error!("expr9: {}", input);
+    alt((map(
+        pair(expr8, opt(pair(ws(alt((operators::And::pattern,))), expr9))),
+        |(left, maybe_op_right)| match maybe_op_right {
+            None => left,
+            Some((op, right)) => ast::Binary {
+                left: Box::new(left),
+                symbol: op.to_string(),
+                right: Box::new(right),
+            }
+            .into(),
+        },
+    ),))(input)
+}
+
 pub fn expr(input: &str) -> IResult<&str, ast::Expr> {
-    map(
-        pair(primary, many0(pair(ws(operator), primary))),
-        |(expr, tuples)| climb(expr, tuples, 100),
-    )(input)
+    expr9(input)
 }
 
 //
@@ -896,24 +1110,34 @@ pub fn combine_all_expressions(exprs: Vec<ast::Expr>, symbol: impl ToString) -> 
 
 // <logical-expression> | <time-opts> | <search-modifier> | NOT <logical-expression> | <index-expression> | <comparison-expression> | <logical-expression> [OR] <logical-expression>
 pub fn logical_expression(input: &str) -> IResult<&str, ast::Expr> {
-    alt((
-        map(
-            separated_list1(ws(tag_no_case("OR")), logical_expression_term),
-            |exprs| combine_all_expressions(exprs, operators::Or::SYMBOL).unwrap(),
+    map(
+        separated_list1(ws(tag_no_case("OR")), logical_expression_group),
+        |exprs| combine_all_expressions(exprs, operators::Or::SYMBOL).unwrap(),
+    )(input)
+}
+
+pub fn logical_expression_group(input: &str) -> IResult<&str, ast::Expr> {
+    map(
+        separated_list1(
+            alt((ws(tag_no_case("AND")), multispace1)),
+            verify(logical_expression_term, |e| {
+                !matches!(
+                    e,
+                    ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(name))))
+                    if matches!(name.to_ascii_lowercase().as_str(), "by" | "where" | "from")
+                )
+            }),
         ),
-        map(
-            separated_list1(ws(tag_no_case("AND")), logical_expression_term),
-            |exprs| combine_all_expressions(exprs, operators::And::SYMBOL).unwrap(),
-        ),
-    ))(input)
+        |exprs| combine_all_expressions(exprs, operators::And::SYMBOL).unwrap(),
+    )(input)
 }
 
 pub fn logical_expression_term(input: &str) -> IResult<&str, ast::Expr> {
     error!("logical_expression: {}", input);
     alt((
-        delimited(ws(tag("(")), logical_expression, ws(tag(")"))),
+        parenthesized(logical_expression),
         map(
-            preceded(ws(tag_no_case("NOT ")), logical_expression_term),
+            preceded(ws(tag_no_case("NOT")), logical_expression_term),
             |expr| {
                 ast::Unary {
                     symbol: operators::UnaryNot::SYMBOL.into(),
@@ -2035,6 +2259,14 @@ mod tests {
 
     #[test]
     fn test_case_call_1() {
+        assert_eq!(
+            expr(r#"status==200"#),
+            Ok((
+                "",
+                _binop::<operators::StrictlyEquals>(ast::Field::from("status"), ast::IntValue(200))
+            ))
+        );
+
         let _call_ast = ast::Call {
             name: "case".to_string(),
             args: vec![
@@ -2166,35 +2398,39 @@ mod tests {
     #[test]
     fn test_logical_expression_5() {
         assert_eq!(
-            many1(ws(logical_expression))(
+            logical_expression(
                 r#"(Processes.process_name=wmic.exe OR Processes.original_file_name=wmic.exe) Processes.process = "*os get*" Processes.process="*/format:*" Processes.process = "*.xsl*""#
             ),
             Ok((
                 "",
-                vec![
-                    _or(
-                        _eq(
-                            ast::Field::from("Processes.process_name"),
-                            ast::StrValue::from("wmic.exe")
+                _and(
+                    _and(
+                        _and(
+                            _or(
+                                _eq(
+                                    ast::Field::from("Processes.process_name"),
+                                    ast::StrValue::from("wmic.exe")
+                                ),
+                                _eq(
+                                    ast::Field::from("Processes.original_file_name"),
+                                    ast::StrValue::from("wmic.exe")
+                                )
+                            ),
+                            _eq(
+                                ast::Field::from("Processes.process"),
+                                ast::Wildcard::from("*os get*")
+                            ),
                         ),
                         _eq(
-                            ast::Field::from("Processes.original_file_name"),
-                            ast::StrValue::from("wmic.exe")
-                        )
-                    ),
-                    _eq(
-                        ast::Field::from("Processes.process"),
-                        ast::Wildcard::from("*os get*")
-                    ),
-                    _eq(
-                        ast::Field::from("Processes.process"),
-                        ast::Wildcard::from("*/format:*")
+                            ast::Field::from("Processes.process"),
+                            ast::Wildcard::from("*/format:*")
+                        ),
                     ),
                     _eq(
                         ast::Field::from("Processes.process"),
                         ast::Wildcard::from("*.xsl*")
                     )
-                ]
+                )
             ))
         );
     }
@@ -2269,5 +2505,48 @@ mod tests {
                 ))
             ))
         );
+    }
+
+    #[test]
+    fn test_logical_expression_8() {
+        assert_eq!(
+            logical_expression(r#"a=1 OR b=2 AND c=3 OR (d=4 e=5)"#),
+            Ok((
+                "",
+                _or(
+                    _or(
+                        _eq(ast::Field::from("a"), ast::IntValue::from(1)),
+                        _and(
+                            _eq(ast::Field::from("b"), ast::IntValue::from(2)),
+                            _eq(ast::Field::from("c"), ast::IntValue::from(3))
+                        ),
+                    ),
+                    _and(
+                        _eq(ast::Field::from("d"), ast::IntValue::from(4)),
+                        _eq(ast::Field::from("e"), ast::IntValue::from(5))
+                    )
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_logical_expression_9() {
+        assert_eq!(
+            logical_expression(r#"a=1 b=2"#),
+            Ok((
+                "",
+                _and(
+                    _eq(ast::Field::from("a"), ast::IntValue::from(1)),
+                    _eq(ast::Field::from("b"), ast::IntValue::from(2)),
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_int_in_string_1() {
+        assert_eq!(expr("3"), Ok(("", ast::IntValue::from(3).into())));
+        assert_eq!(expr("3x"), Ok(("", ast::Field::from("3x").into())));
     }
 }

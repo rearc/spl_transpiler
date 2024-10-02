@@ -39,7 +39,7 @@ impl OperatorSymbolTrait for InList {
     const PRECEDENCE: i32 = 7;
 
     fn pattern(input: &str) -> IResult<&str, &str> {
-        tag_no_case(" IN")(input)
+        tag_no_case("IN")(input)
     }
 }
 #[derive(Debug, PartialEq, Clone)]
@@ -123,9 +123,9 @@ impl OperatorSymbolTrait for NotEquals {
     const PRECEDENCE: i32 = 7;
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum OperatorSymbol {
-    #[allow(dead_code)]
     UnaryNot(UnaryNot),
     Or(Or),
     And(And),
@@ -184,24 +184,24 @@ impl OperatorSymbol {
             OperatorSymbol::NotEquals(_) => NotEquals::SYMBOL,
         }
     }
-    pub fn precedence(&self) -> i32 {
-        match self {
-            OperatorSymbol::UnaryNot(_) => UnaryNot::PRECEDENCE,
-            OperatorSymbol::Or(_) => Or::PRECEDENCE,
-            OperatorSymbol::And(_) => And::PRECEDENCE,
-            OperatorSymbol::InList(_) => InList::PRECEDENCE,
-            OperatorSymbol::Concatenate(_) => Concatenate::PRECEDENCE,
-            OperatorSymbol::Add(_) => Add::PRECEDENCE,
-            OperatorSymbol::Subtract(_) => Subtract::PRECEDENCE,
-            OperatorSymbol::Multiply(_) => Multiply::PRECEDENCE,
-            OperatorSymbol::Divide(_) => Divide::PRECEDENCE,
-            OperatorSymbol::LessThan(_) => LessThan::PRECEDENCE,
-            OperatorSymbol::GreaterThan(_) => GreaterThan::PRECEDENCE,
-            OperatorSymbol::GreaterEquals(_) => GreaterEquals::PRECEDENCE,
-            OperatorSymbol::LessEquals(_) => LessEquals::PRECEDENCE,
-            OperatorSymbol::Equals(_) => Equals::PRECEDENCE,
-            OperatorSymbol::StrictlyEquals(_) => StrictlyEquals::PRECEDENCE,
-            OperatorSymbol::NotEquals(_) => NotEquals::PRECEDENCE,
-        }
-    }
+    // pub fn precedence(&self) -> i32 {
+    //     match self {
+    //         OperatorSymbol::UnaryNot(_) => UnaryNot::PRECEDENCE,
+    //         OperatorSymbol::Or(_) => Or::PRECEDENCE,
+    //         OperatorSymbol::And(_) => And::PRECEDENCE,
+    //         OperatorSymbol::InList(_) => InList::PRECEDENCE,
+    //         OperatorSymbol::Concatenate(_) => Concatenate::PRECEDENCE,
+    //         OperatorSymbol::Add(_) => Add::PRECEDENCE,
+    //         OperatorSymbol::Subtract(_) => Subtract::PRECEDENCE,
+    //         OperatorSymbol::Multiply(_) => Multiply::PRECEDENCE,
+    //         OperatorSymbol::Divide(_) => Divide::PRECEDENCE,
+    //         OperatorSymbol::LessThan(_) => LessThan::PRECEDENCE,
+    //         OperatorSymbol::GreaterThan(_) => GreaterThan::PRECEDENCE,
+    //         OperatorSymbol::GreaterEquals(_) => GreaterEquals::PRECEDENCE,
+    //         OperatorSymbol::LessEquals(_) => LessEquals::PRECEDENCE,
+    //         OperatorSymbol::Equals(_) => Equals::PRECEDENCE,
+    //         OperatorSymbol::StrictlyEquals(_) => StrictlyEquals::PRECEDENCE,
+    //         OperatorSymbol::NotEquals(_) => NotEquals::PRECEDENCE,
+    //     }
+    // }
 }

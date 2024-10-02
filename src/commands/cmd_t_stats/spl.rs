@@ -1,19 +1,15 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::ast::{
-    Binary, Call, Constant, Expr, Field, LeafExpr, ParsedCommandOptions, TimeSpan,
-};
-use crate::spl::operators;
-use crate::spl::operators::OperatorSymbolTrait;
+use crate::spl::ast::{Call, Expr, Field, ParsedCommandOptions, TimeSpan};
 use crate::spl::parser::{
     comma_or_space_separated_list1, field, field_in, logical_expression, space_separated_list1,
-    time_span, token, unwrapped_option, ws,
+    time_span, token, ws,
 };
 use crate::spl::python::impl_pyclass;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::character::complete::multispace1;
 use nom::combinator::{eof, into, map, opt, recognize, verify};
-use nom::multi::{fold_many1, separated_list1};
+use nom::multi::separated_list1;
 use nom::sequence::{delimited, pair, preceded, separated_pair, tuple};
 use nom::IResult;
 use pyo3::prelude::*;
@@ -154,24 +150,7 @@ fn _parse_from_datamodel(input: &str) -> IResult<&str, (String, Option<String>)>
 fn _parse_where(input: &str) -> IResult<&str, Expr> {
     preceded(
         ws(tag_no_case("where")),
-        ws(unwrapped_option(alt((
-            fold_many1(
-                ws(verify(
-                    preceded(opt(ws(tag_no_case("AND"))), logical_expression),
-                    |e| !matches!(e, Expr::Leaf(LeafExpr::Constant(Constant::Field(Field(name)))) if name.to_ascii_lowercase() == "by"),
-                )),
-                || None,
-                |a, b| match a {
-                    None => Some(b),
-                    Some(a) => Some(Expr::Binary(Binary {
-                        left: Box::new(a),
-                        symbol: operators::And::SYMBOL.into(),
-                        right: Box::new(b),
-                    })),
-                },
-            ),
-            map(field_in, |expr| Some(expr.into())),
-        )))),
+        ws(alt((logical_expression, into(field_in)))),
     )(input)
 }
 
@@ -321,11 +300,12 @@ impl SplCommand<TStatsCommand> for TStatsParser {
 mod tests {
     use super::*;
     use crate::spl::ast;
+    use crate::spl::parser::logical_expression_term;
     use crate::spl::utils::test::*;
     use nom::combinator::all_consuming;
 
     #[test]
-    fn test_xsl_script_execution_with_wmic_1() {
+    fn test_tstats_1() {
         let query = r#"tstats summariesonly=false allow_old_summaries=true fillnull_value=null
                 count min(_time) as firstTime max(_time) as lastTime
                 from datamodel=Endpoint.Processes
@@ -751,6 +731,185 @@ mod tests {
                             scale: "days".to_string(),
                         }),
                     }]),
+                    by_prefix: None,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_tstats_8() {
+        let query = r#"tstats
+        summariesonly=false allow_old_summaries=true fillnull_value=null
+        count min(_time) as firstTime max(_time) as lastTime
+        from datamodel=Endpoint.Filesystem
+        where NOT(Filesystem.file_path IN ("*\\Program Files*")) Filesystem.file_name = *.url
+        by Filesystem.file_create_time Filesystem.process_id  Filesystem.file_name Filesystem.user Filesystem.file_path Filesystem.process_guid Filesystem.dest
+        "#;
+
+        assert_eq!(
+            all_consuming(TStatsParser::parse)(query),
+            Ok((
+                "",
+                TStatsCommand {
+                    prestats: false,
+                    local: false,
+                    append: false,
+                    summaries_only: false,
+                    include_reduced_buckets: false,
+                    allow_old_summaries: true,
+                    chunk_size: 10000000,
+                    fillnull_value: Some("null".into()),
+                    exprs: vec![
+                        _call!(count()).into(),
+                        _alias("firstTime", _call!(min(ast::Field::from("_time")))).into(),
+                        _alias("lastTime", _call!(max(ast::Field::from("_time")))).into(),
+                    ],
+                    datamodel: Some("Endpoint.Filesystem".into()),
+                    nodename: None,
+                    where_condition: Some(_and(
+                        _not(_isin(
+                            "Filesystem.file_path",
+                            vec![ast::Wildcard::from(r#"*\\Program Files*"#).into(),]
+                        )),
+                        _eq(
+                            ast::Field::from("Filesystem.file_name"),
+                            ast::Wildcard::from(r#"*.url"#)
+                        )
+                    )),
+                    by_fields: Some(vec![
+                        ast::Field::from("Filesystem.file_create_time").into(),
+                        ast::Field::from("Filesystem.process_id").into(),
+                        ast::Field::from("Filesystem.file_name").into(),
+                        ast::Field::from("Filesystem.user").into(),
+                        ast::Field::from("Filesystem.file_path").into(),
+                        ast::Field::from("Filesystem.process_guid").into(),
+                        ast::Field::from("Filesystem.dest").into(),
+                    ]),
+                    by_prefix: None,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_tstats_9() {
+        let query = r#"tstats
+        summariesonly=false allow_old_summaries=true fillnull_value=null
+        count min(_time) as firstTime max(_time) as lastTime
+        from datamodel=Endpoint.Processes
+        where
+            Processes.parent_process_name IN ("sqlservr.exe", "sqlagent.exe", "sqlps.exe", "launchpad.exe", "sqldumper.exe")
+            (Processes.process_name=certutil.exe OR Processes.original_file_name=CertUtil.exe)
+            (Processes.process=*urlcache* Processes.process=*split*)
+            OR Processes.process=*urlcache*
+        by Processes.dest Processes.user Processes.parent_process Processes.parent_process_name Processes.process_name Processes.process Processes.process_id Processes.original_file_name Processes.parent_process_id
+        "#;
+
+        assert_eq!(
+            logical_expression_term(r#"Processes.process=*urlcache* Processes.process=*split*"#)
+                .unwrap()
+                .0,
+            " Processes.process=*split*"
+        );
+        assert_eq!(
+            logical_expression_term(r#"Processes.process=*split*"#)
+                .unwrap()
+                .0,
+            ""
+        );
+        assert_eq!(
+            logical_expression(r#"Processes.process=*urlcache* AND Processes.process=*split*"#)
+                .unwrap()
+                .0,
+            ""
+        );
+        assert_eq!(
+            logical_expression_term(
+                r#"(Processes.process=*urlcache* AND Processes.process=*split*)"#
+            )
+            .unwrap()
+            .0,
+            ""
+        );
+        assert_eq!(
+            logical_expression_term(r#"(Processes.process=*urlcache* Processes.process=*split*)"#)
+                .unwrap()
+                .0,
+            ""
+        );
+
+        assert_eq!(
+            all_consuming(TStatsParser::parse)(query),
+            Ok((
+                "",
+                TStatsCommand {
+                    prestats: false,
+                    local: false,
+                    append: false,
+                    summaries_only: false,
+                    include_reduced_buckets: false,
+                    allow_old_summaries: true,
+                    chunk_size: 10000000,
+                    fillnull_value: Some("null".into()),
+                    exprs: vec![
+                        _call!(count()).into(),
+                        _alias("firstTime", _call!(min(ast::Field::from("_time")))).into(),
+                        _alias("lastTime", _call!(max(ast::Field::from("_time")))).into(),
+                    ],
+                    datamodel: Some("Endpoint.Processes".into()),
+                    nodename: None,
+                    where_condition: Some(_or(
+                        _and(
+                            _and(
+                                _isin(
+                                    "Processes.parent_process_name",
+                                    vec![
+                                        ast::StrValue::from("sqlservr.exe").into(),
+                                        ast::StrValue::from("sqlagent.exe").into(),
+                                        ast::StrValue::from("sqlps.exe").into(),
+                                        ast::StrValue::from("launchpad.exe").into(),
+                                        ast::StrValue::from("sqldumper.exe").into(),
+                                    ]
+                                ),
+                                _or(
+                                    _eq(
+                                        ast::Field::from("Processes.process_name"),
+                                        ast::StrValue::from("certutil.exe")
+                                    ),
+                                    _eq(
+                                        ast::Field::from("Processes.original_file_name"),
+                                        ast::StrValue::from("CertUtil.exe")
+                                    ),
+                                ),
+                            ),
+                            _and(
+                                _eq(
+                                    ast::Field::from("Processes.process"),
+                                    ast::Wildcard::from("*urlcache*")
+                                ),
+                                _eq(
+                                    ast::Field::from("Processes.process"),
+                                    ast::Wildcard::from("*split*")
+                                ),
+                            ),
+                        ),
+                        _eq(
+                            ast::Field::from("Processes.process"),
+                            ast::Wildcard::from("*urlcache*")
+                        ),
+                    )),
+                    by_fields: Some(vec![
+                        ast::Field::from("Processes.dest").into(),
+                        ast::Field::from("Processes.user").into(),
+                        ast::Field::from("Processes.parent_process").into(),
+                        ast::Field::from("Processes.parent_process_name").into(),
+                        ast::Field::from("Processes.process_name").into(),
+                        ast::Field::from("Processes.process").into(),
+                        ast::Field::from("Processes.process_id").into(),
+                        ast::Field::from("Processes.original_file_name").into(),
+                        ast::Field::from("Processes.parent_process_id").into(),
+                    ]),
                     by_prefix: None,
                 }
             ))

@@ -1,14 +1,13 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Expr, ParsedCommandOptions};
+use crate::spl::operators;
 use crate::spl::operators::OperatorSymbolTrait;
-use crate::spl::parser::{expr, ws};
+use crate::spl::parser::{combine_all_expressions, expr, space_separated_list1};
 use crate::spl::python::impl_pyclass;
-use crate::spl::{ast, operators};
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::{multispace0, multispace1};
-use nom::combinator::{eof, map, verify};
-use nom::multi::fold_many_m_n;
+use nom::combinator::{eof, map};
 use nom::sequence::tuple;
 use nom::IResult;
 use pyo3::prelude::*;
@@ -42,26 +41,9 @@ impl SplCommand<SearchCommand> for SearchParser {
     type Options = SearchCommandOptions;
 
     fn parse_body(input: &str) -> IResult<&str, SearchCommand> {
-        map(
-            verify(
-                fold_many_m_n(
-                    1, // <-- differs from original code, but I don't see how 0 makes sense
-                    100,
-                    ws(expr),
-                    || None,
-                    |a, b| match a {
-                        None => Some(b),
-                        Some(a) => Some(Expr::Binary(ast::Binary {
-                            left: Box::new(a),
-                            symbol: operators::And::SYMBOL.into(),
-                            right: Box::new(b),
-                        })),
-                    },
-                ),
-                |v| v.is_some(),
-            ),
-            |v| SearchCommand { expr: v.unwrap() },
-        )(input)
+        map(space_separated_list1(expr), |exprs| SearchCommand {
+            expr: combine_all_expressions(exprs, operators::And::SYMBOL).unwrap(),
+        })(input)
     }
 
     fn match_name(input: &str) -> IResult<&str, ()> {
@@ -78,6 +60,7 @@ impl SplCommand<SearchCommand> for SearchParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::spl::ast;
     use crate::spl::parser::field_in;
     use crate::spl::utils::test::*;
 
@@ -370,7 +353,7 @@ mod tests {
         let query = r#"search
         query!="SELECT * FROM Win32_ProcessStartTrace WHERE ProcessName = 'wsmprovhost.exe'"
         AND query!="SELECT * FROM __InstanceOperationEvent WHERE TargetInstance ISA 'AntiVirusProduct' OR TargetInstance ISA 'FirewallProduct' OR TargetInstance ISA 'AntiSpywareProduct'"
-        "#;
+        "#.trim();
 
         assert_eq!(
             SearchParser::parse(query),
@@ -388,7 +371,62 @@ mod tests {
                         )
                     )
                 }
-           ))
+            ))
+        );
+    }
+
+    #[test]
+    fn test_search_9() {
+        let query = r#"
+            sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+            OR source=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+            OR source=Syslog:Linux-Sysmon/Operational (process_name=3CXDesktopApp.exe OR OriginalFileName=3CXDesktopApp.exe)  FileVersion=18.12.*"#;
+
+        assert_eq!(
+            SearchParser::parse(query),
+            Ok((
+                "",
+                SearchCommand {
+                    expr: _and(
+                        _and(
+                            _or(
+                                _eq(
+                                    ast::Field::from("sourcetype"),
+                                    ast::Field::from(
+                                        "XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+                                    )
+                                ),
+                                _or(
+                                    _eq(
+                                        ast::Field::from("source"),
+                                        ast::Field::from(
+                                            "XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+                                        )
+                                    ),
+                                    _eq(
+                                        ast::Field::from("source"),
+                                        ast::Field::from("Syslog:Linux-Sysmon/Operational")
+                                    ),
+                                ),
+                            ),
+                            _or(
+                                _eq(
+                                    ast::Field::from("process_name"),
+                                    ast::Field::from("3CXDesktopApp.exe")
+                                ),
+                                _eq(
+                                    ast::Field::from("OriginalFileName"),
+                                    ast::Field::from("3CXDesktopApp.exe")
+                                )
+                            )
+                        ),
+                        _eq(
+                            ast::Field::from("FileVersion"),
+                            ast::Wildcard::from("18.12.*")
+                        )
+                    )
+                }
+            ))
         );
     }
 }
