@@ -179,7 +179,11 @@ SPL_COMMAND_ALIASES = {
     "run": "script",
 }
 
-_query_files = [f"{f.parent.name}/{f.name}" for f in SAMPLE_QUERIES_ROOT.rglob("*.spl")]
+_query_files = [
+    f"{f.parent.name}/{f.name}"
+    for f in SAMPLE_QUERIES_ROOT.rglob("*.spl")
+    if not f.name.startswith("__ignore__")
+]
 
 
 # class MacroLoader:

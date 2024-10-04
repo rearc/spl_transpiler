@@ -1,3 +1,4 @@
+// use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::pyspark::alias::Aliasable;
 use crate::pyspark::base::TemplateNode;
 use anyhow::{ensure, Result};
@@ -296,6 +297,15 @@ impl DataFrame {
             code: code.to_string(),
         }
     }
+    // pub fn as_variable(&self, name_prefix: Option<impl ToString>) -> DataFrame {
+    //     static UNIQUE_NAME_COUNTER: AtomicUsize = AtomicUsize::new(0);
+    //     let name_prefix = name_prefix.map(|s| s.to_string()).unwrap_or("df".to_string());
+    //     let i = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+    //     DataFrame::Named {
+    //         source: Box::new(self.clone()),
+    //         name: format!("{}_{}", name_prefix, i).to_string(),
+    //     }
+    // }
     pub fn named(&self, name: impl ToString) -> DataFrame {
         DataFrame::Named {
             source: Box::new(self.clone()),

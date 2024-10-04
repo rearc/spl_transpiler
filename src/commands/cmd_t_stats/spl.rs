@@ -981,4 +981,81 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    fn test_tstats_11() {
+        let query = r#"tstats
+        summariesonly=false allow_old_summaries=true fillnull_value=null
+        count min(_time) as firstTime max(_time) as lastTime
+        FROM datamodel=Endpoint.Registry
+        where Registry.registry_path= "*\\SYSTEM\\CurrentControlSet\\Services*" AND (
+            Registry.action = deleted OR (
+                Registry.registry_value_name = DeleteFlag AND
+                Registry.registry_value_data = 0x00000001 AND Registry.action=modified
+            )
+        )
+        by Registry.registry_key_name Registry.user Registry.registry_path Registry.registry_value_data Registry.registry_value_name Registry.action Registry.dest"#;
+
+        assert_eq!(
+            TStatsParser::parse(query),
+            Ok((
+                "",
+                TStatsCommand {
+                    prestats: false,
+                    local: false,
+                    append: false,
+                    summaries_only: false,
+                    include_reduced_buckets: false,
+                    allow_old_summaries: true,
+                    chunk_size: 10000000,
+                    fillnull_value: Some("null".into()),
+                    exprs: vec![
+                        _call!(count()).into(),
+                        _alias("firstTime", _call!(min(ast::Field::from("_time")))).into(),
+                        _alias("lastTime", _call!(max(ast::Field::from("_time")))).into(),
+                    ],
+                    datamodel: Some("Endpoint.Registry".into()),
+                    nodename: None,
+                    where_condition: Some(_and(
+                        _eq(
+                            ast::Field::from("Registry.registry_path"),
+                            ast::Wildcard::from(r#"*\\SYSTEM\\CurrentControlSet\\Services*"#)
+                        ),
+                        _or(
+                            _eq(
+                                ast::Field::from("Registry.action"),
+                                ast::StrValue::from("deleted")
+                            ),
+                            _and(
+                                _and(
+                                    _eq(
+                                        ast::Field::from("Registry.registry_value_name"),
+                                        ast::StrValue::from("DeleteFlag")
+                                    ),
+                                    _eq(
+                                        ast::Field::from("Registry.registry_value_data"),
+                                        ast::StrValue::from("0x00000001")
+                                    )
+                                ),
+                                _eq(
+                                    ast::Field::from("Registry.action"),
+                                    ast::StrValue::from("modified")
+                                )
+                            )
+                        )
+                    )),
+                    by_fields: Some(vec![
+                        ast::Field::from("Registry.registry_key_name").into(),
+                        ast::Field::from("Registry.user").into(),
+                        ast::Field::from("Registry.registry_path").into(),
+                        ast::Field::from("Registry.registry_value_data").into(),
+                        ast::Field::from("Registry.registry_value_name").into(),
+                        ast::Field::from("Registry.action").into(),
+                        ast::Field::from("Registry.dest").into(),
+                    ]),
+                    by_prefix: None,
+                }
+            ))
+        );
+    }
 }

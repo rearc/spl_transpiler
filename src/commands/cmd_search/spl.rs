@@ -496,4 +496,48 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    fn test_search_11() {
+        let query = "eventtype=wineventlog_security OR Channel=security OR source=XmlWinEventLog:Security EventCode=5136 AttributeLDAPDisplayName IN (\"msDS-AllowedToDelegateTo\",\"msDS-AllowedToActOnBehalfOfOtherIdentity\",\"scriptPath\",\"msTSInitialProgram\") OperationType=%%14674";
+        assert_eq!(SearchParser::parse(query).unwrap().0, "");
+    }
+
+    #[test]
+    fn test_search_12() {
+        let query = "sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR source=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR source=Syslog:Linux-Sysmon/Operational EventCode=22 QueryName IN (\"*pastebin*\",\"\"*textbin*\"\", \"*ngrok.io*\", \"*discord*\", \"*duckdns.org*\", \"*pasteio.com*\")";
+        assert_eq!(SearchParser::parse(query).unwrap().0, "");
+    }
+
+    #[test]
+    fn test_search_13() {
+        assert_eq!(
+            SearchParser::parse(r#"search [| inputlookup x]"#)
+                .unwrap()
+                .0,
+            ""
+        );
+
+        let query = "search [| tstats summariesonly=false allow_old_summaries=true fillnull_value=null count FROM datamodel=Endpoint.Processes where Processes.parent_process_name=cmd.exe Processes.process_name= reg.exe by Processes.parent_process_id Processes.dest Processes.process_name | rename \"Processes\".* AS * | convert timeformat=\"%Y-%m-%dT%H:%M:%S\" ctime(firstTime) | convert timeformat=\"%Y-%m-%dT%H:%M:%S\" ctime(lastTime) | rename parent_process_id as process_id | dedup process_id | table process_id dest]";
+        assert_eq!(SearchParser::parse(query).unwrap().0, "");
+    }
+
+    #[test]
+    fn test_search_14() {
+        let query = "sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR source=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR source=Syslog:Linux-Sysmon/Operational EventCode = 8 parent_process_name IN (\"powershell_ise.exe\", \"powershell.exe\") TargetImage IN (\"*\\\\svchost.exe\",\"*\\\\csrss.exe\" \"*\\\\gpupdate.exe\", \"*\\\\explorer.exe\",\"*\\\\services.exe\",\"*\\\\winlogon.exe\",\"*\\\\smss.exe\",\"*\\\\wininit.exe\",\"*\\\\userinit.exe\",\"*\\\\spoolsv.exe\",\"*\\\\taskhost.exe\")";
+        assert_eq!(SearchParser::parse(query).unwrap().0, "");
+    }
+
+    #[test]
+    fn test_search_15() {
+        assert_eq!(field_in("email IN(\"\", \"null\")").unwrap().0, "");
+        assert_eq!(expr("(email IN(\"\", \"null\"))").unwrap().0, "");
+        assert_eq!(expr("NOT (email IN(\"\", \"null\"))").unwrap().0, "");
+        assert_eq!(
+            SearchParser::parse("sourcetype=gsuite:drive:json NOT (email IN(\"\", \"null\"))")
+                .unwrap()
+                .0,
+            ""
+        );
+    }
 }

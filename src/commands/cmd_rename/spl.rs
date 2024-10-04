@@ -39,7 +39,9 @@ impl SplCommand<RenameCommand> for RenameParser {
 
     fn parse_body(input: &str) -> IResult<&str, RenameCommand> {
         map(comma_separated_list1(aliased_field), |alias| {
-            RenameCommand { alias }
+            RenameCommand {
+                alias: alias.into_iter().map(Into::into).collect(),
+            }
         })(input)
     }
 }

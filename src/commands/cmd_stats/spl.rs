@@ -125,7 +125,7 @@ mod tests {
     //     )))
     //   }
     #[test]
-    fn test_pipeline_stats_8() {
+    fn test_stats_1() {
         assert_eq!(
             pipeline(
                 "stats first(startTime) AS startTime, last(histID) AS lastPassHistId BY testCaseId"
@@ -174,7 +174,7 @@ mod tests {
     //     ))
     //   }
     #[test]
-    fn test_pipeline_stats_9() {
+    fn test_stats_2() {
         assert_eq!(
             pipeline("stats count(eval(status=404))"),
             Ok((
@@ -222,7 +222,7 @@ mod tests {
     //     ))
     //   }
     #[test]
-    fn test_no_comma_stats() {
+    fn test_no_comma_stats_1() {
         assert_eq!(
             pipeline(
                 r#"stats allnum=f delim=":" partitions=10 count earliest(_time) as earliest latest(_time) as latest values(var_2) as var_2 by var_1"#
@@ -250,7 +250,7 @@ mod tests {
     }
 
     #[test]
-    fn test_stats_1() {
+    fn test_stats_3() {
         let query = r#"stats
         count min(_time) as firstTime max(_time) as lastTime
         by action deviceowner user urlcategory url src dest"#;
@@ -281,5 +281,24 @@ mod tests {
                 }
             ))
         );
+    }
+
+    #[test]
+    fn test_stats_4() {
+        let query = "stats count AS instances_launched by _time userName";
+        assert_eq!(
+            StatsParser::parse(query),
+            Ok((
+                "",
+                StatsCommand {
+                    partitions: 1,
+                    all_num: false,
+                    delim: " ".to_string(),
+                    funcs: vec![_alias("instances_launched", _call!(count())).into(),],
+                    by: vec![ast::Field::from("_time"), ast::Field::from("userName"),],
+                    dedup_split_vals: false,
+                }
+            ))
+        )
     }
 }

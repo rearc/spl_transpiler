@@ -1,9 +1,8 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Field, ParsedCommandOptions};
-use crate::spl::parser::{field, ws};
+use crate::spl::parser::{comma_or_space_separated_list1, field};
 use crate::spl::python::impl_pyclass;
 use nom::combinator::map;
-use nom::multi::many1;
 use nom::IResult;
 use pyo3::prelude::*;
 //   def table[_: P]: P[TableCommand] = "table" ~ field.rep(1) map TableCommand
@@ -35,7 +34,9 @@ impl SplCommand<TableCommand> for TableParser {
     type Options = TableCommandOptions;
 
     fn parse_body(input: &str) -> IResult<&str, TableCommand> {
-        map(many1(ws(field)), |fields| TableCommand { fields })(input)
+        map(comma_or_space_separated_list1(field), |fields| {
+            TableCommand { fields }
+        })(input)
     }
 }
 
@@ -56,7 +57,7 @@ mod tests {
     //     )))
     //   }
     #[test]
-    fn test_pipeline_table_7() {
+    fn test_table_1() {
         assert_eq!(
             pipeline("table foo bar baz*"),
             Ok((
@@ -67,6 +68,53 @@ mod tests {
                             ast::Field::from("foo"),
                             ast::Field::from("bar"),
                             ast::Field::from("baz*")
+                        ]
+                    }
+                    .into()],
+                }
+            ))
+        )
+    }
+
+    #[test]
+    fn test_table_2() {
+        assert_eq!(
+            pipeline("table _time, dest, user, Operation, EventType, Query, Consumer, Filter"),
+            Ok((
+                "",
+                ast::Pipeline {
+                    commands: vec![TableCommand {
+                        fields: vec![
+                            ast::Field::from("_time"),
+                            ast::Field::from("dest"),
+                            ast::Field::from("user"),
+                            ast::Field::from("Operation"),
+                            ast::Field::from("EventType"),
+                            ast::Field::from("Query"),
+                            ast::Field::from("Consumer"),
+                            ast::Field::from("Filter")
+                        ]
+                    }
+                    .into()],
+                }
+            ))
+        )
+    }
+
+    #[test]
+    fn test_table_3() {
+        assert_eq!(
+            pipeline("table protoPayload.@type protoPayload.status.details{}.@type protoPayload.status.details{}.violations{}.callerIp protoPayload.status.details{}.violations{}.type protoPayload.status.message"),
+            Ok((
+                "",
+                ast::Pipeline {
+                    commands: vec![TableCommand {
+                        fields: vec![
+                            ast::Field::from("protoPayload.@type"),
+                            ast::Field::from("protoPayload.status.details{}.@type"),
+                            ast::Field::from("protoPayload.status.details{}.violations{}.callerIp"),
+                            ast::Field::from("protoPayload.status.details{}.violations{}.type"),
+                            ast::Field::from("protoPayload.status.message")
                         ]
                     }
                     .into()],

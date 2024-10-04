@@ -239,20 +239,193 @@ pub fn relative_time(input: &str) -> IResult<&str, ast::SnapTime> {
 }
 
 //   def token[_: P]: P[String] = ("_"|"*"|letter|digit).repX(1).!
+/*
+after	and,
+AND
+
+apply	as,
+AS
+
+asc,
+ASC
+
+before	between,
+BETWEEN
+
+bin	branch	by,
+BY
+
+dedup	desc,
+DESC
+
+distinct,
+DISTINCT
+
+eval	eventstats
+exists,
+EXISTS
+
+export	false	fit	from,
+FROM
+
+function	group,
+GROUP
+
+groupby,
+GROUPBY
+
+having,
+HAVING
+
+head
+histperc	import	in,
+IN
+
+inner,
+INNER
+
+into
+is,
+IS
+
+join,
+JOIN
+
+left,
+LEFT
+
+like,
+LIKE
+
+limit,
+LIMIT
+
+lookup	not,
+NOT
+
+null,
+NULL
+
+offset,
+OFFSET
+
+on,
+ON
+
+onchange	or,
+OR
+
+order,
+ORDER
+
+orderby,
+ORDERBY
+
+outer,
+OUTER
+
+OUTPUT	OUTPUTNEW	rename	reset	return
+rex	search	select,
+SELECT
+
+sort	stats
+streamstats	thru,
+through
+
+timechart	timewrap	true
+type	union,
+UNION
+
+where,
+WHERE
+
+while	xor,
+XOR
+ */
+fn _is_not_reserved_word(input: &str) -> bool {
+    !matches!(
+        input.to_ascii_uppercase().as_str(),
+        "AFTER"
+            | "AND"
+            | "APPLY"
+            | "AS"
+            | "ASC"
+            | "BEFORE"
+            | "BETWEEN"
+            | "BIN"
+            | "BRANCH"
+            | "BY"
+            | "DEDUP"
+            | "DISTINCT"
+            | "EVENTSTATS"
+            | "EXISTS"
+            | "EXPORT"
+            | "FIT"
+            | "FROM"
+            | "FUNCTION"
+            | "GROUP"
+            | "GROUPBY"
+            | "HAVING"
+            | "HEAD"
+            | "HISTPERC"
+            | "IMPORT"
+            | "IN"
+            | "INNER"
+            | "INTO"
+            | "IS"
+            | "JOIN"
+            | "LIKE"
+            | "LIMIT"
+            | "LOOKUP"
+            | "NOT"
+            | "OFFSET"
+            | "ON"
+            | "ONCHANGE"
+            | "OR"
+            | "ORDER"
+            | "ORDERBY"
+            | "OUTER"
+            | "OUTPUTNEW"
+            | "RENAME"
+            | "RESET"
+            | "RETURN"
+            | "REX"
+            | "SEARCH"
+            | "SELECT"
+            | "SORT"
+            | "STATS"
+            | "STREAMSTATS"
+            | "THRU"
+            | "THROUGH"
+            | "TIMECHART"
+            | "TIMEWRAP"
+            | "UNION"
+            | "WHERE"
+            | "WHILE"
+            | "XOR" // | "TRUE" | "FALSE" | "TYPE" | "LEFT" | "NULL" | "DESC" | "EVAL"
+    )
+}
+
 pub fn token(input: &str) -> IResult<&str, &str> {
-    recognize(many1(alt((
-        recognize(one_of("_*:/-")),
-        alphanumeric1,
-        recognize(pair(tag("\\"), take(1usize))),
-    ))))(input)
+    verify(
+        recognize(many1(alt((
+            recognize(one_of("_*:/-%{}@")),
+            alphanumeric1,
+            recognize(pair(tag("\\"), take(1usize))),
+        )))),
+        _is_not_reserved_word,
+    )(input)
 }
 
 pub fn token_with_extras(input: &str) -> IResult<&str, &str> {
-    recognize(many1(alt((
-        recognize(one_of("_*:/-\\@$.")),
-        alphanumeric1,
-        recognize(pair(tag("\\"), take(1usize))),
-    ))))(input)
+    verify(
+        recognize(many1(alt((
+            recognize(one_of("_*:/-%{}@\\$.")),
+            alphanumeric1,
+            recognize(pair(tag("\\"), take(1usize))),
+        )))),
+        _is_not_reserved_word,
+    )(input)
 }
 
 // Boolean parser
@@ -272,15 +445,23 @@ pub fn bool_(input: &str) -> IResult<&str, ast::BoolValue> {
 }
 
 //   def doubleQuoted[_: P]: P[String] = P( "\"" ~ (CharsWhile(!"\"".contains(_)) | "\\" ~~ AnyChar | !"\"").rep.! ~ "\"" )
+fn _double_quoted_content(input: &str) -> IResult<&str, &str> {
+    ws(recognize(many0(alt((
+        recognize(pair(tag(r#"\"#), anychar)),
+        recognize(none_of(r#""\"#)),
+    )))))
+    .parse(input)
+}
+
 pub fn double_quoted(input: &str) -> IResult<&str, &str> {
-    delimited(
-        tag("\""),
-        ws(recognize(many0(alt((
-            recognize(pair(tag(r#"\"#), anychar)),
-            recognize(none_of(r#""\"#)),
-        ))))),
-        tag("\""),
-    )(input)
+    alt((
+        delimited(
+            tag("\""),
+            recognize(tuple((tag("\""), _double_quoted_content, tag("\"")))),
+            tag("\""),
+        ),
+        delimited(tag("\""), _double_quoted_content, tag("\"")),
+    ))(input)
 }
 
 pub fn single_quoted(input: &str) -> IResult<&str, &str> {
@@ -340,7 +521,7 @@ fn _field_fmt(input: &str) -> IResult<&str, ast::Field> {
 }
 
 pub fn field(input: &str) -> IResult<&str, ast::Field> {
-    alt((_field_fmt, delimited(tag("'"), _field_fmt, tag("'"))))(input)
+    alt((_field_fmt, into(single_quoted)))(input)
 }
 
 pub fn string(input: &str) -> IResult<&str, &str> {
@@ -434,22 +615,25 @@ pub fn double(input: &str) -> IResult<&str, ast::DoubleValue> {
 //   def constant[_: P]: P[Constant] = cidr | wildcard | strValue | variable |
 //       relativeTime | timeSpan | double | int | field | bool
 pub fn literal(input: &str) -> IResult<&str, ast::Constant> {
-    alt((
-        map(ipv4_cidr, ast::Constant::IPv4CIDR),
-        map(ipv4_addr, |s| ast::Constant::Str(s.into())),
-        map(ipv6_addr, |s| ast::Constant::Str(s.into())),
-        map(wildcard, ast::Constant::Wildcard),
-        map(str_value, ast::Constant::Str),
-        map(variable, ast::Constant::Variable),
-        map(relative_time, ast::Constant::SnapTime),
-        map(time_span, |v| {
+    let (remaining, content) =
+        recognize(alt((double_quoted, single_quoted, token_with_extras)))(input)?;
+    let (_, parsed_value) = alt((
+        map(all_consuming(ipv4_cidr), ast::Constant::IPv4CIDR),
+        map(all_consuming(ipv4_addr), |s| ast::Constant::Str(s.into())),
+        map(all_consuming(ipv6_addr), |s| ast::Constant::Str(s.into())),
+        map(all_consuming(wildcard), ast::Constant::Wildcard),
+        map(all_consuming(str_value), ast::Constant::Str),
+        map(all_consuming(variable), ast::Constant::Variable),
+        map(all_consuming(relative_time), ast::Constant::SnapTime),
+        map(all_consuming(time_span), |v| {
             ast::Constant::SplSpan(ast::SplSpan::TimeSpan(v))
         }),
-        map(double, ast::Constant::Double),
-        map(int, ast::Constant::Int),
-        map(bool_, ast::Constant::Bool),
-        map(string, |s| ast::Constant::Str(s.into())),
-    ))(input)
+        map(all_consuming(double), ast::Constant::Double),
+        map(all_consuming(int), ast::Constant::Int),
+        map(all_consuming(bool_), ast::Constant::Bool),
+        map(all_consuming(string), |s| ast::Constant::Str(s.into())),
+    ))(content)?;
+    Ok((remaining, parsed_value))
 }
 
 pub fn constant(input: &str) -> IResult<&str, ast::Constant> {
@@ -695,7 +879,7 @@ pub fn field_in(input: &str) -> IResult<&str, ast::FieldIn> {
         separated_pair(
             field,
             ws(tag_no_case("IN")),
-            parenthesized(comma_separated_list0(constant)),
+            parenthesized(comma_or_space_separated_list0(constant)),
         ),
         |(field, constants)| ast::FieldIn {
             field: field.0,
@@ -790,6 +974,7 @@ pub fn expr_base(input: &str) -> IResult<&str, ast::Expr> {
         map(term_call, ast::Expr::Call),
         map(call, ast::Expr::Call),
         map(constant, |v| ast::Expr::Leaf(ast::LeafExpr::Constant(v))),
+        map(sub_search, ast::Expr::SubSearch),
     ))(input)
 }
 
@@ -898,7 +1083,7 @@ pub fn expr7(input: &str) -> IResult<&str, ast::Expr> {
             alt((
                 separated_pair(operators::UnaryNot::pattern, multispace1, expr7),
                 pair(
-                    ws(operators::InList::pattern),
+                    ws(operators::UnaryNot::pattern),
                     parenthesized(expr9_with_whitespace),
                 ),
             )),
@@ -976,14 +1161,12 @@ pub fn expr(input: &str) -> IResult<&str, ast::Expr> {
 //   // lookup <lookup-dataset> (<lookup-field> [AS <event-field>] )...
 //   // [ (OUTPUT | OUTPUTNEW) ( <lookup-destfield> [AS <event-destfield>] )...]
 //   def aliasedField[_: P]: P[Alias] = field ~ W("AS") ~ (token|doubleQuoted) map Alias.tupled
-pub fn aliased_field(input: &str) -> IResult<&str, ast::Alias> {
+pub fn aliased_field(input: &str) -> IResult<&str, ast::AliasedField> {
     map(
         separated_pair(field, ws(tag_no_case("AS")), alt((token, double_quoted))),
-        |(field, alias)| ast::Alias {
-            expr: Box::new(ast::Expr::Leaf(ast::LeafExpr::Constant(
-                ast::Constant::Field(field),
-            ))),
-            name: alias.into(),
+        |(field, alias)| ast::AliasedField {
+            field,
+            alias: alias.into(),
         },
     )(input)
 }
@@ -1003,8 +1186,20 @@ pub fn aliased_call(input: &str) -> IResult<&str, ast::Alias> {
 //     token.filter(!_.toLowerCase(Locale.ROOT).equals("by")).map(Call(_))).rep(1, ",".?)
 pub fn stats_call(input: &str) -> IResult<&str, Vec<ast::Expr>> {
     comma_or_space_separated_list1(alt((
-        map(aliased_call, |v| v.into()),
-        map(call, |v| v.into()),
+        into(aliased_call),
+        into(call),
+        map(
+            aliased_field,
+            |ast::AliasedField {
+                 field: ast::Field(name),
+                 alias,
+             }| {
+                ast::Expr::Alias(ast::Alias {
+                    expr: Box::new(ast::Call { name, args: vec![] }.into()),
+                    name: alias,
+                })
+            },
+        ),
         map(
             verify(token, |v: &str| v.to_ascii_lowercase() != "by"),
             |v| {
@@ -1098,7 +1293,7 @@ pub fn sub_search(input: &str) -> IResult<&str, ast::Pipeline> {
     map(
         delimited(
             ws(tag("[")),
-            separated_list0(ws(tag("|")), command),
+            preceded(opt(ws(tag("|"))), separated_list0(ws(tag("|")), command)),
             ws(tag("]")),
         ),
         |commands| ast::Pipeline { commands },
@@ -1108,7 +1303,10 @@ pub fn sub_search(input: &str) -> IResult<&str, ast::Pipeline> {
 //   def pipeline[_: P]: P[Pipeline] = (command rep(sep = "|")) ~ End map Pipeline
 pub fn pipeline(input: &str) -> IResult<&str, ast::Pipeline> {
     map(
-        all_consuming(ws(separated_list0(ws(tag("|")), command))),
+        preceded(
+            opt(ws(tag("|"))),
+            all_consuming(ws(separated_list0(ws(tag("|")), command))),
+        ),
         |commands| ast::Pipeline { commands },
     )(input)
 }
@@ -1415,11 +1613,11 @@ mod tests {
     #[test]
     fn test_field() {
         assert_eq!(
-            expr("from"),
+            expr("junk"),
             Ok((
                 "",
                 ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(
-                    "from".into()
+                    "junk".into()
                 ))))
             ))
         );
@@ -2580,5 +2778,32 @@ mod tests {
                 _neq(ast::Field::from("note"), ast::Wildcard::from("ESCU*"))
             ))
         );
+    }
+
+    #[test]
+    fn test_logical_expression_10() {
+        assert_eq!(
+            expr("a=1 AND (b=2 OR c=3)"),
+            Ok((
+                "",
+                _and(
+                    _eq(ast::Field::from("a"), ast::IntValue::from(1)),
+                    _or(
+                        _eq(ast::Field::from("b"), ast::IntValue::from(2)),
+                        _eq(ast::Field::from("c"), ast::IntValue::from(3))
+                    )
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_string_double_double_quotes() {
+        // "xyz" => "xyz"
+        assert_eq!(double_quoted(r#""xyz""#), Ok(("", r#"xyz"#)));
+        // ""xyz"" => "\"xyz\""
+        assert_eq!(double_quoted(r#"""xyz"""#), Ok(("", r#""xyz""#)));
+        // "" => ""
+        assert_eq!(double_quoted(r#""""#), Ok(("", r#""#)));
     }
 }

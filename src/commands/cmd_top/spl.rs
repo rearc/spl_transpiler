@@ -1,6 +1,6 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Field, ParsedCommandOptions};
-use crate::spl::parser::{field_list, int, ws};
+use crate::spl::parser::{comma_or_space_separated_list1, field, field_list, int, ws};
 use crate::spl::python::impl_pyclass;
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::{map, opt};
@@ -114,7 +114,7 @@ impl SplCommand<TopCommand> for TopParser {
             tuple((
                 ws(opt(int)),
                 ws(Self::Options::match_options),
-                ws(field_list),
+                comma_or_space_separated_list1(field),
                 ws(opt(preceded(ws(tag_no_case("BY")), field_list))),
             )),
             |(n, opts, fields, by_fields)| TopCommand {
@@ -130,5 +130,38 @@ impl SplCommand<TopCommand> for TopParser {
                 use_other: opts.use_other,
             },
         )(input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_top_1() {
+        let query = "top  sourceIPs{} user.username verb annotations.authorization.k8s.io/decision";
+        assert_eq!(
+            TopParser::parse(query),
+            Ok((
+                "",
+                TopCommand {
+                    fields: vec![
+                        Field::from("sourceIPs{}"),
+                        Field::from("user.username"),
+                        Field::from("verb"),
+                        Field::from("annotations.authorization.k8s.io/decision"),
+                    ],
+                    n: 10,
+                    by: None,
+                    count_field: "count".to_string(),
+                    // limit: 10,
+                    other_str: "OTHER".to_string(),
+                    percent_field: "percent".to_string(),
+                    show_count: true,
+                    show_percent: true,
+                    use_other: false,
+                }
+            ))
+        );
     }
 }

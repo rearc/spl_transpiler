@@ -40,8 +40,8 @@ impl_pyclass!(LookupCommand { dataset: String, fields: Vec<FieldLike>, output: O
 pub fn field_rep(input: &str) -> IResult<&str, Vec<FieldLike>> {
     comma_or_space_separated_list1(alt((
         map(
-            verify(aliased_field, |v| v.name.to_ascii_lowercase() != "output"),
-            FieldLike::Alias,
+            verify(aliased_field, |v| v.alias.to_ascii_lowercase() != "output"),
+            FieldLike::AliasedField,
         ),
         map(
             verify(field, |v| v.0.to_ascii_lowercase() != "output"),

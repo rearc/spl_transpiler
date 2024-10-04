@@ -494,6 +494,15 @@ pub struct AliasedField {
     pub alias: String,
 }
 
+impl From<AliasedField> for Alias {
+    fn from(value: AliasedField) -> Self {
+        Alias {
+            expr: Box::new(value.field.into()),
+            name: value.alias,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct Binary {
@@ -615,6 +624,7 @@ pub enum Expr {
     FieldConversion(FieldConversion),
     TimeModifier(String, TimeModifier),
     SearchModifier(SearchModifier),
+    SubSearch(Pipeline),
 }
 
 impl From<TimeSpan> for Constant {
@@ -824,6 +834,11 @@ impl From<Field> for FieldOrAlias {
 impl From<Alias> for FieldOrAlias {
     fn from(val: Alias) -> Self {
         FieldOrAlias::Alias(val)
+    }
+}
+impl From<AliasedField> for FieldOrAlias {
+    fn from(val: AliasedField) -> Self {
+        FieldOrAlias::Alias(val.into())
     }
 }
 
