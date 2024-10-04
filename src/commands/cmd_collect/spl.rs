@@ -1,6 +1,6 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Field, ParsedCommandOptions};
-use crate::spl::parser::field_list;
+use crate::spl::parser::field_list0;
 use crate::spl::python::impl_pyclass;
 use anyhow::anyhow;
 use nom::combinator::map;
@@ -117,7 +117,7 @@ impl SplCommand<CollectCommand> for CollectParser {
 
     fn parse_body(input: &str) -> IResult<&str, CollectCommand> {
         map(
-            pair(Self::Options::match_options, field_list),
+            pair(Self::Options::match_options, field_list0),
             |(
                 CollectCommandOptions {
                     index,

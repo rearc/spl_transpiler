@@ -283,6 +283,11 @@ pub enum DataFrame {
         source: Box<DataFrame>,
         name: String,
     },
+    ArbitraryMethod {
+        source: Box<DataFrame>,
+        method: String,
+        params: Vec<Expr>,
+    },
 }
 
 #[allow(dead_code)]
@@ -397,6 +402,13 @@ impl DataFrame {
             name: name.to_string(),
         }
     }
+    pub fn arbitrary_method(&self, method: impl ToString, params: Vec<Expr>) -> DataFrame {
+        Self::ArbitraryMethod {
+            source: Box::new(self.clone()),
+            method: method.to_string(),
+            params,
+        }
+    }
 }
 
 impl TemplateNode for DataFrame {
@@ -499,6 +511,20 @@ impl TemplateNode for DataFrame {
             )),
             DataFrame::Alias { source, name } => {
                 Ok(format!("{}.alias('{}',)", source.to_spark_query()?, name,))
+            }
+            DataFrame::ArbitraryMethod {
+                source,
+                method,
+                params,
+            } => {
+                let params: Result<Vec<String>> =
+                    params.iter().map(|col| col.to_spark_query()).collect();
+                Ok(format!(
+                    "{}.{}({},)",
+                    source.to_spark_query()?,
+                    method,
+                    params?.join(",")
+                ))
             }
         }
     }

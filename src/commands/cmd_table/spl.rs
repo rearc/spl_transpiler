@@ -1,6 +1,6 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Field, ParsedCommandOptions};
-use crate::spl::parser::{comma_or_space_separated_list1, field};
+use crate::spl::parser::field_list1;
 use crate::spl::python::impl_pyclass;
 use nom::combinator::map;
 use nom::IResult;
@@ -34,9 +34,7 @@ impl SplCommand<TableCommand> for TableParser {
     type Options = TableCommandOptions;
 
     fn parse_body(input: &str) -> IResult<&str, TableCommand> {
-        map(comma_or_space_separated_list1(field), |fields| {
-            TableCommand { fields }
-        })(input)
+        map(field_list1, |fields| TableCommand { fields })(input)
     }
 }
 

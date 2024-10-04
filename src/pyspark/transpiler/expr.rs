@@ -1,9 +1,11 @@
 use crate::functions::eval_fns::eval_fn;
+use crate::pyspark::alias::Aliasable;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::utils::join_as_binaries;
 use crate::spl::ast;
 use anyhow::{anyhow, bail};
 use phf::phf_map;
+use regex::Regex;
 
 static SIMPLE_OP_MAP: phf::Map<&'static str, &'static str> = phf_map! {
     "=" => "==",
@@ -170,7 +172,9 @@ impl TryFrom<ast::Expr> for Expr {
                     })
                     .collect();
                 let checks = checks?;
-                Ok(join_as_binaries("|", checks, column_like!(lit(true))).into())
+                Ok(join_as_binaries("|", checks)
+                    .unwrap_or(column_like!(lit(true)))
+                    .into())
                 // Ok(match checks.len() {
                 //     0 => column_like!(lit(true)).into(),
                 //     1 => checks[0].clone().into(),
@@ -189,5 +193,89 @@ impl TryFrom<ast::Expr> for Expr {
 
             _ => Err(anyhow!("Unsupported expression: {:?}", expr)),
         }
+    }
+}
+
+impl Expr {
+    fn _into_search_expr(self) -> Self {
+        match self {
+            Expr::Column(ref c) => c.clone().into_search_expr().into(),
+            Expr::Raw(_) => self,
+        }
+    }
+
+    pub fn into_search_expr(self) -> Self {
+        let (expr, name) = self.unaliased_with_name();
+        let transformed_expr = expr._into_search_expr();
+        transformed_expr.maybe_with_alias(name)
+    }
+}
+
+impl ColumnLike {
+    fn _into_search_expr(self) -> Self {
+        match self {
+            ColumnLike::Named { name } => {
+                column_like!([col("_raw")].ilike([py_lit(format!("%{}%", name))]))
+            }
+            ColumnLike::Literal { code } => {
+                column_like!([col("_raw")]
+                    .ilike([py_lit(format!("%{}%", Self::_strip_quotes(code.as_str())))]))
+            }
+
+            ColumnLike::UnaryNot { right } => ColumnLike::UnaryNot {
+                right: Box::new(right._into_search_expr()),
+            },
+            ColumnLike::BinaryOp { left, op, right } if matches!(op.as_str(), "&" | "|") => {
+                ColumnLike::BinaryOp {
+                    left: Box::new(left._into_search_expr()),
+                    op,
+                    right: Box::new(right._into_search_expr()),
+                }
+            }
+            _ => self,
+        }
+    }
+
+    fn _strip_quotes(code: &str) -> &str {
+        let re_double: Regex = Regex::new(r#"^".+"$"#).unwrap();
+        let re_single: Regex = Regex::new(r#"^'.+'$"#).unwrap();
+        if re_double.is_match(code) | re_single.is_match(code) {
+            &code[1..code.len() - 1]
+        } else {
+            code
+        }
+    }
+
+    pub fn into_search_expr(self) -> Self {
+        let (expr, name) = self.unaliased_with_name();
+        let transformed_expr = expr._into_search_expr();
+        transformed_expr.maybe_with_alias(name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_expr_into_search_expr() {
+        assert_eq!(
+            column_like!([col("A")] == [py_lit(5)]).into_search_expr(),
+            column_like!([col("A")] == [py_lit(5)]),
+        );
+        assert_eq!(
+            column_like!(col("A")).into_search_expr(),
+            column_like!([col("_raw")].ilike([py_lit("%A%")])),
+        );
+        assert_eq!(
+            column_like!(lit("A")).into_search_expr(),
+            column_like!([col("_raw")].ilike([py_lit("%A%")])),
+        );
+        assert_eq!(
+            column_like!([col("A")] & [lit("B")]).into_search_expr(),
+            column_like!(
+                [[col("_raw")].ilike([py_lit("%A%")])] & [[col("_raw")].ilike([py_lit("%B%")])]
+            ),
+        );
     }
 }

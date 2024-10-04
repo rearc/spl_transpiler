@@ -64,22 +64,22 @@ impl ColumnLike {
     }
 }
 
-// impl Expr {
-//     pub fn with_alias(&self, name: String) -> Self {
-//         ColumnLike::Aliased {
-//             col: Box::new(self.unaliased()),
-//             name,
-//         }
-//         .into()
-//     }
-//
-//     pub fn maybe_with_alias(&self, name: Option<String>) -> Self {
-//         match name {
-//             Some(n) => self.with_alias(n),
-//             None => self.clone(),
-//         }
-//     }
-// }
+impl Expr {
+    pub fn with_alias(&self, name: String) -> Self {
+        ColumnLike::Aliased {
+            col: Box::new(self.unaliased()),
+            name,
+        }
+        .into()
+    }
+
+    pub fn maybe_with_alias(&self, name: Option<String>) -> Self {
+        match name {
+            Some(n) => self.with_alias(n),
+            None => self.clone(),
+        }
+    }
+}
 
 impl ast::Expr {
     pub fn with_alias(&self, name: String) -> Self {

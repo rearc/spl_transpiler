@@ -719,8 +719,12 @@ pub fn command_options(input: &str) -> IResult<&str, ast::CommandOptions> {
 }
 
 //   def fieldList[_: P]: P[Seq[Field]] = field.rep(sep = ",")
-pub fn field_list(input: &str) -> IResult<&str, Vec<ast::Field>> {
-    comma_separated_list0(field).parse(input)
+pub fn field_list0(input: &str) -> IResult<&str, Vec<ast::Field>> {
+    comma_or_space_separated_list0(field).parse(input)
+}
+
+pub fn field_list1(input: &str) -> IResult<&str, Vec<ast::Field>> {
+    comma_or_space_separated_list1(field).parse(input)
 }
 
 #[allow(dead_code)]
@@ -1346,13 +1350,7 @@ pub fn logical_expression_group(input: &str) -> IResult<&str, ast::Expr> {
     map(
         separated_list1(
             alt((ws(tag_no_case("AND")), multispace1)),
-            verify(logical_expression_term, |e| {
-                !matches!(
-                    e,
-                    ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(name))))
-                    if matches!(name.to_ascii_lowercase().as_str(), "by" | "where" | "from")
-                )
-            }),
+            logical_expression_term,
         ),
         |exprs| combine_all_expressions(exprs, operators::And::SYMBOL).unwrap(),
     )(input)
@@ -1374,6 +1372,7 @@ pub fn logical_expression_term(input: &str) -> IResult<&str, ast::Expr> {
         map(time_opts, |opts| {
             combine_all_expressions(opts, operators::Or::SYMBOL).unwrap()
         }),
+        into(call),
         comparison_expression,
         search_modifier,
         // index_expression,
@@ -1385,12 +1384,16 @@ pub fn logical_expression_term(input: &str) -> IResult<&str, ast::Expr> {
 pub fn comparison_expression(input: &str) -> IResult<&str, ast::Expr> {
     alt((
         map(
-            tuple((field, ws(comparison_operator), literal)),
+            tuple((
+                field,
+                ws(comparison_operator),
+                alt((into(call), into(literal))),
+            )),
             |(left, symbol, right)| {
                 ast::Expr::Binary(ast::Binary {
                     left: Box::new(left.into()),
                     symbol: symbol.symbol_string().into(),
-                    right: Box::new(right.into()),
+                    right: Box::new(right),
                 })
             },
         ),
@@ -1693,7 +1696,7 @@ mod tests {
     #[test]
     fn test_field_list() {
         assert_eq!(
-            field_list("a ,   b,c, d"),
+            field_list0("a ,   b,c, d"),
             Ok((
                 "",
                 vec![
@@ -2791,6 +2794,35 @@ mod tests {
                     _or(
                         _eq(ast::Field::from("b"), ast::IntValue::from(2)),
                         _eq(ast::Field::from("c"), ast::IntValue::from(3))
+                    )
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_logical_expression_11() {
+        assert_eq!(
+            logical_expression("isnull(firstTimeSeenUserApiCall) OR firstTimeSeenUserApiCall > relative_time(now(),\"-24h@h\")"),
+            Ok((
+                "",
+                _or(
+                    _call!(isnull(ast::Field::from("firstTimeSeenUserApiCall"))),
+                    _gt(
+                        ast::Field::from("firstTimeSeenUserApiCall"),
+                        _call!(
+                            relative_time(
+                                _call!(now()),
+                                ast::SnapTime {
+                                    span: Some(ast::TimeSpan {
+                                        value: -24,
+                                        scale: "hours".to_string(),
+                                    }),
+                                    snap: "hours".to_string(),
+                                    snap_offset: None,
+                                }
+                            )
+                        )
                     )
                 )
             ))

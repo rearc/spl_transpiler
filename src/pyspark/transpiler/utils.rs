@@ -1,19 +1,15 @@
 use crate::pyspark::ast::*;
 use anyhow::{bail, Result};
 
-pub fn join_as_binaries(
-    op: impl ToString,
-    exprs: Vec<ColumnLike>,
-    default: ColumnLike,
-) -> ColumnLike {
+pub fn join_as_binaries(op: impl ToString, exprs: Vec<ColumnLike>) -> Option<ColumnLike> {
     match exprs.len() {
-        0 => default,
-        1 => exprs[0].clone(),
-        2 => ColumnLike::BinaryOp {
+        0 => None,
+        1 => Some(exprs[0].clone()),
+        2 => Some(ColumnLike::BinaryOp {
             op: op.to_string(),
             left: Box::new(exprs[0].clone().into()),
             right: Box::new(exprs[1].clone().into()),
-        },
+        }),
         _ => {
             let mut left = exprs[0].clone();
             for check in &exprs[1..] {
@@ -23,7 +19,7 @@ pub fn join_as_binaries(
                     right: Box::new(check.clone().into()),
                 };
             }
-            left
+            Some(left)
         }
     }
 }

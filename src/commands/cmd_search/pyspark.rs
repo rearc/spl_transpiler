@@ -80,7 +80,7 @@ impl PipelineTransformer for SearchCommand {
             None => df,
             Some(condition) => {
                 let condition: Expr = condition.try_into()?;
-                df.where_(condition)
+                df.where_(condition.into_search_expr())
             }
         };
 

@@ -1,6 +1,6 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Field, ParsedCommandOptions};
-use crate::spl::parser::{field_list, int, ws};
+use crate::spl::parser::{field_list0, int, ws};
 use crate::spl::python::impl_pyclass;
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::{map, opt};
@@ -114,8 +114,8 @@ impl SplCommand<RareCommand> for RareParser {
             tuple((
                 ws(opt(int)),
                 ws(Self::Options::match_options),
-                ws(field_list),
-                ws(opt(preceded(ws(tag_no_case("BY")), field_list))),
+                ws(field_list0),
+                ws(opt(preceded(ws(tag_no_case("BY")), field_list0))),
             )),
             |(n, opts, fields, by_fields)| RareCommand {
                 fields,

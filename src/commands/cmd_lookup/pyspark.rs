@@ -30,7 +30,7 @@ impl PipelineTransformer for LookupCommand {
                 ),
             })
             .collect();
-        let join_condition = join_as_binaries("&", join_columns?, column_like!(lit(1)));
+        let join_condition = join_as_binaries("&", join_columns?).unwrap_or(column_like!(lit(1)));
 
         let joined_df = df.join(lookup_df, join_condition, "left");
 

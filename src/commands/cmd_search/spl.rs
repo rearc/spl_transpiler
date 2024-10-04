@@ -2,7 +2,7 @@ use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Expr, ParsedCommandOptions};
 use crate::spl::operators;
 use crate::spl::operators::OperatorSymbolTrait;
-use crate::spl::parser::{combine_all_expressions, expr, space_separated_list1};
+use crate::spl::parser::{combine_all_expressions, comma_or_space_separated_list1, expr};
 use crate::spl::python::impl_pyclass;
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
@@ -41,8 +41,10 @@ impl SplCommand<SearchCommand> for SearchParser {
     type Options = SearchCommandOptions;
 
     fn parse_body(input: &str) -> IResult<&str, SearchCommand> {
-        map(space_separated_list1(expr), |exprs| SearchCommand {
-            expr: combine_all_expressions(exprs, operators::And::SYMBOL).unwrap(),
+        map(comma_or_space_separated_list1(expr), |exprs| {
+            SearchCommand {
+                expr: combine_all_expressions(exprs, operators::And::SYMBOL).unwrap(),
+            }
         })(input)
     }
 
@@ -538,6 +540,20 @@ mod tests {
                 .unwrap()
                 .0,
             ""
+        );
+    }
+
+    #[test]
+    fn test_search_16() {
+        let query = r#"search http_method, "POST""#;
+        assert_eq!(
+            SearchParser::parse(query),
+            Ok((
+                "",
+                SearchCommand {
+                    expr: _and(ast::Field::from("http_method"), ast::StrValue::from("POST"))
+                }
+            ))
         );
     }
 }

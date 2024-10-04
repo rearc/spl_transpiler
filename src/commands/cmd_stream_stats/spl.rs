@@ -1,6 +1,6 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Expr, Field, ParsedCommandOptions};
-use crate::spl::parser::{field_list, stats_call, ws};
+use crate::spl::parser::{field_list0, stats_call, ws};
 use crate::spl::python::impl_pyclass;
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::{map, opt};
@@ -62,7 +62,7 @@ impl SplCommand<StreamStatsCommand> for StreamStatsParser {
             tuple((
                 Self::Options::match_options,
                 ws(stats_call),
-                opt(preceded(ws(tag_no_case("by")), field_list)),
+                opt(preceded(ws(tag_no_case("by")), field_list0)),
             )),
             |(options, funcs, by)| StreamStatsCommand {
                 funcs,

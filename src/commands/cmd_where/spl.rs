@@ -1,6 +1,6 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Expr, ParsedCommandOptions};
-use crate::spl::parser::expr;
+use crate::spl::parser::logical_expression;
 use crate::spl::python::impl_pyclass;
 use nom::combinator::map;
 use nom::IResult;
@@ -35,7 +35,7 @@ impl SplCommand<WhereCommand> for WhereParser {
     type Options = WhereCommandOptions;
 
     fn parse_body(input: &str) -> IResult<&str, WhereCommand> {
-        map(expr, |v| WhereCommand { expr: v })(input)
+        map(logical_expression, |v| WhereCommand { expr: v })(input)
     }
 }
 

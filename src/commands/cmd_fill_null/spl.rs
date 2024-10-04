@@ -13,16 +13,18 @@ use pyo3::prelude::*;
 //   def fillNull[_: P]: P[FillNullCommand] = ("fillnull" ~ ("value=" ~~ (doubleQuoted|token)).?
 //     ~ field.rep(1).?) map FillNullCommand.tupled
 
+const DEFAULT_VALUE: &str = "0";
+
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct FillNullCommand {
     #[pyo3(get)]
-    pub value: Option<String>,
+    pub value: String,
     #[pyo3(get)]
     pub fields: Option<Vec<Field>>,
 }
 impl_pyclass!(FillNullCommand {
-    value: Option<String>,
+    value: String,
     fields: Option<Vec<Field>>
 });
 
@@ -51,7 +53,9 @@ impl SplCommand<FillNullCommand> for FillNullParser {
                 opt(many1(into(ws(field)))),
             )),
             |(maybe_value, fields)| FillNullCommand {
-                value: maybe_value.map(|v| v.to_string()),
+                value: maybe_value
+                    .map(|v| v.to_string())
+                    .unwrap_or(DEFAULT_VALUE.into()),
                 fields,
             },
         )(input)
@@ -74,7 +78,7 @@ mod tests {
             Ok((
                 "",
                 FillNullCommand {
-                    value: None,
+                    value: DEFAULT_VALUE.into(),
                     fields: None,
                 }
             ))
@@ -92,7 +96,7 @@ mod tests {
             Ok((
                 "",
                 FillNullCommand {
-                    value: Some("NA".into()),
+                    value: "NA".into(),
                     fields: None,
                 }
             ))
@@ -115,7 +119,7 @@ mod tests {
             Ok((
                 "",
                 FillNullCommand {
-                    value: Some("NULL".into()),
+                    value: "NULL".into(),
                     fields: Some(vec![ast::Field::from("host"), ast::Field::from("port"),]),
                 }
             ))

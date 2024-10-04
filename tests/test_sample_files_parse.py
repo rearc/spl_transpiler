@@ -312,6 +312,7 @@ class CommandTester:
         self.command = None
         self.parsed = None
         self.transpiled = None
+        self.transpiled_code = None
 
     def run_test(self):
         self.parsed = self.transpiled = False
@@ -329,7 +330,7 @@ class CommandTester:
         self.parsed = True
 
         try:
-            _transpiled_code = render_pyspark(parsed_ast, format=False)
+            self.transpiled_code = render_pyspark(parsed_ast, format=False)
         except ValueError:
             raise RuntimeError("Failed to transpile")
         self.transpiled = True
@@ -340,6 +341,7 @@ class CommandTester:
             "query": self.query,
             "parsed": self.parsed,
             "transpiled": self.transpiled,
+            "transpiled_code": self.transpiled_code,
         }
 
 
@@ -348,6 +350,7 @@ class QueryTester:
         self.query = spl_query
         self.parsed = None
         self.transpiled = None
+        self.transpiled_code = None
 
     def run_test(self):
         try:
@@ -357,7 +360,7 @@ class QueryTester:
         self.parsed = True
 
         try:
-            _transpiled_code = render_pyspark(parsed_ast, format=False)
+            self.transpiled_code = render_pyspark(parsed_ast, format=False)
         except ValueError:
             raise RuntimeError("Failed to transpile")
         self.transpiled = True
@@ -367,6 +370,7 @@ class QueryTester:
             "query": self.query,
             "parsed": self.parsed,
             "transpiled": self.transpiled,
+            "transpiled_code": self.transpiled_code,
         }
 
 

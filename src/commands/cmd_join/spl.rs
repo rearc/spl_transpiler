@@ -1,6 +1,6 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Field, ParsedCommandOptions, Pipeline};
-use crate::spl::parser::{comma_separated_list1, field, sub_search};
+use crate::spl::parser::{field_list1, sub_search};
 use crate::spl::python::impl_pyclass;
 use nom::combinator::map;
 use nom::sequence::tuple;
@@ -35,6 +35,8 @@ pub struct JoinCommand {
     pub fields: Vec<Field>,
     #[pyo3(get)]
     pub sub_search: Pipeline,
+    // TODO: While apparently a rarely used feature, you can do
+    //  `join left=L right=R where L.f1=R.f2 [...]`, which we should support eventually
 }
 impl_pyclass!(JoinCommand {
     join_type: String,
@@ -66,7 +68,7 @@ impl TryFrom<ParsedCommandOptions> for JoinCommandOptions {
             join_type: value.get_string("type", "inner")?,
             use_time: value.get_boolean("usetime", false)?,
             earlier: value.get_boolean("earlier", true)?,
-            overwrite: value.get_boolean("overwrite", false)?,
+            overwrite: value.get_boolean("overwrite", true)?,
             max: value.get_int("max", 1)?,
         })
     }
@@ -78,11 +80,7 @@ impl SplCommand<JoinCommand> for JoinParser {
 
     fn parse_body(input: &str) -> IResult<&str, JoinCommand> {
         map(
-            tuple((
-                Self::Options::match_options,
-                comma_separated_list1(field),
-                sub_search,
-            )),
+            tuple((Self::Options::match_options, field_list1, sub_search)),
             |(options, fields, pipeline)| JoinCommand {
                 join_type: options.join_type,
                 use_time: options.use_time,
@@ -101,8 +99,9 @@ mod tests {
     use super::*;
     use crate::commands::cmd_rename::spl::RenameCommand;
     use crate::commands::cmd_search::spl::SearchCommand;
+    use crate::commands::cmd_t_stats::spl::MaybeSpannedField;
     use crate::spl::ast;
-    use crate::spl::utils::test::_alias;
+    use crate::spl::utils::test::*;
 
     //
     //   test("join product_id [search vendors]") {
@@ -129,7 +128,7 @@ mod tests {
                     join_type: "inner".to_string(),
                     use_time: false,
                     earlier: true,
-                    overwrite: false,
+                    overwrite: true,
                     max: 1,
                     fields: vec![ast::Field::from("product_id")],
                     sub_search: ast::Pipeline {
@@ -224,7 +223,7 @@ mod tests {
                     join_type: "inner".to_string(),
                     use_time: false,
                     earlier: true,
-                    overwrite: false,
+                    overwrite: true,
                     max: 1,
                     fields: vec![ast::Field::from("product_id")],
                     sub_search: ast::Pipeline {
@@ -242,5 +241,108 @@ mod tests {
                 }
             ))
         )
+    }
+
+    #[test]
+    fn test_join_4() {
+        let query = r#"join process_guid, _time [
+            | tstats
+                summariesonly=false allow_old_summaries=true fillnull_value=null
+                count min(_time) as firstTime max(_time) as lastTime
+                FROM datamodel=Endpoint.Filesystem
+                where Filesystem.file_path IN ("*\\HttpProxy\\owa\\auth\\*", "*\\inetpub\\wwwroot\\aspnet_client\\*", "*\\HttpProxy\\OAB\\*") Filesystem.file_name="*.aspx"
+                by _time span=1h Filesystem.dest Filesystem.file_create_time Filesystem.file_name Filesystem.file_path
+            | rename Filesystem.* AS *
+            | fields _time dest file_create_time file_name file_path process_name process_path process process_guid
+            ]"#;
+        assert_eq!(
+            JoinParser::parse(query),
+            Ok((
+                "",
+                JoinCommand {
+                    join_type: "inner".to_string(),
+                    use_time: false,
+                    earlier: true,
+                    overwrite: true,
+                    max: 1,
+                    fields: vec![ast::Field::from("process_guid"), ast::Field::from("_time"),],
+                    sub_search: Pipeline {
+                        commands: vec![
+                            crate::commands::cmd_t_stats::spl::TStatsCommand {
+                                prestats: false,
+                                local: false,
+                                append: false,
+                                summaries_only: false,
+                                include_reduced_buckets: false,
+                                allow_old_summaries: true,
+                                chunk_size: 10000000,
+                                fillnull_value: Some("null".into()),
+                                exprs: vec![
+                                    _call!(count()).into(),
+                                    _alias("firstTime", _call!(min(ast::Field::from("_time"))))
+                                        .into(),
+                                    _alias("lastTime", _call!(max(ast::Field::from("_time"))))
+                                        .into(),
+                                ],
+                                datamodel: Some("Endpoint.Filesystem".into()),
+                                nodename: None,
+                                where_condition: Some(_and(
+                                    _isin(
+                                        "Filesystem.file_path",
+                                        vec![
+                                            ast::Wildcard::from(r#"*\\HttpProxy\\owa\\auth\\*"#)
+                                                .into(),
+                                            ast::Wildcard::from(
+                                                r#"*\\inetpub\\wwwroot\\aspnet_client\\*"#
+                                            )
+                                            .into(),
+                                            ast::Wildcard::from(r#"*\\HttpProxy\\OAB\\*"#).into(),
+                                        ]
+                                    ),
+                                    _eq(
+                                        ast::Field::from("Filesystem.file_name"),
+                                        ast::Wildcard::from("*.aspx")
+                                    )
+                                )),
+                                by_fields: Some(vec![
+                                    MaybeSpannedField {
+                                        field: ast::Field::from("_time"),
+                                        span: Some(ast::TimeSpan {
+                                            value: 1,
+                                            scale: "hours".to_string()
+                                        }),
+                                    },
+                                    ast::Field::from("Filesystem.dest").into(),
+                                    ast::Field::from("Filesystem.file_create_time").into(),
+                                    ast::Field::from("Filesystem.file_name").into(),
+                                    ast::Field::from("Filesystem.file_path").into(),
+                                ]),
+                                by_prefix: None,
+                            }
+                            .into(),
+                            crate::commands::cmd_rename::spl::RenameCommand {
+                                alias: vec![_alias("*", ast::Field::from("Filesystem.*")),],
+                            }
+                            .into(),
+                            crate::commands::cmd_fields::spl::FieldsCommand {
+                                remove_fields: false,
+                                fields: vec![
+                                    ast::Field::from("_time"),
+                                    ast::Field::from("dest"),
+                                    ast::Field::from("file_create_time"),
+                                    ast::Field::from("file_name"),
+                                    ast::Field::from("file_path"),
+                                    ast::Field::from("process_name"),
+                                    ast::Field::from("process_path"),
+                                    ast::Field::from("process"),
+                                    ast::Field::from("process_guid"),
+                                ],
+                            }
+                            .into(),
+                        ],
+                    },
+                }
+            ))
+        );
     }
 }

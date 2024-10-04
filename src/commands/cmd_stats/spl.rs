@@ -1,6 +1,6 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Expr, Field, ParsedCommandOptions};
-use crate::spl::parser::{bool_, comma_or_space_separated_list1, field, stats_call, ws};
+use crate::spl::parser::{bool_, field_list1, stats_call, ws};
 use crate::spl::python::impl_pyclass;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
@@ -72,10 +72,7 @@ impl SplCommand<StatsCommand> for StatsParser {
             tuple((
                 Self::Options::match_options,
                 stats_call,
-                opt(preceded(
-                    ws(tag_no_case("by")),
-                    comma_or_space_separated_list1(field),
-                )),
+                opt(preceded(ws(tag_no_case("by")), field_list1)),
                 opt(preceded(
                     pair(ws(tag_no_case("dedup_splitvals")), ws(tag("="))),
                     bool_,

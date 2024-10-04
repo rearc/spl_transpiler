@@ -1,6 +1,6 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Field, ParsedCommandOptions};
-use crate::spl::parser::{comma_separated_list1, field, ws};
+use crate::spl::parser::{field_list1, ws};
 use crate::spl::python::impl_pyclass;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -52,10 +52,7 @@ impl SplCommand<FieldsCommand> for FieldsParser {
 
     fn parse_body(input: &str) -> IResult<&str, FieldsCommand> {
         map(
-            tuple((
-                opt(ws(alt((tag("+"), tag("-"))))),
-                comma_separated_list1(field),
-            )),
+            tuple((opt(ws(alt((tag("+"), tag("-"))))), field_list1)),
             |(remove_fields_opt, fields)| FieldsCommand {
                 remove_fields: remove_fields_opt.unwrap_or("+") == "-",
                 fields,

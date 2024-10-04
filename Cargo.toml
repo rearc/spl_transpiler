@@ -13,6 +13,7 @@ pyo3-built = "*"
 float-derive = "*"
 anyhow = "*"
 log = "*"
+regex = "*"
 regex-syntax = "*"
 
 inventory = "*"

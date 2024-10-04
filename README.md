@@ -116,23 +116,23 @@ Support status can be one of the following:
 |-----------------------|---------|--------|
 | **High Priority**     |         |        |
 | `bin` (`bucket`)      | Partial | Yes    |
-| `convert`             | Partial | Yes    |
+| `convert`             | Yes     | Yes    |
 | `dedup`               | Parser  | Yes    |
 | `eval`                | Partial | Yes    |
 | `eventstats`          | Partial | Yes    |
-| `fields`              | Partial | Yes    |
-| `fillnull`            | Parser  | Yes    |
+| `fields`              | Yes     | Yes    |
+| `fillnull`            | Partial | Yes    |
 | `head`                | Partial | Yes    |
 | `inputlookup`         | Parser  | Yes    |
 | `iplocation`          | None    | Yes    |
-| `join`                | Parser  | Yes    |
-| `lookup`              | Parser  | Yes    |
+| `join`                | Partial | Yes    |
+| `lookup`              | Partial | Yes    |
 | `mstats`              | None    | Yes    |
 | `multisearch`         | Partial | Yes    |
 | `mvexpand`            | Parser  | Yes    |
 | `outputlookup`        | None    | Yes    |
-| `rare`                | Partial | Yes    |
-| `regex`               | Partial | Yes    |
+| `rare`                | Yes     | Yes    |
+| `regex`               | Yes     | Yes    |
 | `rename`              | Partial | Yes    |
 | `rex`                 | Partial | Yes    |
 | `search`              | Partial | Yes    |
@@ -142,7 +142,7 @@ Support status can be one of the following:
 | `streamstats`         | Parser  | Yes    |
 | `table`               | Partial | Yes    |
 | `tail`                | Yes     | Yes    |
-| `top`                 | Partial | Yes    |
+| `top`                 | Yes     | Yes    |
 | `tstats`              | Partial | Yes    |
 | `where`               | Partial | Yes    |
 | **Planned/Supported** |         |        |
@@ -428,10 +428,11 @@ package, some may be provided by Databricks Sirens.
 - [x] Support macro syntax (separate pre-processing function?)
 - [ ] Incorporate [standard macros that come with CIM](https://docs.splunk.com/Documentation/CIM/5.3.2/User/UsetheCIMFiltersmacrostoexcludedata)
 - [ ] Support custom Python UDFs (in `spl_transpiler` for now)
-- [ ] Use sample queries to create prioritized list of remaining commands
+- [x] Use sample queries to create prioritized list of remaining commands
 - [ ] Support re-using intermediate results (saving off as tables or variables, `.cache()`)
 - [ ] Support Scala UDFs
 - [ ] Support SQL output
+- [ ] Support `{}` and `@` in field names
 
 # Acknowledgements
 

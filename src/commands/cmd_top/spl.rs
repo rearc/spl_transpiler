@@ -1,6 +1,6 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Field, ParsedCommandOptions};
-use crate::spl::parser::{comma_or_space_separated_list1, field, field_list, int, ws};
+use crate::spl::parser::{field_list1, int, ws};
 use crate::spl::python::impl_pyclass;
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::{map, opt};
@@ -114,8 +114,8 @@ impl SplCommand<TopCommand> for TopParser {
             tuple((
                 ws(opt(int)),
                 ws(Self::Options::match_options),
-                comma_or_space_separated_list1(field),
-                ws(opt(preceded(ws(tag_no_case("BY")), field_list))),
+                field_list1,
+                ws(opt(preceded(ws(tag_no_case("BY")), field_list1))),
             )),
             |(n, opts, fields, by_fields)| TopCommand {
                 fields,

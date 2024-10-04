@@ -17,7 +17,8 @@ impl PipelineTransformer for super::spl::AddTotalsCommand {
             })
             .collect();
 
-        let total: ColumnLike = join_as_binaries("+", cast_columns, column_like!(lit(0.0)));
+        let total: ColumnLike =
+            join_as_binaries("+", cast_columns).unwrap_or(column_like!(lit(0.0)));
 
         Ok(PipelineTransformState {
             df: state.df.with_column(self.field_name.clone(), total),
