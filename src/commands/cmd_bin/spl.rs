@@ -1,8 +1,7 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::ast;
-use crate::spl::ast::{FieldOrAlias, ParsedCommandOptions, TimeSpan};
+use crate::spl::ast::*;
 use crate::spl::parser::{aliased_field, field};
-use crate::spl::python::impl_pyclass;
+use crate::spl::python::*;
 use nom::branch::alt;
 use nom::combinator::{into, map};
 use nom::sequence::pair;
@@ -59,12 +58,8 @@ impl TryFrom<ParsedCommandOptions> for BinCommandOptions {
 
     fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
         Ok(Self {
-            span: value.get_span_option("span")?.map(|span| match span {
-                ast::SplSpan::TimeSpan(s) => s,
-            }),
-            min_span: value.get_span_option("minspan")?.map(|span| match span {
-                ast::SplSpan::TimeSpan(s) => s,
-            }),
+            span: value.get_span_option("span")?,
+            min_span: value.get_span_option("minspan")?,
             bins: value.get_int_option("bins")?,
             start: value.get_int_option("start")?,
             end: value.get_int_option("end")?,
@@ -122,12 +117,12 @@ mod tests {
             Ok((
                 "",
                 BinCommand {
-                    field: _alias("bar", ast::Field::from("foo")).into(),
-                    span: Some(ast::TimeSpan {
+                    field: _alias("bar", Field::from("foo")).into(),
+                    span: Some(TimeSpan {
                         value: 30,
                         scale: "minutes".into()
                     }),
-                    min_span: Some(ast::TimeSpan {
+                    min_span: Some(TimeSpan {
                         value: 5,
                         scale: "minutes".into()
                     }),

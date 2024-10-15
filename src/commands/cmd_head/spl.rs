@@ -1,7 +1,7 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{BoolValue, Expr, ParsedCommandOptions};
 use crate::spl::parser::{bool_, expr, int, ws};
-use crate::spl::python::impl_pyclass;
+use crate::spl::python::*;
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::{map, opt};

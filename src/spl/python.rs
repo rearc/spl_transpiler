@@ -30,22 +30,6 @@ macro_rules! impl_pyclass {
             }
         }
     };
-    ($name: path {$(|$arg: ident : $arg_tp: ty| $conv: expr),*}) => {
-        #[pymethods]
-        impl $name {
-            #[allow(clippy::too_many_arguments)]
-            #[new]
-            fn new($( $arg: $arg_tp ),*) -> Self {
-                Self { $( $arg : (|$arg: $arg_tp| $conv)($arg) ),* }
-            }
-
-            fn __repr__(&self) -> String {
-                format!("{:?}", self)
-            }
-
-            $other
-        }
-    };
 }
 
 pub(crate) use impl_pyclass;
@@ -55,6 +39,10 @@ impl_pyclass!(ast::BoolValue { bool });
 impl_pyclass!(ast::IntValue { i64 });
 impl_pyclass!(ast::StrValue { String });
 impl_pyclass!(ast::DoubleValue { f64 });
+impl_pyclass!(ast::TimeSpan {
+    value: i64,
+    scale: String
+});
 impl_pyclass!(ast::SnapTime { span: Option<ast::TimeSpan>, snap: String, snap_offset: Option<ast::TimeSpan> });
 impl_pyclass!(ast::Field { String });
 impl_pyclass!(ast::Wildcard { String });
@@ -157,6 +145,7 @@ pub fn ast(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ast::IntValue>()?;
     m.add_class::<ast::StrValue>()?;
     m.add_class::<ast::DoubleValue>()?;
+    m.add_class::<ast::TimeSpan>()?;
     m.add_class::<ast::SnapTime>()?;
     m.add_class::<ast::Field>()?;
     m.add_class::<ast::Wildcard>()?;
@@ -205,7 +194,6 @@ pub fn ast(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<crate::commands::cmd_map::spl::MapCommand>()?;
     m.add_class::<ast::Pipeline>()?;
 
-    m.add_class::<ast::SplSpan>()?;
     m.add_class::<ast::Constant>()?;
     m.add_class::<ast::LeafExpr>()?;
     m.add_class::<ast::Expr>()?;

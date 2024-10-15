@@ -195,7 +195,7 @@ case class Pipeline(commands: Seq[Command])
 use crate::commands::cmd_add_totals::spl::AddTotalsCommand;
 use crate::commands::cmd_bin::spl::BinCommand;
 use crate::commands::cmd_collect::spl::CollectCommand;
-use crate::commands::cmd_convert::spl::{ConvertCommand, FieldConversion};
+use crate::commands::cmd_convert::spl::ConvertCommand;
 use crate::commands::cmd_dedup::spl::DedupCommand;
 use crate::commands::cmd_eval::spl::EvalCommand;
 use crate::commands::cmd_event_stats::spl::EventStatsCommand;
@@ -243,44 +243,20 @@ pub struct NullValue();
 #[pyclass(frozen, eq, hash)]
 pub struct BoolValue(pub bool);
 
-impl<T: Into<bool>> From<T> for BoolValue {
-    fn from(value: T) -> Self {
-        BoolValue(value.into())
-    }
-}
-
 /// Syntax tree element representing an integer literal value.
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct IntValue(pub i64);
-
-impl<T: Into<i64>> From<T> for IntValue {
-    fn from(value: T) -> Self {
-        IntValue(value.into())
-    }
-}
 
 /// Syntax tree element representing a floating-point literal value.
 #[derive(Debug, PartialEq, Clone, FloatHash)]
 #[pyclass(frozen, eq, hash)]
 pub struct DoubleValue(pub f64);
 
-impl<T: Into<f64>> From<T> for DoubleValue {
-    fn from(value: T) -> Self {
-        DoubleValue(value.into())
-    }
-}
-
 /// Syntax tree element representing a string literal value.
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct StrValue(pub String);
-
-impl<T: ToString> From<T> for StrValue {
-    fn from(value: T) -> Self {
-        StrValue(value.to_string())
-    }
-}
 
 /// Syntax tree element representing a duration with a value and a scale.
 ///
@@ -312,41 +288,17 @@ pub struct SnapTime {
 #[pyclass(frozen, eq, hash)]
 pub struct Field(pub String);
 
-impl<S: ToString> From<S> for Field {
-    fn from(value: S) -> Field {
-        Field(value.to_string())
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct Wildcard(pub String);
-
-impl<S: ToString> From<S> for Wildcard {
-    fn from(value: S) -> Wildcard {
-        Wildcard(value.to_string())
-    }
-}
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct Variable(pub String);
 
-impl<S: ToString> From<S> for Variable {
-    fn from(value: S) -> Variable {
-        Variable(value.to_string())
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct IPv4CIDR(pub String);
-
-impl<S: ToString> From<S> for IPv4CIDR {
-    fn from(value: S) -> IPv4CIDR {
-        IPv4CIDR(value.to_string())
-    }
-}
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
@@ -464,9 +416,9 @@ impl ParsedCommandOptions {
             .map(|v| v.unwrap_or(default.to_string()))
     }
 
-    pub fn get_span_option(&self, key: &str) -> Result<Option<SplSpan>, anyhow::Error> {
+    pub fn get_span_option(&self, key: &str) -> Result<Option<TimeSpan>, anyhow::Error> {
         match self.inner.get(key) {
-            Some(Constant::SplSpan(span)) => Ok(Some(span.clone())),
+            Some(Constant::TimeSpan(span)) => Ok(Some(span.clone())),
             Some(_) => Err(anyhow!("not a span")),
             None => Ok(None),
         }
@@ -492,15 +444,6 @@ pub struct AliasedField {
     pub field: Field,
     #[pyo3(get)]
     pub alias: String,
-}
-
-impl From<AliasedField> for Alias {
-    fn from(value: AliasedField) -> Self {
-        Alias {
-            expr: Box::new(value.field.into()),
-            name: value.alias,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -559,18 +502,19 @@ pub enum TimeModifier {
     Latest(SnapTime),
 }
 
+#[derive(Debug, PartialEq, Clone, Hash)]
+#[pyclass(frozen, eq, hash)]
+pub struct FormattedTimeModifier {
+    pub format: String,
+    pub time_modifier: TimeModifier,
+}
+
 /// A pipeline is a chain of commands where data is passed and processed by each command in turn.
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct Pipeline {
     #[pyo3(get)]
     pub commands: Vec<Command>,
-}
-
-#[derive(Debug, PartialEq, Clone, Hash)]
-#[pyclass(frozen, eq, hash)]
-pub enum SplSpan {
-    TimeSpan(TimeSpan),
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -582,7 +526,7 @@ pub enum Constant {
     Double(DoubleValue),
     Str(StrValue),
     SnapTime(SnapTime),
-    SplSpan(SplSpan),
+    TimeSpan(TimeSpan),
     Field(Field),
     Wildcard(Wildcard),
     Variable(Variable),
@@ -621,172 +565,9 @@ pub enum Expr {
     Call(Call),
     FieldIn(FieldIn),
     Alias(Alias),
-    FieldConversion(FieldConversion),
-    TimeModifier(String, TimeModifier),
+    TimeModifier(FormattedTimeModifier),
     SearchModifier(SearchModifier),
     SubSearch(Pipeline),
-}
-
-impl From<TimeSpan> for Constant {
-    fn from(val: TimeSpan) -> Self {
-        Constant::SplSpan(SplSpan::TimeSpan(val))
-    }
-}
-impl From<BoolValue> for Constant {
-    fn from(val: BoolValue) -> Self {
-        Constant::Bool(val)
-    }
-}
-impl From<IntValue> for Constant {
-    fn from(val: IntValue) -> Self {
-        Constant::Int(val)
-    }
-}
-impl From<DoubleValue> for Constant {
-    fn from(val: DoubleValue) -> Self {
-        Constant::Double(val)
-    }
-}
-impl From<StrValue> for Constant {
-    fn from(val: StrValue) -> Self {
-        Constant::Str(val)
-    }
-}
-impl From<SnapTime> for Constant {
-    fn from(val: SnapTime) -> Self {
-        Constant::SnapTime(val)
-    }
-}
-impl From<Field> for Constant {
-    fn from(val: Field) -> Self {
-        Constant::Field(val)
-    }
-}
-impl From<Wildcard> for Constant {
-    fn from(val: Wildcard) -> Self {
-        Constant::Wildcard(val)
-    }
-}
-impl From<Variable> for Constant {
-    fn from(val: Variable) -> Self {
-        Constant::Variable(val)
-    }
-}
-impl From<IPv4CIDR> for Constant {
-    fn from(val: IPv4CIDR) -> Self {
-        Constant::IPv4CIDR(val)
-    }
-}
-
-impl From<Constant> for Expr {
-    fn from(val: Constant) -> Self {
-        Expr::Leaf(LeafExpr::Constant(val))
-    }
-}
-impl From<TimeSpan> for Expr {
-    fn from(val: TimeSpan) -> Self {
-        <TimeSpan as Into<Constant>>::into(val).into()
-    }
-}
-impl From<BoolValue> for Expr {
-    fn from(val: BoolValue) -> Self {
-        <BoolValue as Into<Constant>>::into(val).into()
-    }
-}
-impl From<IntValue> for Expr {
-    fn from(val: IntValue) -> Self {
-        Expr::Leaf(LeafExpr::Constant(val.into()))
-    }
-}
-impl From<DoubleValue> for Expr {
-    fn from(val: DoubleValue) -> Self {
-        Expr::Leaf(LeafExpr::Constant(val.into()))
-    }
-}
-impl From<StrValue> for Expr {
-    fn from(val: StrValue) -> Self {
-        Expr::Leaf(LeafExpr::Constant(val.into()))
-    }
-}
-impl From<SnapTime> for Expr {
-    fn from(val: SnapTime) -> Self {
-        Expr::Leaf(LeafExpr::Constant(val.into()))
-    }
-}
-impl From<Field> for Expr {
-    fn from(val: Field) -> Self {
-        Expr::Leaf(LeafExpr::Constant(val.into()))
-    }
-}
-impl From<Wildcard> for Expr {
-    fn from(val: Wildcard) -> Self {
-        Expr::Leaf(LeafExpr::Constant(val.into()))
-    }
-}
-impl From<Variable> for Expr {
-    fn from(val: Variable) -> Self {
-        Expr::Leaf(LeafExpr::Constant(val.into()))
-    }
-}
-impl From<IPv4CIDR> for Expr {
-    fn from(val: IPv4CIDR) -> Self {
-        Expr::Leaf(LeafExpr::Constant(val.into()))
-    }
-}
-impl From<FV> for Expr {
-    fn from(val: FV) -> Self {
-        Expr::Leaf(LeafExpr::FV(val))
-    }
-}
-impl From<FB> for Expr {
-    fn from(val: FB) -> Self {
-        Expr::Leaf(LeafExpr::FB(val))
-    }
-}
-impl From<FC> for Expr {
-    fn from(val: FC) -> Self {
-        Expr::Leaf(LeafExpr::FC(val))
-    }
-}
-impl From<AliasedField> for Expr {
-    fn from(val: AliasedField) -> Self {
-        Expr::AliasedField(val)
-    }
-}
-impl From<Binary> for Expr {
-    fn from(val: Binary) -> Self {
-        Expr::Binary(val)
-    }
-}
-impl From<Unary> for Expr {
-    fn from(val: Unary) -> Self {
-        Expr::Unary(val)
-    }
-}
-impl From<Call> for Expr {
-    fn from(val: Call) -> Self {
-        Expr::Call(val)
-    }
-}
-impl From<FieldIn> for Expr {
-    fn from(val: FieldIn) -> Self {
-        Expr::FieldIn(val)
-    }
-}
-impl From<Alias> for Expr {
-    fn from(val: Alias) -> Self {
-        Expr::Alias(val)
-    }
-}
-impl From<FieldConversion> for Expr {
-    fn from(val: FieldConversion) -> Self {
-        Expr::FieldConversion(val)
-    }
-}
-impl From<SearchModifier> for Expr {
-    fn from(val: SearchModifier) -> Self {
-        Expr::SearchModifier(val)
-    }
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -798,48 +579,11 @@ pub enum FieldLike {
     Alias(Alias),
 }
 
-impl From<Field> for FieldLike {
-    fn from(val: Field) -> Self {
-        FieldLike::Field(val)
-    }
-}
-impl From<Wildcard> for FieldLike {
-    fn from(val: Wildcard) -> Self {
-        FieldLike::Wildcard(val)
-    }
-}
-impl From<AliasedField> for FieldLike {
-    fn from(val: AliasedField) -> Self {
-        FieldLike::AliasedField(val)
-    }
-}
-impl From<Alias> for FieldLike {
-    fn from(val: Alias) -> Self {
-        FieldLike::Alias(val)
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub enum FieldOrAlias {
     Field(Field),
     Alias(Alias),
-}
-
-impl From<Field> for FieldOrAlias {
-    fn from(val: Field) -> Self {
-        FieldOrAlias::Field(val)
-    }
-}
-impl From<Alias> for FieldOrAlias {
-    fn from(val: Alias) -> Self {
-        FieldOrAlias::Alias(val)
-    }
-}
-impl From<AliasedField> for FieldOrAlias {
-    fn from(val: AliasedField) -> Self {
-        FieldOrAlias::Alias(val.into())
-    }
 }
 
 #[allow(clippy::enum_variant_names)]
@@ -880,47 +624,4 @@ pub enum Command {
     TopCommand(TopCommand),
     TStatsCommand(TStatsCommand),
     WhereCommand(WhereCommand),
-    // Pipeline(Pipeline),
 }
-
-// macro_rules! trivial_enum_from_type {
-//     ($cls:ident : $enum_tp:ident) => {
-//         impl From<$cls> for $enum_tp {
-//             fn from(val: $cls) -> Self {
-//                 $enum_tp::$cls(val)
-//             }
-//         }
-//     };
-// }
-
-// trivial_enum_from_type!(AddTotalsCommand: Command);
-// trivial_enum_from_type!(BinCommand: Command);
-// trivial_enum_from_type!(CollectCommand: Command);
-// trivial_enum_from_type!(ConvertCommand: Command);
-// trivial_enum_from_type!(DedupCommand: Command);
-// trivial_enum_from_type!(EvalCommand: Command);
-// trivial_enum_from_type!(EventStatsCommand: Command);
-// trivial_enum_from_type!(FieldsCommand: Command);
-// trivial_enum_from_type!(FillNullCommand: Command);
-// trivial_enum_from_type!(FormatCommand: Command);
-// trivial_enum_from_type!(HeadCommand: Command);
-// trivial_enum_from_type!(InputLookupCommand: Command);
-// trivial_enum_from_type!(JoinCommand: Command);
-// trivial_enum_from_type!(LookupCommand: Command);
-// trivial_enum_from_type!(MakeResultsCommand: Command);
-// trivial_enum_from_type!(MapCommand: Command);
-// trivial_enum_from_type!(MultiSearchCommand: Command);
-// trivial_enum_from_type!(MvCombineCommand: Command);
-// trivial_enum_from_type!(MvExpandCommand: Command);
-// trivial_enum_from_type!(RegexCommand: Command);
-// trivial_enum_from_type!(RenameCommand: Command);
-// trivial_enum_from_type!(ReturnCommand: Command);
-// trivial_enum_from_type!(RexCommand: Command);
-// trivial_enum_from_type!(SearchCommand: Command);
-// trivial_enum_from_type!(SortCommand: Command);
-// trivial_enum_from_type!(StatsCommand: Command);
-// trivial_enum_from_type!(StreamStatsCommand: Command);
-// trivial_enum_from_type!(TableCommand: Command);
-// trivial_enum_from_type!(TopCommand: Command);
-// trivial_enum_from_type!(TStatsCommand: Command);
-// trivial_enum_from_type!(WhereCommand: Command);

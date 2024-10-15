@@ -3,7 +3,7 @@ use crate::spl::ast::{Expr, ParsedCommandOptions};
 use crate::spl::operators;
 use crate::spl::operators::OperatorSymbolTrait;
 use crate::spl::parser::{combine_all_expressions, comma_or_space_separated_list1, expr};
-use crate::spl::python::impl_pyclass;
+use crate::spl::python::*;
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::{multispace0, multispace1};

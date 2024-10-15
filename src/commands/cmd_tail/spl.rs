@@ -1,7 +1,7 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::ParsedCommandOptions;
 use crate::spl::parser::int;
-use crate::spl::python::impl_pyclass;
+use crate::spl::python::*;
 use nom::combinator::map;
 use nom::IResult;
 use pyo3::prelude::*;

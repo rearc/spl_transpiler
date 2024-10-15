@@ -1,7 +1,7 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{ParsedCommandOptions, Pipeline};
 use crate::spl::parser::{sub_search, ws};
-use crate::spl::python::impl_pyclass;
+use crate::spl::python::*;
 use nom::combinator::map;
 use nom::multi::many_m_n;
 use nom::IResult;

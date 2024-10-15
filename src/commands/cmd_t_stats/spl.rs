@@ -4,7 +4,7 @@ use crate::spl::parser::{
     comma_or_space_separated_list1, field, field_in, logical_expression, space_separated_list1,
     time_span, token, ws,
 };
-use crate::spl::python::impl_pyclass;
+use crate::spl::python::*;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::character::complete::multispace1;

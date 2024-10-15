@@ -1,7 +1,7 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Expr, Field, ParsedCommandOptions};
 use crate::spl::parser::{comma_separated_list0, expr, field, ws};
-use crate::spl::python::impl_pyclass;
+use crate::spl::python::*;
 use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::sequence::separated_pair;

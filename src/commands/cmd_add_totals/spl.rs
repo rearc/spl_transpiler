@@ -1,7 +1,7 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Field, ParsedCommandOptions};
 use crate::spl::parser::{field, ws};
-use crate::spl::python::impl_pyclass;
+use crate::spl::python::*;
 use nom::combinator::map;
 use nom::multi::many0;
 use nom::sequence::pair;

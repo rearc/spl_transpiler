@@ -2,7 +2,7 @@ use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast;
 use crate::spl::ast::{FieldOrAlias, IntValue, ParsedCommandOptions};
 use crate::spl::parser::{field, field_and_value, int, ws};
-use crate::spl::python::impl_pyclass;
+use crate::spl::python::*;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::{map, opt};

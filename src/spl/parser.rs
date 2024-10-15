@@ -625,9 +625,7 @@ pub fn literal(input: &str) -> IResult<&str, ast::Constant> {
         map(all_consuming(str_value), ast::Constant::Str),
         map(all_consuming(variable), ast::Constant::Variable),
         map(all_consuming(relative_time), ast::Constant::SnapTime),
-        map(all_consuming(time_span), |v| {
-            ast::Constant::SplSpan(ast::SplSpan::TimeSpan(v))
-        }),
+        map(all_consuming(time_span), ast::Constant::TimeSpan),
         map(all_consuming(double), ast::Constant::Double),
         map(all_consuming(int), ast::Constant::Int),
         map(all_consuming(bool_), ast::Constant::Bool),
@@ -640,20 +638,18 @@ pub fn constant(input: &str) -> IResult<&str, ast::Constant> {
     let (remaining, content) =
         recognize(alt((double_quoted, single_quoted, token_with_extras)))(input)?;
     let (_, parsed_value) = alt((
-        map(all_consuming(ipv4_cidr), ast::Constant::IPv4CIDR),
+        into(all_consuming(ipv4_cidr)),
         map(all_consuming(ipv4_addr), |s| ast::Constant::Str(s.into())),
         map(all_consuming(ipv6_addr), |s| ast::Constant::Str(s.into())),
-        map(all_consuming(relative_time), ast::Constant::SnapTime),
-        map(all_consuming(time_span), |v| {
-            ast::Constant::SplSpan(ast::SplSpan::TimeSpan(v))
-        }),
-        map(all_consuming(wildcard), ast::Constant::Wildcard),
-        map(all_consuming(str_value), ast::Constant::Str),
-        map(all_consuming(variable), ast::Constant::Variable),
-        map(all_consuming(double), ast::Constant::Double),
-        map(all_consuming(int), ast::Constant::Int),
-        map(all_consuming(field), ast::Constant::Field),
-        map(all_consuming(bool_), ast::Constant::Bool),
+        into(all_consuming(relative_time)),
+        into(all_consuming(time_span)),
+        into(all_consuming(wildcard)),
+        into(all_consuming(str_value)),
+        into(all_consuming(variable)),
+        into(all_consuming(double)),
+        into(all_consuming(int)),
+        into(all_consuming(field)),
+        into(all_consuming(bool_)),
     ))(content)?;
     Ok((remaining, parsed_value))
 }
@@ -1486,7 +1482,13 @@ pub fn time_opts(input: &str) -> IResult<&str, Vec<ast::Expr>> {
         pair(time_format, space_separated_list1(time_modifier)),
         |(fmt, mods)| {
             mods.into_iter()
-                .map(|time_mod| ast::Expr::TimeModifier(fmt.into(), time_mod))
+                .map(|time_modifier| {
+                    ast::FormattedTimeModifier {
+                        format: fmt.into(),
+                        time_modifier,
+                    }
+                    .into()
+                })
                 .collect()
         },
     )(input)
@@ -2064,10 +2066,10 @@ mod tests {
                         },
                         ast::FC {
                             field: "h".into(),
-                            value: ast::Constant::SplSpan(ast::SplSpan::TimeSpan(ast::TimeSpan {
+                            value: ast::Constant::TimeSpan(ast::TimeSpan {
                                 value: -15,
                                 scale: "minutes".to_string()
-                            }))
+                            })
                         },
                         ast::FC {
                             field: "i".into(),

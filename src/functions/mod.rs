@@ -52,7 +52,7 @@ impl TryFrom<ast::Expr> for String {
                 ast::Constant::SnapTime(_) => {
                     bail!("No default conversion from {:?} to String", const_)
                 }
-                ast::Constant::SplSpan(_) => {
+                ast::Constant::TimeSpan(_) => {
                     bail!("No default conversion from {:?} to String", const_)
                 }
                 ast::Constant::Field(ast::Field(val)) => Ok(val.clone()),

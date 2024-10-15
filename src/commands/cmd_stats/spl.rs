@@ -1,7 +1,7 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
 use crate::spl::ast::{Expr, Field, ParsedCommandOptions};
 use crate::spl::parser::{bool_, field_list1, stats_call, ws};
-use crate::spl::python::impl_pyclass;
+use crate::spl::python::*;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
 use nom::sequence::{pair, preceded, tuple};

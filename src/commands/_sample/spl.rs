@@ -4,7 +4,7 @@ use crate::commands::ConvertCommandRoot;
 use crate::spl::ast;
 use crate::spl::ast::ParsedCommandOptions;
 use crate::spl::parser::{field, token, ws};
-use crate::spl::python::impl_pyclass;
+use crate::spl::python::*;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
 use nom::multi::many0;

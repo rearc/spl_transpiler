@@ -154,9 +154,9 @@ impl TryFrom<ast::Expr> for Expr {
                             ast::Constant::SnapTime(ast::SnapTime { .. }) => {
                                 bail!("Unimplemented value in field-in rhs: {:?}", const_)
                             }
-                            ast::Constant::SplSpan(ast::SplSpan::TimeSpan(ast::TimeSpan {
-                                ..
-                            })) => bail!("Unimplemented value in field-in rhs: {:?}", const_),
+                            ast::Constant::TimeSpan(ast::TimeSpan { .. }) => {
+                                bail!("Unimplemented value in field-in rhs: {:?}", const_)
+                            }
                             ast::Constant::Field(ast::Field(val)) => {
                                 Ok(column_like!([c.clone()] == [Raw::from(val.clone())]))
                             }
