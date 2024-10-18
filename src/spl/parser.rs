@@ -2,6 +2,7 @@ use crate::commands::cmd_add_totals::spl::AddTotalsParser;
 use crate::commands::cmd_bin::spl::BinParser;
 use crate::commands::cmd_collect::spl::CollectParser;
 use crate::commands::cmd_convert::spl::ConvertParser;
+use crate::commands::cmd_data_model::spl::DataModelParser;
 use crate::commands::cmd_dedup::spl::DedupParser;
 use crate::commands::cmd_eval::spl::EvalParser;
 use crate::commands::cmd_event_stats::spl::EventStatsParser;
@@ -1211,6 +1212,7 @@ pub fn command(input: &str) -> IResult<&str, ast::Command> {
             into(BinParser::parse),
             into(CollectParser::parse),
             into(ConvertParser::parse),
+            into(DataModelParser::parse),
             into(DedupParser::parse),
             into(EvalParser::parse),
             into(EventStatsParser::parse),

@@ -58,6 +58,7 @@ impl PipelineTransformer for ast::Command {
             ast::Command::BinCommand(command) => command.transform(state, allow_runtime),
             ast::Command::CollectCommand(command) => command.transform(state, allow_runtime),
             ast::Command::ConvertCommand(command) => command.transform(state, allow_runtime),
+            ast::Command::DataModelCommand(command) => command.transform(state, allow_runtime),
             ast::Command::DedupCommand(command) => command.transform(state, allow_runtime),
             ast::Command::EvalCommand(command) => command.transform(state, allow_runtime),
             ast::Command::EventStatsCommand(command) => command.transform(state, allow_runtime),

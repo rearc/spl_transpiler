@@ -22,7 +22,7 @@ impl PipelineTransformer for RegexCommand {
 
         let mut col = column_like!(regexp_like(
             [col(field)],
-            [Expr::Raw(Raw(format!("r\"{}\"", self.regex)))]
+            [Expr::PyLiteral(PyLiteral(format!("r\"{}\"", self.regex)))]
         ));
         if invert {
             col = column_like!(~[col]);

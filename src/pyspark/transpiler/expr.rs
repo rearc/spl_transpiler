@@ -116,23 +116,23 @@ impl TryFrom<ast::Expr> for Expr {
                         ast::Expr::Leaf(ast::LeafExpr::Constant(const_)) => match const_ {
                             ast::Constant::Wildcard(ast::Wildcard(val)) => {
                                 Ok(column_like!(
-                                    [c.clone()].like([Raw::from(val.replace("*", "%"))])
+                                    [c.clone()].like([PyLiteral::from(val.replace("*", "%"))])
                                 ))
                             }
                             ast::Constant::Null(_) => {
                                 bail!("Unimplemented value in field-in rhs: {:?}", const_)
                             }
                             ast::Constant::Bool(ast::BoolValue(val)) => {
-                                Ok(column_like!([c.clone()] == [Raw::from(*val)]))
+                                Ok(column_like!([c.clone()] == [PyLiteral::from(*val)]))
                             }
                             ast::Constant::Int(ast::IntValue(val)) => {
-                                Ok(column_like!([c.clone()] == [Raw::from(*val)]))
+                                Ok(column_like!([c.clone()] == [PyLiteral::from(*val)]))
                             }
                             ast::Constant::Double(ast::DoubleValue(val)) => {
-                                Ok(column_like!([c.clone()] == [Raw::from(*val)]))
+                                Ok(column_like!([c.clone()] == [PyLiteral::from(*val)]))
                             }
                             ast::Constant::Str(ast::StrValue(val)) => {
-                                Ok(column_like!([c.clone()] == [Raw::from(val.clone())]))
+                                Ok(column_like!([c.clone()] == [PyLiteral::from(val.clone())]))
                             }
                             ast::Constant::SnapTime(ast::SnapTime { .. }) => {
                                 bail!("Unimplemented value in field-in rhs: {:?}", const_)
@@ -141,13 +141,13 @@ impl TryFrom<ast::Expr> for Expr {
                                 bail!("Unimplemented value in field-in rhs: {:?}", const_)
                             }
                             ast::Constant::Field(ast::Field(val)) => {
-                                Ok(column_like!([c.clone()] == [Raw::from(val.clone())]))
+                                Ok(column_like!([c.clone()] == [PyLiteral::from(val.clone())]))
                             }
                             ast::Constant::Variable(ast::Variable(_value)) => {
                                 bail!("Unimplemented value in field-in rhs: {:?}", const_)
                             }
                             ast::Constant::IPv4CIDR(ast::IPv4CIDR(val)) => {
-                                Ok(column_like!([c.clone()] == [Raw::from(val.clone())]))
+                                Ok(column_like!([c.clone()] == [PyLiteral::from(val.clone())]))
                             }
                         },
                         // Handle exact case
@@ -183,7 +183,7 @@ impl Expr {
     fn _into_search_expr(self) -> Self {
         match self {
             Expr::Column(ref c) => c.clone().into_search_expr().into(),
-            Expr::Raw(_) => self,
+            Expr::PyLiteral(_) => self,
         }
     }
 

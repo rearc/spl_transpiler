@@ -27,7 +27,7 @@ impl PipelineTransformer for RexCommand {
                 group_name.unwrap_or(group_index.to_string()),
                 column_like!(regexp_extract(
                     [col(self.field.clone())],
-                    [Expr::Raw(Raw(format!("r\"{}\"", self.regex)))],
+                    [Expr::PyLiteral(PyLiteral(format!("r\"{}\"", self.regex)))],
                     [py_lit(group_index as i64)]
                 )),
             );

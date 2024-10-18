@@ -196,6 +196,7 @@ use crate::commands::cmd_add_totals::spl::AddTotalsCommand;
 use crate::commands::cmd_bin::spl::BinCommand;
 use crate::commands::cmd_collect::spl::CollectCommand;
 use crate::commands::cmd_convert::spl::ConvertCommand;
+use crate::commands::cmd_data_model::spl::DataModelCommand;
 use crate::commands::cmd_dedup::spl::DedupCommand;
 use crate::commands::cmd_eval::spl::EvalCommand;
 use crate::commands::cmd_event_stats::spl::EventStatsCommand;
@@ -231,7 +232,6 @@ use float_derive::FloatHash;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
-// use crate::spl::to_spl::ToSpl;
 
 /// Syntax tree element representing a null literal value.
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -622,6 +622,7 @@ pub enum Command {
     BinCommand(BinCommand),
     CollectCommand(CollectCommand),
     ConvertCommand(ConvertCommand),
+    DataModelCommand(DataModelCommand),
     DedupCommand(DedupCommand),
     EvalCommand(EvalCommand),
     EventStatsCommand(EventStatsCommand),

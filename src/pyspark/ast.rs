@@ -10,36 +10,45 @@ pub struct Base();
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 // #[pyclass(frozen,eq,hash)]
-pub struct Raw(pub String);
+pub struct PyLiteral(pub String);
 
-impl From<String> for Raw {
-    fn from(value: String) -> Raw {
-        Raw(format!("\"{}\"", value))
-    }
-}
-impl From<&str> for Raw {
-    fn from(value: &str) -> Raw {
-        Raw(format!("\"{}\"", value))
+impl<T: Into<PyLiteral>> From<Option<T>> for PyLiteral {
+    fn from(value: Option<T>) -> PyLiteral {
+        match value {
+            Some(v) => v.into(),
+            None => PyLiteral("None".into()),
+        }
     }
 }
 
-impl From<i64> for Raw {
-    fn from(value: i64) -> Raw {
-        Raw(value.to_string())
+impl From<String> for PyLiteral {
+    fn from(value: String) -> PyLiteral {
+        PyLiteral(format!("\"{}\"", value))
     }
 }
-impl From<f64> for Raw {
-    fn from(value: f64) -> Raw {
-        Raw(value.to_string())
-    }
-}
-impl From<bool> for Raw {
-    fn from(value: bool) -> Raw {
-        Raw(if value { "True".into() } else { "False".into() })
+impl From<&str> for PyLiteral {
+    fn from(value: &str) -> PyLiteral {
+        PyLiteral(format!("\"{}\"", value))
     }
 }
 
-impl ToSparkQuery for Raw {
+impl From<i64> for PyLiteral {
+    fn from(value: i64) -> PyLiteral {
+        PyLiteral(value.to_string())
+    }
+}
+impl From<f64> for PyLiteral {
+    fn from(value: f64) -> PyLiteral {
+        PyLiteral(value.to_string())
+    }
+}
+impl From<bool> for PyLiteral {
+    fn from(value: bool) -> PyLiteral {
+        PyLiteral(if value { "True".into() } else { "False".into() })
+    }
+}
+
+impl ToSparkQuery for PyLiteral {
     fn to_spark_query(&self) -> Result<PythonCode> {
         Ok(self.0.to_string().into())
     }
@@ -170,10 +179,10 @@ macro_rules! column_like {
     (lit($code: literal)) => { ColumnLike::literal(stringify!($code)) };
     (lit($code: expr)) => { ColumnLike::literal($code) };
     // (py_lit($code: literal)) => { Raw::from($code) };
-    (py_lit($code: expr)) => { Raw::from($code) };
+    (py_lit($code: expr)) => { PyLiteral::from($code) };
     (expr($fmt: literal $($args:tt)*)) => { ColumnLike::function_call(
         "expr",
-        vec![Raw::from( format!($fmt $($args)*) ).into()],
+        vec![PyLiteral::from( format!($fmt $($args)*) ).into()],
     ) };
     ([$($base: tt)*] . alias ( $name: expr ) ) => { ColumnLike::aliased(
         column_like!($($base)*),
@@ -249,7 +258,7 @@ impl ToSparkQuery for ColumnLike {
 // #[pyclass(frozen,eq,hash)]
 pub enum Expr {
     Column(ColumnLike),
-    Raw(Raw),
+    PyLiteral(PyLiteral),
 }
 
 impl ToSparkQuery for Expr {
@@ -259,7 +268,7 @@ impl ToSparkQuery for Expr {
                 Ok(format!("({})", col.to_spark_query()?,).into())
             }
             Expr::Column(col) => col.to_spark_query(),
-            Expr::Raw(raw) => raw.to_spark_query(),
+            Expr::PyLiteral(literal) => literal.to_spark_query(),
         }
     }
 }
@@ -269,9 +278,9 @@ impl From<ColumnLike> for Expr {
         Expr::Column(val)
     }
 }
-impl From<Raw> for Expr {
-    fn from(val: Raw) -> Self {
-        Expr::Raw(val)
+impl From<PyLiteral> for Expr {
+    fn from(val: PyLiteral) -> Self {
+        Expr::PyLiteral(val)
     }
 }
 impl TryInto<ColumnLike> for Expr {
@@ -312,9 +321,157 @@ impl ToSparkQuery for ColumnOrName {
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
+pub struct PyDict(pub Vec<(String, RuntimeExpr)>);
+
+macro_rules! py_dict {
+    () => { PyDict(vec![]) };
+    ($($key: ident = $value: expr),+ $(,)?) => {
+        PyDict(vec![$((stringify!($key).into(), $value.into())),+])
+    };
+}
+
+pub(crate) use py_dict;
+
+impl PyDict {
+    pub fn push(&mut self, key: impl ToString, value: impl Into<RuntimeExpr>) {
+        self.0.push((key.to_string(), value.into()));
+    }
+}
+
+impl ToSparkQuery for PyDict {
+    fn to_spark_query(&self) -> Result<PythonCode> {
+        let mut out_preface = vec![];
+        let mut out_vals = vec![];
+
+        for (key, value) in self.0.iter() {
+            let PythonCode {
+                preface,
+                primary_df_code,
+            } = value.to_spark_query()?;
+            out_preface.extend(preface);
+            out_vals.push(format!("\"{}\": {}", key, primary_df_code).to_string());
+        }
+        Ok(format!(r#"{{ {} }}"#, out_vals.join(", ")).into())
+    }
+}
+
+impl Extend<(String, RuntimeExpr)> for PyDict {
+    fn extend<T: IntoIterator<Item = (String, RuntimeExpr)>>(&mut self, iter: T) {
+        self.0.extend(iter)
+    }
+}
+
+impl IntoIterator for PyDict {
+    type Item = (String, RuntimeExpr);
+    type IntoIter = <Vec<(String, RuntimeExpr)> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+pub struct PyList(pub Vec<RuntimeExpr>);
+
+macro_rules! py_list {
+    ($($value: expr),+ $(,)?) => {
+        PyList(vec![$($value.into()),+])
+    }
+}
+
+impl ToSparkQuery for PyList {
+    fn to_spark_query(&self) -> Result<PythonCode> {
+        let mut out_preface = vec![];
+        let mut out_vals = vec![];
+
+        for value in self.0.iter() {
+            let PythonCode {
+                preface,
+                primary_df_code,
+            } = value.to_spark_query()?;
+            out_preface.extend(preface);
+            out_vals.push(primary_df_code);
+        }
+        Ok(format!(r#"[ {} ]"#, out_vals.join(", ")).into())
+    }
+}
+
+impl Extend<RuntimeExpr> for PyList {
+    fn extend<T: IntoIterator<Item = RuntimeExpr>>(&mut self, iter: T) {
+        self.0.extend(iter)
+    }
+}
+
+impl IntoIterator for PyList {
+    type Item = RuntimeExpr;
+    type IntoIter = <Vec<RuntimeExpr> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+pub struct PyRuntimeFunc {
+    pub name: String,
+    pub args: PyList,
+    pub kwargs: PyDict,
+}
+
+impl PyRuntimeFunc {
+    pub fn new(name: impl ToString, args: impl Into<PyList>, kwargs: impl Into<PyDict>) -> Self {
+        PyRuntimeFunc {
+            name: name.to_string(),
+            args: args.into(),
+            kwargs: kwargs.into(),
+        }
+    }
+}
+
+macro_rules! py_runtime_func {
+    ($func: ident ( $($arg: expr),* ; $($kwkey: ident = $kwval: expr),* )) => {
+        PyRuntimeFunc::new(
+            stringify!($func),
+            py_list!($($arg),*),
+            py_dict!($($kwkey = $kwval),*),
+        )
+    };
+}
+
+impl ToSparkQuery for PyRuntimeFunc {
+    fn to_spark_query(&self) -> Result<PythonCode> {
+        let mut out_preface = vec![];
+        let mut out_args = vec![];
+
+        for arg in self.args.0.iter() {
+            let PythonCode {
+                preface,
+                primary_df_code,
+            } = arg.to_spark_query()?;
+            out_preface.extend(preface);
+            out_args.push(primary_df_code);
+        }
+
+        for (key, value) in self.kwargs.0.iter() {
+            let PythonCode {
+                preface,
+                primary_df_code,
+            } = value.to_spark_query()?;
+            out_preface.extend(preface);
+            out_args.push(format!("{}={}", key, primary_df_code).to_string());
+        }
+
+        Ok(format!("functions.{}({})", self.name, out_args.join(", ")).into())
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
 pub enum RuntimeExpr {
     DataFrame(Box<DataFrame>),
     Expr(Expr),
+    PyDict(PyDict),
+    PyList(PyList),
+    PyRuntimeFunc(PyRuntimeFunc),
 }
 
 impl From<DataFrame> for RuntimeExpr {
@@ -329,11 +486,41 @@ impl<E: Into<Expr>> From<E> for RuntimeExpr {
     }
 }
 
+impl From<ColumnOrName> for RuntimeExpr {
+    fn from(val: ColumnOrName) -> Self {
+        match val {
+            ColumnOrName::Column(col) => RuntimeExpr::from(col),
+            ColumnOrName::Name(name) => RuntimeExpr::Expr(Expr::Column(ColumnLike::Named { name })),
+        }
+    }
+}
+
+impl From<PyDict> for RuntimeExpr {
+    fn from(val: PyDict) -> Self {
+        RuntimeExpr::PyDict(val)
+    }
+}
+
+impl From<PyList> for RuntimeExpr {
+    fn from(val: PyList) -> Self {
+        RuntimeExpr::PyList(val)
+    }
+}
+
+impl From<PyRuntimeFunc> for RuntimeExpr {
+    fn from(val: PyRuntimeFunc) -> Self {
+        RuntimeExpr::PyRuntimeFunc(val)
+    }
+}
+
 impl ToSparkQuery for RuntimeExpr {
     fn to_spark_query(&self) -> Result<PythonCode> {
         match self {
             RuntimeExpr::DataFrame(val) => val.to_spark_query(),
             RuntimeExpr::Expr(val) => val.to_spark_query(),
+            RuntimeExpr::PyDict(val) => val.to_spark_query(),
+            RuntimeExpr::PyList(val) => val.to_spark_query(),
+            RuntimeExpr::PyRuntimeFunc(val) => val.to_spark_query(),
         }
     }
 }

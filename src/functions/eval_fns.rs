@@ -499,7 +499,7 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
                 None => ",".into(),
                 Some(delim) => map_arg(delim) ?,
             };
-            let zip_function: Expr = Raw(
+            let zip_function: Expr = PyLiteral(
                 format !(r#"lambda left_, right_: F.concat_ws(r"{}", left_, right_)"#, delim)
             ).into();
             column_like!(

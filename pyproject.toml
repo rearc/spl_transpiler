@@ -33,6 +33,8 @@ cli = [
 ]
 runtime = [
     "pyspark",
+    "ipython",
+    "rich",
 ]
 
 [tool.pytest.ini_options]

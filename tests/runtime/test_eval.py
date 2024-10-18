@@ -1,12 +1,15 @@
 from pyspark import Row
 
+import spl_transpiler.runtime.commands.eval
+import spl_transpiler.runtime.functions.eval
 from spl_transpiler import convert_spl_to_pyspark
-from spl_transpiler.runtime import commands, functions
 from utils import assert_python_code_equals
 
 
 def test_basic_eval(sample_data_1):
-    df = commands.eval(sample_data_1, raw_len=functions.len_("raw"))
+    df = spl_transpiler.runtime.commands.eval.eval(
+        sample_data_1, raw_len=spl_transpiler.runtime.functions.eval.len_("raw")
+    )
     results = df.collect()
     assert results == [
         Row(sourcetype="src1", raw="hello world", raw_len=11),

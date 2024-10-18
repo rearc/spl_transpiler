@@ -62,6 +62,6 @@ pub mod test {
             .to_spark_query()
             .expect("Failed to render Spark query");
 
-        assert_python_code_eq(rendered, spark_query, true);
+        assert_python_code_eq(rendered, spark_query, false);
     }
 }

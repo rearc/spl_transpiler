@@ -387,7 +387,7 @@ make_command!(collect, {});
 // make_command!(contingency, {});
 make_command!(convert, {});
 // make_command!(correlate, {});
-// make_command!(data_model, {});
+make_command!(data_model, {});
 // make_command!(db_inspect, {});
 make_command!(dedup, {});
 // make_command!(delete, {});
