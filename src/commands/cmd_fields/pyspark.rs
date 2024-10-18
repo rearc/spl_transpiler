@@ -4,7 +4,10 @@ use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use crate::spl::ast;
 
 impl PipelineTransformer for FieldsCommand {
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
 
         let cols: Vec<_> = self

@@ -4,7 +4,10 @@ use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use anyhow::bail;
 
 impl PipelineTransformer for RareCommand {
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
 
         if self.use_other {

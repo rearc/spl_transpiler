@@ -25,6 +25,6 @@ def test_macro_substitution():
     pyspark = r"spark.table('main')"
 
     assert (
-        render_pyspark(parse_with_macros(spl, macros), format=True)
+        render_pyspark(parse_with_macros(spl, macros), format_code=True)
         == format_str(pyspark, mode=FileMode()).strip()
     )

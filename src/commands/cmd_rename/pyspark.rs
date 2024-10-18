@@ -4,7 +4,10 @@ use crate::spl::ast;
 use anyhow::bail;
 
 impl PipelineTransformer for RenameCommand {
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
 
         for alias in self.alias.clone() {

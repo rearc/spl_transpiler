@@ -4,24 +4,20 @@ pub mod test {
     use crate::spl::{ast, operators};
 
     pub fn _field_equals(field: &str, value: ast::Constant) -> ast::Expr {
-        ast::Expr::Binary(ast::Binary {
-            left: Box::new(ast::Expr::Leaf(ast::LeafExpr::Constant(
-                ast::Constant::Field(ast::Field(field.into())),
-            ))),
-            symbol: operators::Equals::SYMBOL.into(),
-            right: Box::new(ast::Expr::Leaf(ast::LeafExpr::Constant(value))),
-        })
+        ast::Expr::Binary(ast::Binary::new(
+            ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(
+                field.into(),
+            )))),
+            operators::Equals::SYMBOL,
+            ast::Expr::Leaf(ast::LeafExpr::Constant(value)),
+        ))
     }
 
     pub fn _binop<Op: OperatorSymbolTrait>(
         left: impl Into<ast::Expr>,
         right: impl Into<ast::Expr>,
     ) -> ast::Expr {
-        ast::Expr::Binary(ast::Binary {
-            left: Box::new(left.into()),
-            symbol: Op::SYMBOL.into(),
-            right: Box::new(right.into()),
-        })
+        ast::Expr::Binary(ast::Binary::new(left, Op::SYMBOL, right))
     }
 
     pub fn _or(left: impl Into<ast::Expr>, right: impl Into<ast::Expr>) -> ast::Expr {
@@ -57,11 +53,7 @@ pub mod test {
     }
 
     pub fn _not(right: impl Into<ast::Expr>) -> ast::Expr {
-        ast::Unary {
-            symbol: operators::UnaryNot::SYMBOL.into(),
-            right: Box::new(right.into()),
-        }
-        .into()
+        ast::Unary::new(operators::UnaryNot::SYMBOL, right).into()
     }
 
     pub fn _isin(left: impl ToString, right: Vec<ast::Expr>) -> ast::Expr {

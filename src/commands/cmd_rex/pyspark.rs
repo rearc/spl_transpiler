@@ -5,7 +5,10 @@ use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use anyhow::ensure;
 
 impl PipelineTransformer for RexCommand {
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
 
         ensure!(

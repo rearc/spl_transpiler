@@ -7,7 +7,7 @@ macro_rules! impl_pyclass {
         impl $name {
             #[allow(clippy::too_many_arguments)]
             #[new]
-            fn new(value: $arg_tp) -> Self {
+            fn py_new(value: $arg_tp) -> Self {
                 Self ( value )
             }
 
@@ -21,7 +21,7 @@ macro_rules! impl_pyclass {
         impl $name {
             #[allow(clippy::too_many_arguments)]
             #[new]
-            fn new($($arg: $arg_tp),*) -> Self {
+            fn py_new($($arg: $arg_tp),*) -> Self {
                 Self { $($arg),* }
             }
 
@@ -76,7 +76,7 @@ impl_pyclass!(ast::Pipeline { commands: Vec<ast::Command> });
 #[pymethods]
 impl ast::Binary {
     #[new]
-    fn new(left: ast::Expr, symbol: String, right: ast::Expr) -> Self {
+    fn py_new(left: ast::Expr, symbol: String, right: ast::Expr) -> Self {
         Self {
             left: Box::new(left),
             symbol,
@@ -102,7 +102,7 @@ impl ast::Binary {
 #[pymethods]
 impl ast::Unary {
     #[new]
-    fn new(symbol: String, right: ast::Expr) -> Self {
+    fn py_new(symbol: String, right: ast::Expr) -> Self {
         Self {
             symbol,
             right: Box::new(right),
@@ -122,7 +122,7 @@ impl ast::Unary {
 #[pymethods]
 impl ast::Alias {
     #[new]
-    fn new(expr: ast::Expr, name: String) -> Self {
+    fn py_new(expr: ast::Expr, name: String) -> Self {
         Self {
             expr: Box::new(expr),
             name,

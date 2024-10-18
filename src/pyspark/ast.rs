@@ -1,6 +1,7 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
 // use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::pyspark::alias::Aliasable;
-use crate::pyspark::base::TemplateNode;
+use crate::pyspark::base::{PythonCode, ToSparkQuery};
 use anyhow::{ensure, Result};
 
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -38,9 +39,9 @@ impl From<bool> for Raw {
     }
 }
 
-impl TemplateNode for Raw {
-    fn to_spark_query(&self) -> Result<String> {
-        Ok(self.0.to_string())
+impl ToSparkQuery for Raw {
+    fn to_spark_query(&self) -> Result<PythonCode> {
+        Ok(self.0.to_string().into())
     }
 }
 
@@ -76,57 +77,145 @@ pub enum ColumnLike {
     },
 }
 
+impl ColumnLike {
+    pub fn named(name: impl ToString) -> Self {
+        ColumnLike::Named {
+            name: name.to_string(),
+        }
+    }
+
+    pub fn literal(code: impl ToString) -> Self {
+        ColumnLike::Literal {
+            code: code.to_string(),
+        }
+    }
+
+    pub fn method_call(col: impl Into<Expr>, func: impl ToString, args: Vec<Expr>) -> Self {
+        Self::try_method_call(col, func, args).unwrap()
+    }
+
+    pub fn try_method_call(
+        col: impl TryInto<Expr, Error = impl Into<anyhow::Error> + Send>,
+        func: impl ToString,
+        args: Vec<Expr>,
+    ) -> Result<Self> {
+        let col: Expr = col.try_into().map_err(|e| e.into())?;
+        Ok(ColumnLike::MethodCall {
+            col: Box::new(col.unaliased()),
+            func: func.to_string(),
+            args,
+        })
+    }
+
+    pub fn function_call(func: impl ToString, args: Vec<Expr>) -> Self {
+        ColumnLike::FunctionCall {
+            func: func.to_string(),
+            args,
+        }
+    }
+
+    pub fn aliased(col: impl Into<Expr>, name: impl ToString) -> Self {
+        Self::try_aliased(col, name).unwrap()
+    }
+
+    pub fn try_aliased(
+        col: impl TryInto<Expr, Error = impl Into<anyhow::Error> + Send>,
+        name: impl ToString,
+    ) -> Result<Self> {
+        let col: Expr = col.try_into().map_err(|e| e.into())?;
+        Ok(ColumnLike::Aliased {
+            col: Box::new(col.unaliased()),
+            name: name.to_string(),
+        })
+    }
+
+    pub fn binary_op(left: impl Into<Expr>, op: impl ToString, right: impl Into<Expr>) -> Self {
+        Self::try_binary_op(left, op, right).unwrap()
+    }
+
+    pub fn try_binary_op(
+        left: impl TryInto<Expr, Error = impl Into<anyhow::Error> + Send>,
+        op: impl ToString,
+        right: impl TryInto<Expr, Error = impl Into<anyhow::Error> + Send>,
+    ) -> Result<Self> {
+        let left: Expr = left.try_into().map_err(|e| e.into())?;
+        let right: Expr = right.try_into().map_err(|e| e.into())?;
+        Ok(ColumnLike::BinaryOp {
+            left: Box::new(left.unaliased()),
+            op: op.to_string(),
+            right: Box::new(right.unaliased()),
+        })
+    }
+
+    pub fn unary_not(right: impl Into<Expr>) -> Self {
+        Self::try_unary_not(right).unwrap()
+    }
+
+    pub fn try_unary_not(
+        right: impl TryInto<Expr, Error = impl Into<anyhow::Error> + Send>,
+    ) -> Result<Self> {
+        let right: Expr = right.try_into().map_err(|e| e.into())?;
+        Ok(ColumnLike::UnaryNot {
+            right: Box::new(right.unaliased()),
+        })
+    }
+}
+
 macro_rules! column_like {
     ($name: ident) => { $name };
-    (col($name: expr)) => { ColumnLike::Named { name: $name.to_string() } };
-    (lit(true)) => { ColumnLike::Literal { code: "True".to_string() } };
-    (lit(false)) => { ColumnLike::Literal { code: "False".to_string() } };
-    (lit(None)) => { ColumnLike::Literal { code: "None".to_string() } };
-    (lit($code: literal)) => { ColumnLike::Literal { code: stringify!($code).to_string() } };
-    (lit($code: expr)) => { ColumnLike::Literal { code: $code.to_string() } };
+    (col($name: expr)) => { ColumnLike::named($name) };
+    (lit(true)) => { ColumnLike::literal("True") };
+    (lit(false)) => { ColumnLike::literal("False") };
+    (lit(None)) => { ColumnLike::literal("None") };
+    (lit($code: literal)) => { ColumnLike::literal(stringify!($code)) };
+    (lit($code: expr)) => { ColumnLike::literal($code) };
     // (py_lit($code: literal)) => { Raw::from($code) };
     (py_lit($code: expr)) => { Raw::from($code) };
-    (expr($fmt: literal $($args:tt)*)) => { ColumnLike::FunctionCall {
-        func: "expr".into(),
-        args: vec![Raw::from( format!($fmt $($args)*) ).into()],
-    } };
-    ([$($base: tt)*] . alias ( $name: expr ) ) => { ColumnLike::Aliased {
-        col: Box::new(column_like!($($base)*).into()),
-        name: $name.into()
-    } };
-    ([$($base: tt)*] . $method: ident ( $([$($args: tt)*]),* )) => { ColumnLike::MethodCall {
-        col: Box::new(column_like!($($base)*).into()),
-        func: stringify!($method).to_string(),
-        args: vec![$(column_like!($($args)*).into()),*],
-    } };
-    ($function: ident ( $([$($args: tt)*]),* )) => { ColumnLike::FunctionCall {
-        func: stringify!($function).to_string(),
-        args: vec![$(column_like!($($args)*).into()),*],
-    } };
-    ($function: ident ( $args: expr )) => { ColumnLike::FunctionCall {
-        func: stringify!($function).to_string(),
-        args: $args,
-    } };
-    ([$($left: tt)*] $op: tt [$($right: tt)*]) => { ColumnLike::BinaryOp {
-        left: Box::new(column_like!($($left)*).into()),
-        op: stringify!($op).to_string(),
-        right: Box::new(column_like!($($right)*).into()),
-    } };
-    (~ [$($right: tt)*]) => { ColumnLike::UnaryNot {
-        right: Box::new(column_like!($($right)*).into()),
-    } };
+    (expr($fmt: literal $($args:tt)*)) => { ColumnLike::function_call(
+        "expr",
+        vec![Raw::from( format!($fmt $($args)*) ).into()],
+    ) };
+    ([$($base: tt)*] . alias ( $name: expr ) ) => { ColumnLike::aliased(
+        column_like!($($base)*),
+        $name
+    ) };
+    ([$($base: tt)*] . $method: ident ( $([$($args: tt)*]),* )) => { ColumnLike::method_call(
+        column_like!($($base)*),
+        stringify!($method),
+        vec![$(column_like!($($args)*).into()),*],
+    ) };
+    ($function: ident ( $([$($args: tt)*]),* )) => { ColumnLike::function_call(
+        stringify!($function),
+        vec![$(column_like!($($args)*).into()),*],
+    ) };
+    ($function: ident ( $args: expr )) => { ColumnLike::function_call(
+        stringify!($function),
+        $args,
+    ) };
+    ([$($left: tt)*] $op: tt [$($right: tt)*]) => { ColumnLike::binary_op(
+        column_like!($($left)*),
+        stringify!($op),
+        column_like!($($right)*),
+    ) };
+    (~ [$($right: tt)*]) => { ColumnLike::unary_not(
+        column_like!($($right)*),
+    ) };
     ($e: expr) => { $e };
 }
 
-pub(crate) use column_like; // <-- the trick
+pub(crate) use column_like;
+// <-- the trick
 
-impl TemplateNode for ColumnLike {
-    fn to_spark_query(&self) -> Result<String> {
+impl ToSparkQuery for ColumnLike {
+    fn to_spark_query(&self) -> Result<PythonCode> {
         match self {
             ColumnLike::Named { name } => Ok(format!("F.col('{}')", name)),
             ColumnLike::Literal { code } => Ok(format!("F.lit({})", code)),
             ColumnLike::MethodCall { col, func, args } => {
-                let args: Result<Vec<String>> = args.iter().map(|e| e.to_spark_query()).collect();
+                let args: Result<Vec<String>> = args
+                    .iter()
+                    .map(|e| e.to_spark_query().map(|code| code.to_string()))
+                    .collect();
                 Ok(format!(
                     "{}.{}({})",
                     col.to_spark_query()?,
@@ -135,7 +224,10 @@ impl TemplateNode for ColumnLike {
                 ))
             }
             ColumnLike::FunctionCall { func, args } => {
-                let args: Result<Vec<String>> = args.iter().map(|e| e.to_spark_query()).collect();
+                let args: Result<Vec<String>> = args
+                    .iter()
+                    .map(|e| e.to_spark_query().map(|code| code.to_string()))
+                    .collect();
                 Ok(format!("F.{}({})", func, args?.join(", ")))
             }
             ColumnLike::Aliased { col, name } => {
@@ -149,6 +241,7 @@ impl TemplateNode for ColumnLike {
             )),
             ColumnLike::UnaryNot { right } => Ok(format!("~{}", right.to_spark_query()?,)),
         }
+        .map(Into::into)
     }
 }
 
@@ -159,11 +252,11 @@ pub enum Expr {
     Raw(Raw),
 }
 
-impl TemplateNode for Expr {
-    fn to_spark_query(&self) -> Result<String> {
+impl ToSparkQuery for Expr {
+    fn to_spark_query(&self) -> Result<PythonCode> {
         match self {
             Expr::Column(col @ ColumnLike::BinaryOp { .. }) => {
-                Ok(format!("({})", col.to_spark_query()?,))
+                Ok(format!("({})", col.to_spark_query()?,).into())
             }
             Expr::Column(col) => col.to_spark_query(),
             Expr::Raw(raw) => raw.to_spark_query(),
@@ -209,11 +302,38 @@ impl From<ColumnLike> for ColumnOrName {
     }
 }
 
-impl TemplateNode for ColumnOrName {
-    fn to_spark_query(&self) -> Result<String> {
+impl ToSparkQuery for ColumnOrName {
+    fn to_spark_query(&self) -> Result<PythonCode> {
         match self {
             ColumnOrName::Column(col) => col.to_spark_query(),
-            ColumnOrName::Name(name) => Ok(format!("\"{}\"", name)),
+            ColumnOrName::Name(name) => Ok(format!("\"{}\"", name).into()),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+pub enum RuntimeExpr {
+    DataFrame(Box<DataFrame>),
+    Expr(Expr),
+}
+
+impl From<DataFrame> for RuntimeExpr {
+    fn from(val: DataFrame) -> Self {
+        RuntimeExpr::DataFrame(Box::new(val))
+    }
+}
+
+impl<E: Into<Expr>> From<E> for RuntimeExpr {
+    fn from(val: E) -> Self {
+        RuntimeExpr::Expr(val.into())
+    }
+}
+
+impl ToSparkQuery for RuntimeExpr {
+    fn to_spark_query(&self) -> Result<PythonCode> {
+        match self {
+            RuntimeExpr::DataFrame(val) => val.to_spark_query(),
+            RuntimeExpr::Expr(val) => val.to_spark_query(),
         }
     }
 }
@@ -223,6 +343,13 @@ impl TemplateNode for ColumnOrName {
 pub enum DataFrame {
     Source {
         name: String,
+    },
+    Runtime {
+        name: String,
+        source: Option<Box<DataFrame>>,
+        runtime_func: String,
+        args: Vec<RuntimeExpr>,
+        kwargs: Vec<(String, RuntimeExpr)>,
     },
     RawSource {
         code: String,
@@ -290,11 +417,36 @@ pub enum DataFrame {
     },
 }
 
+static DF_COUNTER: AtomicUsize = AtomicUsize::new(1);
+
 #[allow(dead_code)]
 impl DataFrame {
+    fn generate_unique_name() -> String {
+        let uid = DF_COUNTER.fetch_add(1, Ordering::Relaxed);
+        format!("df_{uid}")
+    }
+
+    pub fn reset_df_count() {
+        DF_COUNTER.store(1, Ordering::Relaxed);
+    }
+
     pub fn source(name: impl ToString) -> DataFrame {
         DataFrame::Source {
             name: name.to_string(),
+        }
+    }
+    pub fn runtime(
+        source: Option<DataFrame>,
+        runtime_func: impl ToString,
+        args: Vec<RuntimeExpr>,
+        kwargs: Vec<(String, RuntimeExpr)>,
+    ) -> Self {
+        Self::Runtime {
+            name: Self::generate_unique_name(),
+            source: source.map(Box::new),
+            runtime_func: runtime_func.to_string(),
+            args,
+            kwargs,
         }
     }
     pub fn raw_source(code: impl ToString) -> DataFrame {
@@ -302,19 +454,10 @@ impl DataFrame {
             code: code.to_string(),
         }
     }
-    // pub fn as_variable(&self, name_prefix: Option<impl ToString>) -> DataFrame {
-    //     static UNIQUE_NAME_COUNTER: AtomicUsize = AtomicUsize::new(0);
-    //     let name_prefix = name_prefix.map(|s| s.to_string()).unwrap_or("df".to_string());
-    //     let i = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
-    //     DataFrame::Named {
-    //         source: Box::new(self.clone()),
-    //         name: format!("{}_{}", name_prefix, i).to_string(),
-    //     }
-    // }
-    pub fn named(&self, name: impl ToString) -> DataFrame {
+    pub fn named(&self, name: Option<String>) -> DataFrame {
         DataFrame::Named {
             source: Box::new(self.clone()),
-            name: name.to_string(),
+            name: name.unwrap_or_else(Self::generate_unique_name),
         }
     }
     pub fn select(&self, columns: Vec<ColumnLike>) -> DataFrame {
@@ -411,31 +554,77 @@ impl DataFrame {
     }
 }
 
-impl TemplateNode for DataFrame {
-    fn to_spark_query(&self) -> Result<String> {
+impl ToSparkQuery for DataFrame {
+    fn to_spark_query(&self) -> Result<PythonCode> {
         match self {
-            DataFrame::Source { name } => Ok(format!("spark.table('{}')", name)),
-            DataFrame::RawSource { code } => Ok(code.clone()),
-            DataFrame::Named { source, name } => Ok(format!(
-                "{}.write.saveAsTable('{}')\n\n{}",
-                source.to_spark_query()?,
+            DataFrame::Source { name } => Ok(format!("spark.table('{}')", name).into()),
+            DataFrame::RawSource { code } => Ok(code.clone().into()),
+            DataFrame::Runtime {
                 name,
-                DataFrame::source(name).to_spark_query()?,
-            )),
+                source,
+                runtime_func,
+                args,
+                kwargs,
+            } => {
+                let primary_source_code = match source {
+                    Some(ref source) => source.to_spark_query()?,
+                    None => PythonCode::from("None".to_string()),
+                };
+                let mut all_preface = vec![];
+                let mut all_args = vec![primary_source_code.primary_df_code.clone()];
+                for arg in args.iter() {
+                    let PythonCode {
+                        preface,
+                        primary_df_code,
+                    } = arg.to_spark_query()?;
+                    all_preface.extend(preface);
+                    all_args.push(primary_df_code);
+                }
+                for (name, kwarg) in kwargs.iter() {
+                    let PythonCode {
+                        preface,
+                        primary_df_code,
+                    } = kwarg.to_spark_query()?;
+                    all_preface.extend(preface);
+                    all_args.push(format!("{name}={primary_df_code}"));
+                }
+                let all_args_str = all_args.join(", ");
+                let full_command =
+                    format!("{} = commands.{}({})", name, runtime_func, all_args_str);
+                all_preface.push(full_command);
+
+                Ok(PythonCode::new(
+                    name.clone(),
+                    all_preface,
+                    Some(primary_source_code),
+                ))
+            }
+            DataFrame::Named { source, name } => {
+                let source_code = source.to_spark_query()?;
+                Ok(PythonCode::new(
+                    name.clone(),
+                    vec![format!("{} = {}", name, source_code.primary_df_code)],
+                    Some(source_code),
+                ))
+            }
             DataFrame::Select { source, columns } => {
-                let columns: Result<Vec<String>> =
-                    columns.iter().map(|col| col.to_spark_query()).collect();
+                let columns: Result<Vec<String>> = columns
+                    .iter()
+                    .map(|col| col.to_spark_query().map(|code| code.to_string()))
+                    .collect();
                 Ok(format!(
                     "{}.select({},)",
                     source.to_spark_query()?,
                     columns?.join(", ")
-                ))
+                )
+                .into())
             }
             DataFrame::Where { source, condition } => Ok(format!(
                 "{}.where({},)",
                 source.to_spark_query()?,
                 condition.to_spark_query()?,
-            )),
+            )
+            .into()),
             DataFrame::GroupBy { source, columns } => {
                 // Extra trailing comma is intentional
                 let columns: Result<Vec<String>> = columns
@@ -446,16 +635,15 @@ impl TemplateNode for DataFrame {
                     "{}.groupBy([{}])",
                     source.to_spark_query()?,
                     columns?.join("")
-                ))
+                )
+                .into())
             }
             DataFrame::Aggregation { source, columns } => {
-                let columns: Result<Vec<String>> =
-                    columns.iter().map(|col| col.to_spark_query()).collect();
-                Ok(format!(
-                    "{}.agg({},)",
-                    source.to_spark_query()?,
-                    columns?.join(", ")
-                ))
+                let columns: Result<Vec<String>> = columns
+                    .iter()
+                    .map(|col| col.to_spark_query().map(|code| code.to_string()))
+                    .collect();
+                Ok(format!("{}.agg({},)", source.to_spark_query()?, columns?.join(", ")).into())
             }
             DataFrame::WithColumn {
                 source,
@@ -466,7 +654,8 @@ impl TemplateNode for DataFrame {
                 source.to_spark_query()?,
                 name,
                 column.to_spark_query()?,
-            )),
+            )
+            .into()),
             DataFrame::WithColumnRenamed {
                 source,
                 old_name,
@@ -476,26 +665,31 @@ impl TemplateNode for DataFrame {
                 source.to_spark_query()?,
                 old_name,
                 new_name,
-            )),
+            )
+            .into()),
             DataFrame::OrderBy { source, columns } => {
-                let columns: Result<Vec<String>> =
-                    columns.iter().map(|col| col.to_spark_query()).collect();
+                let columns: Result<Vec<String>> = columns
+                    .iter()
+                    .map(|col| col.to_spark_query().map(|code| code.to_string()))
+                    .collect();
                 Ok(format!(
                     "{}.orderBy({},)",
                     source.to_spark_query()?,
                     columns?.join(", ")
-                ))
+                )
+                .into())
             }
             DataFrame::UnionByName { source, other } => Ok(format!(
                 "{}.unionByName({}, allowMissingColumns=True,)",
                 source.to_spark_query()?,
                 other.to_spark_query()?,
-            )),
+            )
+            .into()),
             DataFrame::Limit { source, limit } => {
-                Ok(format!("{}.limit({},)", source.to_spark_query()?, limit))
+                Ok(format!("{}.limit({},)", source.to_spark_query()?, limit).into())
             }
             DataFrame::Tail { source, limit } => {
-                Ok(format!("{}.tail({})", source.to_spark_query()?, limit))
+                Ok(format!("{}.tail({})", source.to_spark_query()?, limit).into())
             }
             DataFrame::Join {
                 source,
@@ -508,23 +702,27 @@ impl TemplateNode for DataFrame {
                 other.to_spark_query()?,
                 condition.to_spark_query()?,
                 join_type
-            )),
+            )
+            .into()),
             DataFrame::Alias { source, name } => {
-                Ok(format!("{}.alias('{}',)", source.to_spark_query()?, name,))
+                Ok(format!("{}.alias('{}',)", source.to_spark_query()?, name,).into())
             }
             DataFrame::ArbitraryMethod {
                 source,
                 method,
                 params,
             } => {
-                let params: Result<Vec<String>> =
-                    params.iter().map(|col| col.to_spark_query()).collect();
+                let params: Result<Vec<String>> = params
+                    .iter()
+                    .map(|col| col.to_spark_query().map(|code| code.to_string()))
+                    .collect();
                 Ok(format!(
                     "{}.{}({},)",
                     source.to_spark_query()?,
                     method,
                     params?.join(",")
-                ))
+                )
+                .into())
             }
         }
     }
@@ -535,14 +733,14 @@ pub struct TransformedPipeline {
     pub dataframes: Vec<DataFrame>,
 }
 
-impl TemplateNode for TransformedPipeline {
-    fn to_spark_query(&self) -> Result<String> {
+impl ToSparkQuery for TransformedPipeline {
+    fn to_spark_query(&self) -> Result<PythonCode> {
         let dfs: Result<Vec<String>> = self
             .dataframes
             .iter()
-            .map(|df| df.to_spark_query())
+            .map(|df| df.to_spark_query().map(|code| code.to_string()))
             .collect();
-        Ok(dfs?.join("\n\n"))
+        Ok(dfs?.join("\n\n").into())
     }
 }
 
@@ -562,6 +760,7 @@ mod tests {
     use super::*;
     use crate::format_python::format_python_code;
 
+    use crate::pyspark::utils::test::assert_python_code_eq;
     // fn generates(spl_query: &str, spark_query: &str) {
     //     let (_, pipeline_ast) = crate::spl::pipeline(spl_query).expect("Failed to parse SPL query");
     //     let converted = convert(pipeline_ast).expect("Failed to convert SPL query to Spark query");
@@ -574,9 +773,9 @@ mod tests {
     //     assert_eq!(formatted_rendered, formatted_spark_query);
     // }
 
-    fn generates(ast: impl TemplateNode, code: impl ToString) {
+    fn generates(ast: impl ToSparkQuery, code: impl ToString) {
         let generated = ast.to_spark_query().expect("Failed to generate code");
-        let formatted_generated = format_python_code(generated.replace(",)", ")"))
+        let formatted_generated = format_python_code(generated.to_string().replace(",)", ")"))
             .expect("Failed to format rendered Spark query");
         let formatted_code = format_python_code(code.to_string().replace(",)", ")"))
             .expect("Failed to format target code");
@@ -599,14 +798,7 @@ mod tests {
             r#"F.col("x") + F.lit(42)"#,
         );
         generates(
-            ColumnLike::UnaryNot {
-                right: Box::new(
-                    ColumnLike::Named {
-                        name: "x".to_string(),
-                    }
-                    .into(),
-                ),
-            },
+            ColumnLike::unary_not(ColumnLike::named("x")),
             r#"~F.col("x")"#,
         )
     }
@@ -638,12 +830,39 @@ mod tests {
                     "final_name",
                     column_like!([col("orig_name")].alias("alias_name")),
                 )
-                .named("prev"),
+                .named(Some("prev".to_string())),
             r#"
-spark.table("main").withColumn("final_name", F.col("orig_name")).write.saveAsTable("prev")
-
-spark.table("prev")
+prev = spark.table("main").withColumn("final_name", F.col("orig_name"))
+prev
             "#,
         )
+    }
+
+    #[test]
+    fn test_unique_ids() {
+        DataFrame::reset_df_count();
+        let df_1 = DataFrame::runtime(
+            // None,
+            None,
+            "search".to_string(),
+            vec![column_like!([col("x")] == [lit(3)]).into()],
+            vec![],
+        );
+        let df_2 = DataFrame::runtime(
+            Some(df_1),
+            "eval".to_string(),
+            vec![],
+            vec![("y".to_string(), column_like!(length([col("x")])).into())],
+        );
+        assert_python_code_eq(
+            df_2.to_spark_query().unwrap().to_string(),
+            r#"
+df_1 = commands.search(None, (F.col('x') == F.lit(3)))
+df_2 = commands.eval(df_1, y=F.length(F.col('x')))
+df_2
+            "#
+            .trim(),
+            false,
+        );
     }
 }

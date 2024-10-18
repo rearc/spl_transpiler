@@ -7,7 +7,10 @@ use crate::spl::ast;
 use anyhow::ensure;
 
 impl PipelineTransformer for StatsCommand {
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
         let mut aggs: Vec<ColumnLike> = vec![];
         for e in self.funcs.iter() {

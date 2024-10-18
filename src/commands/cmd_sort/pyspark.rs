@@ -43,7 +43,10 @@ fn _resolve_expr(e: ast::Expr) -> Result<ColumnLike> {
 }
 
 impl PipelineTransformer for SortCommand {
-    fn transform(&self, state: PipelineTransformState) -> Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> Result<PipelineTransformState> {
         let mut df = state.df;
 
         let sort_fields: Result<Vec<_>> = self

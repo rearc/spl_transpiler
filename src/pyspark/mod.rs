@@ -1,6 +1,3 @@
-use crate::spl::ast::Pipeline;
-use anyhow::Result;
-
 pub(crate) mod alias;
 pub(crate) mod ast;
 pub(crate) mod base;
@@ -8,16 +5,12 @@ pub(crate) mod transpiler;
 pub(crate) mod utils;
 
 pub use ast::TransformedPipeline;
-pub use base::TemplateNode;
-
-#[allow(dead_code)]
-pub fn convert(pipeline: Pipeline) -> Result<TransformedPipeline> {
-    TransformedPipeline::try_from(pipeline)
-}
+pub use base::ToSparkQuery;
 
 // Tests
 #[cfg(test)]
 mod tests {
+
     use crate::pyspark::utils::test::*;
 
     //   test("thing") {

@@ -5,7 +5,10 @@ use crate::spl::ast;
 use crate::spl::ast::FieldOrAlias;
 
 impl PipelineTransformer for BinCommand {
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
         let col_name = match self.field.clone() {
             FieldOrAlias::Field(ast::Field(name)) => name,

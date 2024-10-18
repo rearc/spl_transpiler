@@ -854,7 +854,7 @@ pub fn comparison_operator(input: &str) -> IResult<&str, OperatorSymbol> {
 //                 }),
 //                 _ => climb(
 //                     ast::Expr::Binary(ast::Binary {
-//                         left: Box::new(left),
+//                         left: Box::new(left.unaliased()),
 //                         symbol,
 //                         right: Box::new(next),
 //                     }),
@@ -864,7 +864,7 @@ pub fn comparison_operator(input: &str) -> IResult<&str, OperatorSymbol> {
 //             }
 //         } else {
 //             ast::Expr::Binary(ast::Binary {
-//                 left: Box::new(left),
+//                 left: Box::new(left.unaliased()),
 //                 symbol,
 //                 right: Box::new(climb(next, remainder, precedence + 1)),
 //             })
@@ -996,12 +996,7 @@ pub fn expr3(input: &str) -> IResult<&str, ast::Expr> {
         ),
         |(left, maybe_op_right)| match maybe_op_right {
             None => left,
-            Some((op, right)) => ast::Binary {
-                left: Box::new(left),
-                symbol: op.to_string(),
-                right: Box::new(right),
-            }
-            .into(),
+            Some((op, right)) => ast::Binary::new(left, op, right).into(),
         },
     ),))(input)
 }
@@ -1017,12 +1012,7 @@ pub fn expr4(input: &str) -> IResult<&str, ast::Expr> {
         ),
         |(left, maybe_op_right)| match maybe_op_right {
             None => left,
-            Some((op, right)) => ast::Binary {
-                left: Box::new(left),
-                symbol: op.to_string(),
-                right: Box::new(right),
-            }
-            .into(),
+            Some((op, right)) => ast::Binary::new(left, op, right).into(),
         },
     ),))(input)
 }
@@ -1035,12 +1025,7 @@ pub fn expr5(input: &str) -> IResult<&str, ast::Expr> {
         ),
         |(left, maybe_op_right)| match maybe_op_right {
             None => left,
-            Some((op, right)) => ast::Binary {
-                left: Box::new(left),
-                symbol: op.to_string(),
-                right: Box::new(right),
-            }
-            .into(),
+            Some((op, right)) => ast::Binary::new(left, op, right).into(),
         },
     ),))(input)
 }
@@ -1066,12 +1051,7 @@ pub fn expr6(input: &str) -> IResult<&str, ast::Expr> {
             ),
             |(left, maybe_op_right)| match maybe_op_right {
                 None => left,
-                Some((op, right)) => ast::Binary {
-                    left: Box::new(left),
-                    symbol: op.to_string(),
-                    right: Box::new(right),
-                }
-                .into(),
+                Some((op, right)) => ast::Binary::new(left, op, right).into(),
             },
         ),
     ))(input)
@@ -1087,13 +1067,7 @@ pub fn expr7(input: &str) -> IResult<&str, ast::Expr> {
                     parenthesized(expr9_with_whitespace),
                 ),
             )),
-            |(op, right)| {
-                ast::Unary {
-                    symbol: op.to_string(),
-                    right: Box::new(right),
-                }
-                .into()
-            },
+            |(op, right)| ast::Unary::new(op, right).into(),
         ),
         expr6,
     ))(input)
@@ -1104,12 +1078,7 @@ pub fn expr8(input: &str) -> IResult<&str, ast::Expr> {
         pair(expr7, opt(pair(ws(operators::Or::pattern), expr8))),
         |(left, maybe_op_right)| match maybe_op_right {
             None => left,
-            Some((op, right)) => ast::Binary {
-                left: Box::new(left),
-                symbol: op.to_string(),
-                right: Box::new(right),
-            }
-            .into(),
+            Some((op, right)) => ast::Binary::new(left, op, right).into(),
         },
     ),))(input)
 }
@@ -1122,12 +1091,7 @@ pub fn expr9_no_whitespace(input: &str) -> IResult<&str, ast::Expr> {
         ),
         |(left, maybe_op_right)| match maybe_op_right {
             None => left,
-            Some((op, right)) => ast::Binary {
-                left: Box::new(left),
-                symbol: op.to_string(),
-                right: Box::new(right),
-            }
-            .into(),
+            Some((op, right)) => ast::Binary::new(left, op, right).into(),
         },
     )(input)
 }
@@ -1143,12 +1107,7 @@ pub fn expr9_with_whitespace(input: &str) -> IResult<&str, ast::Expr> {
         ),
         |(left, maybe_op_right)| match maybe_op_right {
             None => left,
-            Some((op, right)) => ast::Binary {
-                left: Box::new(left),
-                symbol: op.to_string(),
-                right: Box::new(right),
-            }
-            .into(),
+            Some((op, right)) => ast::Binary::new(left, op, right).into(),
         },
     )(input)
 }
@@ -1323,11 +1282,11 @@ pub fn combine_all_expressions(exprs: Vec<ast::Expr>, symbol: impl ToString) -> 
     exprs.into_iter().for_each(|expr| {
         final_expr = match (final_expr.clone(), expr) {
             (None, expr) => Some(expr),
-            (Some(final_expr), expr) => Some(ast::Expr::Binary(ast::Binary {
-                left: Box::new(final_expr),
-                symbol: symbol.to_string(),
-                right: Box::new(expr),
-            })),
+            (Some(final_expr), expr) => Some(ast::Expr::Binary(ast::Binary::new(
+                final_expr,
+                symbol.to_string(),
+                expr,
+            ))),
         }
     });
 
@@ -1357,13 +1316,7 @@ pub fn logical_expression_term(input: &str) -> IResult<&str, ast::Expr> {
         parenthesized(logical_expression),
         map(
             preceded(ws(tag_no_case("NOT")), logical_expression_term),
-            |expr| {
-                ast::Unary {
-                    symbol: operators::UnaryNot::SYMBOL.into(),
-                    right: Box::new(expr),
-                }
-                .into()
-            },
+            |expr| ast::Unary::new(operators::UnaryNot::SYMBOL, expr).into(),
         ),
         map(time_opts, |opts| {
             combine_all_expressions(opts, operators::Or::SYMBOL).unwrap()
@@ -1385,12 +1338,8 @@ pub fn comparison_expression(input: &str) -> IResult<&str, ast::Expr> {
                 ws(comparison_operator),
                 alt((into(call), into(literal))),
             )),
-            |(left, symbol, right)| {
-                ast::Expr::Binary(ast::Binary {
-                    left: Box::new(left.into()),
-                    symbol: symbol.symbol_string().into(),
-                    right: Box::new(right),
-                })
+            |(left, symbol, right): (_, _, ast::Expr)| {
+                ast::Expr::Binary(ast::Binary::new(left, symbol.symbol_string(), right))
             },
         ),
         into(field_in),

@@ -59,42 +59,28 @@ impl TryFrom<ast::Expr> for Expr {
                     }
                 }
                 // a [op] b -> a [op] b
-                (left, op, right) => Ok(ColumnLike::BinaryOp {
-                    left: Box::new(left.try_into()?),
-                    op: op.to_string(),
-                    right: Box::new(right.try_into()?),
-                }
-                .into()),
+                (left, op, right) => Ok(ColumnLike::try_binary_op(left, op, right)?.into()),
             },
 
             // Unary operation -> Unary op
             ast::Expr::Unary(ast::Unary { symbol, right }) if symbol == "NOT" => {
-                Ok(ColumnLike::UnaryNot {
-                    right: Box::new((*right).try_into()?),
-                }
-                .into())
+                Ok(ColumnLike::try_unary_not(*right)?.into())
             }
 
             // Field -> Named column
             ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(name)))) => {
-                Ok(ColumnLike::Named { name: name.clone() }.into())
+                Ok(ColumnLike::named(name.clone()).into())
             }
 
             // Int constant -> Int literal column
             ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Int(ast::IntValue(val)))) => {
-                Ok(ColumnLike::Literal {
-                    code: val.to_string(),
-                }
-                .into())
+                Ok(ColumnLike::literal(val).into())
             }
 
             // Double constant -> Double literal column
             ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Double(ast::DoubleValue(
                 val,
-            )))) => Ok(ColumnLike::Literal {
-                code: val.to_string(),
-            }
-            .into()),
+            )))) => Ok(ColumnLike::literal(val).into()),
 
             // String constant -> String literal column
             ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Str(ast::StrValue(val)))) => {
@@ -106,10 +92,7 @@ impl TryFrom<ast::Expr> for Expr {
 
             // Boolean constant -> Boolean literal column
             ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Bool(ast::BoolValue(val)))) => {
-                Ok(ColumnLike::Literal {
-                    code: val.to_string(),
-                }
-                .into())
+                Ok(ColumnLike::literal(val).into())
             }
 
             // IPv4 cidr -> String literal column
@@ -226,11 +209,7 @@ impl ColumnLike {
                 right: Box::new(right._into_search_expr()),
             },
             ColumnLike::BinaryOp { left, op, right } if matches!(op.as_str(), "&" | "|") => {
-                ColumnLike::BinaryOp {
-                    left: Box::new(left._into_search_expr()),
-                    op,
-                    right: Box::new(right._into_search_expr()),
-                }
+                ColumnLike::binary_op(left._into_search_expr(), op, right._into_search_expr())
             }
             _ => self,
         }

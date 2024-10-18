@@ -4,7 +4,10 @@ use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 
 impl PipelineTransformer for FillNullCommand {
     #[allow(unused_variables, unreachable_code)]
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> anyhow::Result<PipelineTransformState> {
         let df = state.df;
 
         let df = df.arbitrary_method(

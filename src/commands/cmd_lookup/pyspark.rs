@@ -8,7 +8,10 @@ use anyhow::{bail, Result};
 
 impl PipelineTransformer for LookupCommand {
     #[allow(unused_variables, unreachable_code)]
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> anyhow::Result<PipelineTransformState> {
         let mut df = state.df;
 
         df = df.alias("main");

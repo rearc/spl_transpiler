@@ -7,7 +7,10 @@ use anyhow::{anyhow, bail, ensure};
 
 impl PipelineTransformer for JoinCommand {
     #[allow(unused_variables, unreachable_code)]
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> anyhow::Result<PipelineTransformState> {
         let df = state.df.alias("LEFT");
 
         ensure!(
@@ -15,7 +18,8 @@ impl PipelineTransformer for JoinCommand {
             "UNIMPLEMENTED: Join with max != 1 not yet supported"
         );
 
-        let right_df: TransformedPipeline = self.sub_search.clone().try_into()?;
+        let right_df: TransformedPipeline =
+            TransformedPipeline::transform(self.sub_search.clone(), false)?;
         let right_df = right_df
             .dataframes
             .first()

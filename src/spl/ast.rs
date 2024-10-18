@@ -457,6 +457,16 @@ pub struct Binary {
     pub right: Box<Expr>,
 }
 
+impl Binary {
+    pub fn new(left: impl Into<Expr>, symbol: impl ToString, right: impl Into<Expr>) -> Self {
+        Self {
+            left: Box::new(left.into()),
+            symbol: symbol.to_string(),
+            right: Box::new(right.into()),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Hash)]
 #[pyclass(frozen, eq, hash)]
 pub struct Unary {
@@ -464,6 +474,15 @@ pub struct Unary {
     pub symbol: String,
     // #[pyo3(get)]
     pub right: Box<Expr>,
+}
+
+impl Unary {
+    pub fn new(symbol: impl ToString, right: impl Into<Expr>) -> Self {
+        Self {
+            symbol: symbol.to_string(),
+            right: Box::new(right.into()),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -491,6 +510,15 @@ pub struct Alias {
     pub expr: Box<Expr>,
     #[pyo3(get)]
     pub name: String,
+}
+
+impl Alias {
+    pub fn new(name: impl ToString, expr: impl Into<Expr>) -> Self {
+        Self {
+            name: name.to_string(),
+            expr: Box::new(expr.into()),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]

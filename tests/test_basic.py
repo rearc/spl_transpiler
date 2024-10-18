@@ -1,4 +1,5 @@
 from spl_transpiler import parse, ast, render_pyspark, convert_spl_to_pyspark
+from utils import assert_python_code_equals
 
 
 def test_parse():
@@ -30,16 +31,11 @@ def test_parse():
 
 
 def test_convert_to_pyspark():
-    from black import format_str, FileMode
-
     spl_code = r"code IN(4*, 5*)"
-    expected_pyspark_code = format_str(
-        r"spark.table('main').where((F.col('code').like('4%') | F.col('code').like('5%')),)",
-        mode=FileMode(),
-    ).strip()
+    expected_pyspark_code = r"spark.table('main').where((F.col('code').like('4%') | F.col('code').like('5%')),)"
 
     converted_code = render_pyspark(parse(spl_code))
-    direct_converted_code = convert_spl_to_pyspark(spl_code, format=True)
+    direct_converted_code = convert_spl_to_pyspark(spl_code, format_code=True)
 
-    assert converted_code == expected_pyspark_code
-    assert direct_converted_code == expected_pyspark_code
+    assert_python_code_equals(converted_code, expected_pyspark_code)
+    assert_python_code_equals(direct_converted_code, expected_pyspark_code)

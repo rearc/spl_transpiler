@@ -8,7 +8,10 @@ use anyhow::{bail, ensure};
 use log::warn;
 
 impl PipelineTransformer for TStatsCommand {
-    fn transform(&self, state: PipelineTransformState) -> anyhow::Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> anyhow::Result<PipelineTransformState> {
         ensure!(
             !self.prestats,
             "UNIMPLEMENTED: `tstats` command does not implement prestats=true"

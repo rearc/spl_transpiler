@@ -34,7 +34,7 @@ jobs:
         with:
           python-version: 3.x
       - run: pip install maturin
-      - run: pip install -e .[test]
+      - run: pip install -e .[test,runtime]
       - run: pytest
 #      - run: cargo test
 

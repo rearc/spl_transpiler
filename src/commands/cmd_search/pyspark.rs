@@ -45,11 +45,11 @@ fn split_conditions(
                         (Some(left), "AND", None) | (Some(left), "OR", None) => Ok(Some(left)),
                         (None, "AND", Some(right)) | (None, "OR", Some(right)) => Ok(Some(right)),
                         (None, _, _) | (_, _, None) => bail!("Cannot perform comparison {} when one side collapses into an index check", op),
-                        (Some(left), symbol, Some(right)) => Ok(Some(ast::Binary {
-                            left: Box::new(left),
-                            symbol: symbol.into(),
-                            right: Box::new(right),
-                        }.into()))
+                        (Some(left), symbol, Some(right)) => Ok(Some(ast::Binary::new(
+                            left,
+                            symbol,
+                            right,
+                        ).into()))
                     }
                 }
             }
@@ -58,8 +58,64 @@ fn split_conditions(
     }
 }
 
+fn break_down_ands(expr: &ast::Expr, exprs: &mut Vec<ast::Expr>) {
+    match expr {
+        ast::Expr::Binary(ast::Binary {
+            left,
+            symbol,
+            right,
+        }) if symbol == "AND" => {
+            break_down_ands(left, exprs);
+            break_down_ands(right, exprs);
+        }
+        _ => exprs.push(expr.clone()),
+    }
+}
+
 impl PipelineTransformer for SearchCommand {
-    fn transform(&self, state: PipelineTransformState) -> Result<PipelineTransformState> {
+    fn transform_for_runtime(
+        &self,
+        state: PipelineTransformState,
+    ) -> Result<PipelineTransformState> {
+        let mut exprs = vec![];
+        break_down_ands(&self.expr, &mut exprs);
+
+        let maybe_df = match state.df {
+            DataFrame::Source { .. } => None,
+            df_ => Some(df_),
+        };
+
+        let mut args = vec![];
+        let mut kwargs = vec![];
+
+        for expr in exprs {
+            match expr.clone() {
+                ast::Expr::Binary(ast::Binary {
+                    left,
+                    symbol,
+                    right,
+                }) => match (*left.clone(), symbol.as_str()) {
+                    (
+                        ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(
+                            name,
+                        )))),
+                        "=" | "==",
+                    ) => kwargs.push((name.to_string(), Expr::try_from(*right)?.into())),
+                    _ => args.push(Expr::try_from(expr)?.into()),
+                },
+                _ => args.push(Expr::try_from(expr)?.into()),
+            }
+        }
+
+        let df = DataFrame::runtime(maybe_df, "search", args, kwargs);
+
+        Ok(PipelineTransformState { df })
+    }
+
+    fn transform_standalone(
+        &self,
+        state: PipelineTransformState,
+    ) -> Result<PipelineTransformState> {
         let mut indices = HashSet::new();
         let condition_expr = split_conditions(&self.expr, true, &mut indices)?;
         let mut df = if !indices.is_empty() {
@@ -91,7 +147,7 @@ impl PipelineTransformer for SearchCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pyspark::utils::test::generates;
+    use crate::pyspark::utils::test::{generates, generates_runtime};
 
     fn check_split_results(
         expr: impl Into<ast::Expr>,
@@ -112,11 +168,7 @@ mod tests {
     #[test]
     fn test_split_conditions_simple_index() {
         check_split_results(
-            ast::Binary {
-                left: Box::new(ast::Field::from("index").into()),
-                symbol: "=".into(),
-                right: Box::new(ast::Field::from("lol").into()),
-            },
+            ast::Binary::new(ast::Field::from("index"), "=", ast::Field::from("lol")),
             vec!["lol".into()],
             None,
         );
@@ -125,11 +177,7 @@ mod tests {
     #[test]
     fn test_split_conditions_no_index() {
         check_split_results(
-            ast::Binary {
-                left: Box::new(ast::Field::from("x").into()),
-                symbol: "=".into(),
-                right: Box::new(ast::IntValue::from(2).into()),
-            },
+            ast::Binary::new(ast::Field::from("x"), "=", ast::IntValue::from(2)),
             Vec::<String>::new(),
             Some(column_like!([col("x")] == [lit(2)]).into()),
         );
@@ -138,25 +186,11 @@ mod tests {
     #[test]
     fn test_split_conditions_combined_index() {
         check_split_results(
-            ast::Binary {
-                left: Box::new(
-                    ast::Binary {
-                        left: Box::new(ast::Field::from("x").into()),
-                        symbol: "=".into(),
-                        right: Box::new(ast::IntValue::from(2).into()),
-                    }
-                    .into(),
-                ),
-                symbol: "AND".into(),
-                right: Box::new(
-                    ast::Binary {
-                        left: Box::new(ast::Field::from("index").into()),
-                        symbol: "=".into(),
-                        right: Box::new(ast::Field::from("lol").into()),
-                    }
-                    .into(),
-                ),
-            },
+            ast::Binary::new(
+                ast::Binary::new(ast::Field::from("x"), "=", ast::IntValue::from(2)),
+                "AND",
+                ast::Binary::new(ast::Field::from("index"), "=", ast::Field::from("lol")),
+            ),
             vec!["lol".into()],
             Some(column_like!([col("x")] == [lit(2)]).into()),
         );
@@ -165,53 +199,19 @@ mod tests {
     #[test]
     fn test_multi_index_conditions() {
         check_split_results(
-            ast::Binary {
-                left: Box::new(
-                    ast::Binary {
-                        left: Box::new(
-                            ast::Binary {
-                                left: Box::new(
-                                    ast::Binary {
-                                        left: Box::new(ast::Field::from("index").into()),
-                                        symbol: "=".into(),
-                                        right: Box::new(ast::Field::from("lol").into()),
-                                    }
-                                    .into(),
-                                ),
-                                symbol: "AND".into(),
-                                right: Box::new(
-                                    ast::Binary {
-                                        left: Box::new(ast::Field::from("x").into()),
-                                        symbol: "=".into(),
-                                        right: Box::new(ast::IntValue::from(2).into()),
-                                    }
-                                    .into(),
-                                ),
-                            }
-                            .into(),
-                        ),
-                        symbol: "AND".into(),
-                        right: Box::new(
-                            ast::Binary {
-                                left: Box::new(ast::Field::from("index").into()),
-                                symbol: "=".into(),
-                                right: Box::new(ast::Field::from("two").into()),
-                            }
-                            .into(),
-                        ),
-                    }
-                    .into(),
+            ast::Binary::new(
+                ast::Binary::new(
+                    ast::Binary::new(
+                        ast::Binary::new(ast::Field::from("index"), "=", ast::Field::from("lol")),
+                        "AND",
+                        ast::Binary::new(ast::Field::from("x"), "=", ast::IntValue::from(2)),
+                    ),
+                    "AND",
+                    ast::Binary::new(ast::Field::from("index"), "=", ast::Field::from("two")),
                 ),
-                symbol: "AND".into(),
-                right: Box::new(
-                    ast::Binary {
-                        left: Box::new(ast::Field::from("y").into()),
-                        symbol: ">".into(),
-                        right: Box::new(ast::IntValue::from(3).into()),
-                    }
-                    .into(),
-                ),
-            },
+                "AND",
+                ast::Binary::new(ast::Field::from("y"), ">", ast::IntValue::from(3)),
+            ),
             vec!["lol".into(), "two".into()],
             Some(column_like!([[col("x")] == [lit(2)]] & [[col("y")] > [lit(3)]]).into()),
         );
@@ -233,6 +233,20 @@ mod tests {
                     ~F.col("query").like("SELECT % FROM __InstanceOperationEvent WHERE TargetInstance ISA 'AntiVirusProduct' OR TargetInstance ISA 'FirewallProduct' OR TargetInstance ISA 'AntiSpywareProduct'")
                 )
             )
+            "#,
+        )
+    }
+
+    #[test]
+    fn test_search_9() {
+        DataFrame::reset_df_count();
+        let query = r#"index="lol" sourcetype="src1" len(x)=3"#;
+
+        generates_runtime(
+            query,
+            r#"
+df_1 = commands.search(None, (F.length(F.col("x")) == F.lit(3)), index=F.lit("lol"), sourcetype=F.lit("src1"))
+df_1
             "#,
         )
     }

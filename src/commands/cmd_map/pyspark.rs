@@ -3,7 +3,10 @@ use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use anyhow::{bail, Result};
 
 impl PipelineTransformer for MapCommand {
-    fn transform(&self, _state: PipelineTransformState) -> Result<PipelineTransformState> {
+    fn transform_standalone(
+        &self,
+        _state: PipelineTransformState,
+    ) -> Result<PipelineTransformState> {
         bail!("UNIMPLEMENTED: Need some way to figure out what non-index search terms (left- and right-hand sides) exist in the subquery")
         //     generates("map search=\"search index=fake_for_join id=$id$\"",
         //       """(spark.table('fake_for_join')

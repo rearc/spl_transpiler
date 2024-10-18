@@ -8,7 +8,8 @@ pub(crate) mod functions;
 pub(crate) mod pyspark;
 pub(crate) mod spl;
 
-use pyspark::{TemplateNode, TransformedPipeline};
+use crate::pyspark::ast::DataFrame;
+use pyspark::{ToSparkQuery, TransformedPipeline};
 
 #[pymodule]
 fn spl_transpiler(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -33,12 +34,18 @@ fn spl_transpiler(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     #[pyfn(m)]
-    #[pyo3(signature = (pipeline, format=true))]
+    #[pyo3(signature = (pipeline, *, allow_runtime=false, format_code=true))]
     /// Renders a parsed SPL syntax tree into equivalent PySpark query code, if possible.
-    fn render_pyspark(pipeline: &spl::ast::Pipeline, format: bool) -> PyResult<String> {
-        let transformed_pipeline: TransformedPipeline = pipeline.clone().try_into()?;
-        let mut code = transformed_pipeline.to_spark_query()?;
-        if format {
+    fn render_pyspark(
+        pipeline: &spl::ast::Pipeline,
+        allow_runtime: bool,
+        format_code: bool,
+    ) -> PyResult<String> {
+        DataFrame::reset_df_count();
+        let transformed_pipeline: TransformedPipeline =
+            TransformedPipeline::transform(pipeline.clone(), allow_runtime)?;
+        let mut code = transformed_pipeline.to_spark_query()?.to_string();
+        if format_code {
             code = format_python::safe_format_python_code(code);
         }
         Ok(code)

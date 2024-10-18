@@ -147,6 +147,7 @@ tanh(X)                                             	 Computes the hyperbolic ta
 
 fn offset_time(time_col: impl Into<Expr>, offset: TimeSpan) -> ColumnLike {
     let TimeSpan { value, scale } = offset;
+    let time_col: Expr = time_col.into();
     column_like!([time_col] + [expr("INTERVAL {} {}", value, scale.to_ascii_uppercase())])
 }
 
@@ -651,7 +652,7 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
 mod tests {
     use super::*;
     use crate::pyspark::utils::test::assert_python_code_eq;
-    use crate::pyspark::TemplateNode;
+    use crate::pyspark::ToSparkQuery;
 
     #[test]
     fn test_simple_function_max() {
@@ -699,6 +700,7 @@ mod tests {
         assert_python_code_eq(
             result.unwrap().unaliased().to_spark_query().unwrap(),
             "F.zip_with(F.col('x'), F.col('y'), lambda left_, right_: F.concat_ws(r',', left_, right_))",
+            true,
         );
     }
 
@@ -709,6 +711,7 @@ mod tests {
         assert_python_code_eq(
             result.unwrap().unaliased().to_spark_query().unwrap(),
             "F.zip_with(F.col('x'), F.col('y'), lambda left_, right_: F.concat_ws(r'_', left_, right_))",
+            true,
         );
     }
 
@@ -722,6 +725,7 @@ mod tests {
                 "minute",
                 (F.to_timestamp(F.current_timestamp()) + F.expr("INTERVAL -70 MINUTES"))
             )"#,
+            true,
         );
     }
 }

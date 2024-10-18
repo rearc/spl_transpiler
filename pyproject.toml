@@ -31,6 +31,9 @@ test = [
 cli = [
     "textual[syntax]"
 ]
+runtime = [
+    "pyspark",
+]
 
 [tool.pytest.ini_options]
 # Ignore the bulk query test by default (it can still be run directly)
