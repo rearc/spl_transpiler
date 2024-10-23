@@ -426,13 +426,48 @@ package, some may be provided by Databricks Sirens.
 # Prioritized TODO list
 
 - [x] Support macro syntax (separate pre-processing function?)
-- [ ] Incorporate [standard macros that come with CIM](https://docs.splunk.com/Documentation/CIM/5.3.2/User/UsetheCIMFiltersmacrostoexcludedata)
-- [ ] Support custom Python UDFs (in `spl_transpiler` for now)
 - [x] Use sample queries to create prioritized list of remaining commands
-- [ ] Support re-using intermediate results (saving off as tables or variables, `.cache()`)
+- [ ] ~~Incorporate [standard macros that come with CIM](https://docs.splunk.com/Documentation/CIM/5.3.2/User/UsetheCIMFiltersmacrostoexcludedata)~~
+- [x] Support re-using intermediate results (saving off as tables or variables, `.cache()`)
+- [ ] Migrate existing commands into runtime
+- [ ] Migrate eval, stats, and collect functions into runtime
+- [ ] Support custom Python UDFs
+- [ ] Finish supporting desired but not directly-mappable evals functions using UDFs
+- [ ] Support `{}` and `@` in field names
 - [ ] Support Scala UDFs
 - [ ] Support SQL output
-- [ ] Support `{}` and `@` in field names
+
+# Contributing
+
+## Installation
+
+You'll need [`cargo` (Rust)](https://rustup.rs/) and `python` installed.
+I recommend [using `uv`](https://docs.astral.sh/uv/getting-started/installation/) for managing the Python environment, dependencies, and tools needed for this project.
+
+Note that PySpark is currently only compatible with Python 3.11 and older, 3.12 and 3.13 are not yet supported.
+E.g., you can use `uv venv --python 3.11` to create a `.venv` virtual environment with the appropriate Python interpreter.
+`spl_transpiler` is developed against Python 3.10 and likely requires at least that.
+
+This project uses `maturin` and `pyo3` for the Rust <-> Python interfacing, you'll need to [install `maturin`](https://www.maturin.rs/installation.html), e.g. using `uvx maturin` commands which will auto-install the tool on first use.
+
+This project uses [`pre-commit` to automate linting and formatting](https://pre-commit.com/#usage).
+E.g. you can use `uvx pre-commit install` to install pre-commit and set up its git hooks.
+
+You can then build and install `spl_transpiler` and all dependencies. First, make sure you have your virtual environment activated (`uv` commands will detect the venv by default if you use that, else follow activation instructions for your virtual environment tool), then run `uv pip install -e .[cli,test,runtime]`.
+
+## Running Tests
+
+You can test the core transpiler using `cargo test`.
+The Rust test suites include full end-to-end tests of query conversions, ensuring that the transpiler compiles and converts a wide range of known inputs into expected outputs.
+
+The Python-side tests can be run with `pytest` and primarily ensure that the Rust <-> Python interface is behaving as expected.
+It also includes runtime tests, which validate that hand-written and transpiled runtime code does what is expected using known input/output _data_ pairs running in an ephemeral Spark cluster.
+
+There is also a large-scale Python test that can be run using `pytest tests/test_sample_files_parse.py`.
+By default, this test is ignored because it is slow and currently does not pass.
+It runs the transpiler on >1,800 sample SPL queries and ensure that the transpiler doesn't crash, generating detailed logs and error summaries along the way.
+This test is useful when expanding the transpiler to support new syntax, command, functions, etc. to see if the changes cause more commands/queries to transpile successfully.
+It's also useful for identifying what elements of SPL should be prioritized next to support more real-world use cases.
 
 # Acknowledgements
 
