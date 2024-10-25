@@ -8,7 +8,7 @@ impl PipelineTransformer for RareCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         if self.use_other {
             bail!("UNIMPLEMENTED: No implementation yet for `useother=true` in `rare`")
@@ -40,6 +40,6 @@ impl PipelineTransformer for RareCommand {
             df = df.limit(self.n);
         }
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

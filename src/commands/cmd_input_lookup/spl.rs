@@ -90,6 +90,7 @@ mod tests {
     use super::*;
     use crate::spl::ast;
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
     //
     //   test("inputlookup append=t strict=f myTable where test_id=11") {
@@ -107,7 +108,7 @@ mod tests {
     //         )
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_input_lookup_1() {
         assert_eq!(
             InputLookupParser::parse(r#"inputlookup append=t strict=f myTable where test_id=11"#),
@@ -136,7 +137,7 @@ mod tests {
     //       None
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_input_lookup_2() {
         assert_eq!(
             InputLookupParser::parse(r#"inputlookup myTable"#),

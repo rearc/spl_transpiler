@@ -7,7 +7,7 @@ impl PipelineTransformer for super::spl::MakeResultsCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        // let df = state.df;
+        // let df = state.df.clone().unwrap_or_default();
 
         /*
             spark.range(0, 10, 1)
@@ -40,6 +40,6 @@ impl PipelineTransformer for super::spl::MakeResultsCommand {
                 );
         }
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

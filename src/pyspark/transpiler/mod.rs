@@ -1,27 +1,39 @@
-use crate::pyspark::ast::DataFrame::Source;
 use crate::pyspark::ast::*;
+use crate::pyspark::base::{PysparkTranspileContext, RuntimeSelection};
 use crate::spl::ast;
 use anyhow::{anyhow, bail, Result};
 use std::fmt::Debug;
+
 pub(crate) mod expr;
 pub(crate) mod utils;
 
 #[derive(Debug, Clone)]
 pub struct PipelineTransformState {
-    pub df: DataFrame,
+    pub ctx: PysparkTranspileContext,
+    pub df: Option<DataFrame>,
+}
+
+impl PipelineTransformState {
+    pub fn new(ctx: PysparkTranspileContext) -> Self {
+        Self { ctx, df: None }
+    }
+
+    pub fn with_df(self, df: DataFrame) -> Self {
+        Self {
+            ctx: self.ctx,
+            df: Some(df),
+        }
+    }
 }
 
 pub trait PipelineTransformer: Debug {
-    fn transform(
-        &self,
-        state: PipelineTransformState,
-        allow_runtime: bool,
-    ) -> Result<PipelineTransformState> {
-        if allow_runtime {
-            self.transform_for_runtime(state.clone())
-                .or_else(|_| self.transform_standalone(state))
-        } else {
-            self.transform_standalone(state)
+    fn transform(&self, state: PipelineTransformState) -> Result<PipelineTransformState> {
+        match state.ctx.runtime {
+            RuntimeSelection::NoRuntime => self.transform_standalone(state),
+            RuntimeSelection::AllowRuntime => self
+                .transform_for_runtime(state.clone())
+                .or_else(|_| self.transform_standalone(state)),
+            RuntimeSelection::RequireRuntime => self.transform_for_runtime(state.clone()),
         }
     }
 
@@ -47,65 +59,57 @@ pub trait PipelineTransformer: Debug {
 }
 
 impl PipelineTransformer for ast::Command {
-    fn transform(
-        &self,
-        state: PipelineTransformState,
-        allow_runtime: bool,
-    ) -> Result<PipelineTransformState> {
+    fn transform(&self, state: PipelineTransformState) -> Result<PipelineTransformState> {
         #[allow(unreachable_patterns)]
         match self {
-            ast::Command::AddTotalsCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::BinCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::CollectCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::ConvertCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::DataModelCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::DedupCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::EvalCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::EventStatsCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::FieldsCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::FillNullCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::FormatCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::HeadCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::InputLookupCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::JoinCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::LookupCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::MakeResultsCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::MapCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::MultiSearchCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::MvCombineCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::MvExpandCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::RareCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::RegexCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::RenameCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::ReturnCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::RexCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::SearchCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::SortCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::SPathCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::StatsCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::StreamStatsCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::TableCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::TailCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::TopCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::TStatsCommand(command) => command.transform(state, allow_runtime),
-            ast::Command::WhereCommand(command) => command.transform(state, allow_runtime),
+            ast::Command::AddTotalsCommand(command) => command.transform(state),
+            ast::Command::BinCommand(command) => command.transform(state),
+            ast::Command::CollectCommand(command) => command.transform(state),
+            ast::Command::ConvertCommand(command) => command.transform(state),
+            ast::Command::DataModelCommand(command) => command.transform(state),
+            ast::Command::DedupCommand(command) => command.transform(state),
+            ast::Command::EvalCommand(command) => command.transform(state),
+            ast::Command::EventStatsCommand(command) => command.transform(state),
+            ast::Command::FieldsCommand(command) => command.transform(state),
+            ast::Command::FillNullCommand(command) => command.transform(state),
+            ast::Command::FormatCommand(command) => command.transform(state),
+            ast::Command::HeadCommand(command) => command.transform(state),
+            ast::Command::InputLookupCommand(command) => command.transform(state),
+            ast::Command::JoinCommand(command) => command.transform(state),
+            ast::Command::LookupCommand(command) => command.transform(state),
+            ast::Command::MakeResultsCommand(command) => command.transform(state),
+            ast::Command::MapCommand(command) => command.transform(state),
+            ast::Command::MultiSearchCommand(command) => command.transform(state),
+            ast::Command::MvCombineCommand(command) => command.transform(state),
+            ast::Command::MvExpandCommand(command) => command.transform(state),
+            ast::Command::RareCommand(command) => command.transform(state),
+            ast::Command::RegexCommand(command) => command.transform(state),
+            ast::Command::RenameCommand(command) => command.transform(state),
+            ast::Command::ReturnCommand(command) => command.transform(state),
+            ast::Command::RexCommand(command) => command.transform(state),
+            ast::Command::SearchCommand(command) => command.transform(state),
+            ast::Command::SortCommand(command) => command.transform(state),
+            ast::Command::SPathCommand(command) => command.transform(state),
+            ast::Command::StatsCommand(command) => command.transform(state),
+            ast::Command::StreamStatsCommand(command) => command.transform(state),
+            ast::Command::TableCommand(command) => command.transform(state),
+            ast::Command::TailCommand(command) => command.transform(state),
+            ast::Command::TopCommand(command) => command.transform(state),
+            ast::Command::TStatsCommand(command) => command.transform(state),
+            ast::Command::WhereCommand(command) => command.transform(state),
             _ => Err(anyhow!("Unsupported command in pipeline: {:?}", self)),
         }
     }
 }
 
 impl TransformedPipeline {
-    pub fn transform(value: ast::Pipeline, allow_runtime: bool) -> Result<Self> {
-        let mut state = PipelineTransformState {
-            df: Source {
-                name: "main".to_string(),
-            },
-        };
+    pub fn transform(value: ast::Pipeline, ctx: PysparkTranspileContext) -> Result<Self> {
+        let mut state = PipelineTransformState::new(ctx);
         for command in value.commands {
-            state = command.transform(state, allow_runtime)?;
+            state = command.transform(state)?;
         }
         Ok(TransformedPipeline {
-            dataframes: vec![state.df],
+            dataframes: state.df.map_or_else(Vec::new, |df| vec![df]),
         })
     }
 }
@@ -115,8 +119,9 @@ impl TransformedPipeline {
 mod tests {
     use super::*;
     use crate::pyspark::ast::column_like;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_field() {
         assert_eq!(
             // Expr::Column(ColumnLike::Named { name: "x".to_string() }),
@@ -129,7 +134,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_binary_op() {
         assert_eq!(
             Expr::Column(ColumnLike::binary_op(
@@ -151,7 +156,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_field_in_0() {
         assert_eq!(
             Expr::Column(ColumnLike::Literal {
@@ -166,7 +171,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_field_in_1_wildcard() {
         assert_eq!(
             Expr::Column(column_like!([col("c")].like([py_lit("abc%")]))),
@@ -179,7 +184,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_field_in_1_exact() {
         assert_eq!(
             Expr::Column(column_like!([col("c")] == [py_lit("abc")])),
@@ -192,7 +197,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_field_in_2() {
         assert_eq!(
             Expr::Column(column_like!(
@@ -210,7 +215,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_field_in_3() {
         assert_eq!(
             Expr::Column(column_like!(

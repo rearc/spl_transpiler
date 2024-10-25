@@ -135,6 +135,7 @@ impl SplCommand<DedupCommand> for DedupParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     //
     //   test("dedup 10 keepevents=true keepempty=false consecutive=true host ip port") {
@@ -151,7 +152,7 @@ mod tests {
     //       SortCommand(Seq((Some("+"), Field("_no"))))
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_dedup_1() {
         assert_eq!(
             DedupParser::parse(
@@ -198,7 +199,7 @@ mod tests {
     //       )
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_dedup_2() {
         assert_eq!(
             DedupParser::parse(r#"dedup 10 keepevents=true host ip port sortby +host -ip"#),

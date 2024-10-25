@@ -303,8 +303,9 @@ mod tests {
     use crate::spl::parser::logical_expression_term;
     use crate::spl::utils::test::*;
     use nom::combinator::all_consuming;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_tstats_1() {
         let query = r#"tstats summariesonly=false allow_old_summaries=true fillnull_value=null
                 count min(_time) as firstTime max(_time) as lastTime
@@ -374,7 +375,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_2() {
         let query = r#"tstats
             count min(_time) as firstTime max(_time) as lastTime
@@ -433,7 +434,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_3() {
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null
@@ -486,7 +487,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_4() {
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null
@@ -572,7 +573,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_5() {
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null
@@ -637,7 +638,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_6() {
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null
@@ -689,7 +690,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_7() {
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null
@@ -737,7 +738,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_8() {
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null
@@ -792,7 +793,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_9() {
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null
@@ -916,7 +917,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_10() {
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null
@@ -982,7 +983,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_11() {
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null

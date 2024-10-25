@@ -24,6 +24,9 @@ const-str = "*"
 [build-dependencies]
 built = { version = "*" }
 
+[dev-dependencies]
+rstest = "*"
+
 [profile.release]
 lto = "thin"
 strip = true

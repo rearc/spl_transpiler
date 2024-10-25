@@ -71,6 +71,7 @@ impl SplCommand<MakeResultsCommand> for MakeResultsParser {
 mod tests {
     use super::*;
     use crate::spl::parser::command;
+    use rstest::rstest;
 
     //
     //   test("makeresults") {
@@ -80,7 +81,7 @@ mod tests {
     //       server = "local",
     //       serverGroup = null))
     //   }
-    #[test]
+    #[rstest]
     fn test_command_makeresults_1() {
         assert_eq!(
             command(r#"makeresults"#),
@@ -105,7 +106,7 @@ mod tests {
     //       server = "local",
     //       serverGroup = "group0"))
     //   }
-    #[test]
+    #[rstest]
     fn test_command_makeresults_2() {
         assert_eq!(
             command(r#"makeresults count=10 annotate=t splunk_server_group=group0"#),

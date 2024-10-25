@@ -1,6 +1,6 @@
 from pyspark import Row
 
-import spl_transpiler.runtime.commands.search
+from spl_transpiler.runtime import commands
 from spl_transpiler import convert_spl_to_pyspark
 import pyspark.sql.functions as F
 
@@ -8,9 +8,7 @@ from utils import assert_python_code_equals
 
 
 def test_basic_search(sample_data_1):
-    df = spl_transpiler.runtime.commands.search.search(
-        sample_data_1, F.col("sourcetype") == F.lit("src1")
-    )
+    df = commands.search(sample_data_1, F.col("sourcetype") == F.lit("src1"))
     results = df.collect()
     assert results == [
         Row(sourcetype="src1", raw="hello world"),
@@ -19,9 +17,7 @@ def test_basic_search(sample_data_1):
 
 
 def test_basic_search_kw(sample_data_1):
-    df = spl_transpiler.runtime.commands.search.search(
-        sample_data_1, sourcetype=F.lit("src1")
-    )
+    df = commands.search(sample_data_1, sourcetype=F.lit("src1"))
     results = df.collect()
     assert results == [
         Row(sourcetype="src1", raw="hello world"),

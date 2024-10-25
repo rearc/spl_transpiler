@@ -96,6 +96,7 @@ mod tests {
     use crate::spl::ast;
     use crate::spl::parser::pipeline;
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
     //
     //   test("stats first(startTime) AS startTime, last(histID) AS lastPassHistId BY testCaseId") {
@@ -121,7 +122,7 @@ mod tests {
     //         ))
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_stats_1() {
         assert_eq!(
             pipeline(
@@ -170,7 +171,7 @@ mod tests {
     //       ))
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_stats_2() {
         assert_eq!(
             pipeline("stats count(eval(status=404))"),
@@ -218,7 +219,7 @@ mod tests {
     //       )
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_no_comma_stats_1() {
         assert_eq!(
             pipeline(
@@ -246,7 +247,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_stats_3() {
         let query = r#"stats
         count min(_time) as firstTime max(_time) as lastTime
@@ -280,7 +281,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_stats_4() {
         let query = "stats count AS instances_launched by _time userName";
         assert_eq!(

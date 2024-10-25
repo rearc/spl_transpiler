@@ -70,6 +70,7 @@ mod tests {
     use crate::spl::ast;
     use crate::spl::parser::{command, double_quoted_alt, pipeline};
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
     //
     //   test("map search=\"search index=dummy host=$host_var$\" maxsearches=20") {
@@ -95,7 +96,7 @@ mod tests {
     //       ),
     //       maxSearches = 20))
     //   }
-    #[test]
+    #[rstest]
     fn test_command_map_1() {
         assert_eq!(
             command(r#"map search="search index=dummy host=$host_var$" maxsearches=20"#),
@@ -156,7 +157,7 @@ mod tests {
     //       ),
     //       maxSearches = 10))
     //   }
-    #[test]
+    #[rstest]
     fn test_quoted_search() {
         assert_eq!(
             double_quoted_alt(r#""search index=\"dummy\"""#),
@@ -206,7 +207,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_map_1() {
         let s = r#"map search="search index=dummy host=$host_var$ | eval this=\"that\" | dedup 10 keepevents=true keepempty=false consecutive=true host ip port""#;
         let _pipeline = ast::Pipeline {

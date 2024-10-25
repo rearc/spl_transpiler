@@ -7,7 +7,7 @@ impl PipelineTransformer for TableCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         df = df.select(
             self.fields
@@ -16,6 +16,6 @@ impl PipelineTransformer for TableCommand {
                 .collect(),
         );
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

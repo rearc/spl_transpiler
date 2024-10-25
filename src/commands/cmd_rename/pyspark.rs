@@ -8,7 +8,7 @@ impl PipelineTransformer for RenameCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         for alias in self.alias.clone() {
             let old_name = match *alias.expr {
@@ -23,6 +23,6 @@ impl PipelineTransformer for RenameCommand {
             df = df.with_column_renamed(old_name, alias.name.clone());
         }
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

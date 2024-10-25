@@ -18,8 +18,8 @@ impl EvalCommand {
 impl PipelineTransformer for EvalCommand {
     fn transform_for_runtime(
         &self,
-        _state: PipelineTransformState,
-    ) -> anyhow::Result<PipelineTransformState> {
+        state: PipelineTransformState,
+    ) -> Result<PipelineTransformState> {
         let kwargs: Result<Vec<(String, RuntimeExpr)>> = self
             .fields
             .iter()
@@ -31,28 +31,29 @@ impl PipelineTransformer for EvalCommand {
             })
             .collect();
 
-        let df = DataFrame::runtime(Some(_state.df), "eval", vec![], kwargs?);
+        let df = DataFrame::runtime(state.df.clone(), "eval", vec![], kwargs?, &state.ctx);
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 
     fn transform_standalone(
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
         for (ast::Field(name), value) in self.fields.iter().cloned() {
             df = df.with_column(name, self._eval_expr(value)?)
         }
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::pyspark::utils::test::generates_runtime;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_eval_1() {
         generates_runtime(
             r#"index="main" | eval x=len(raw)"#,

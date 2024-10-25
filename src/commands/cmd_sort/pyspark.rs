@@ -47,7 +47,7 @@ impl PipelineTransformer for SortCommand {
         &self,
         state: PipelineTransformState,
     ) -> Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         let sort_fields: Result<Vec<_>> = self
             .fields_to_sort
@@ -65,6 +65,6 @@ impl PipelineTransformer for SortCommand {
             df = df.limit(self.count as u64);
         }
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

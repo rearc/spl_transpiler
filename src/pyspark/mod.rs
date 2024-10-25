@@ -10,8 +10,8 @@ pub use base::ToSparkQuery;
 // Tests
 #[cfg(test)]
 mod tests {
-
     use crate::pyspark::utils::test::*;
+    use rstest::rstest;
 
     //   test("thing") {
     //     generates("n>2 | stats count() by valid",
@@ -21,7 +21,7 @@ mod tests {
     //         |.agg(F.count(F.lit(1)).alias('count')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_01() {
         generates(
             r#"n>2 | stats count() by valid"#,
@@ -36,7 +36,7 @@ mod tests {
     //         |.where((F.col('code').like('4%') | F.col('code').like('5%'))))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_02() {
         generates(
             r#"code IN(4*, 5*)"#,
@@ -53,7 +53,7 @@ mod tests {
     //         |.agg(F.sum(F.col('n')).alias('sum')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_03() {
         generates(
             r#"n>2 | stats sum(n) by valid"#,
@@ -69,7 +69,7 @@ mod tests {
     //         |""".stripMargin)
     //     // scalastyle:on
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_04() {}
 
@@ -82,7 +82,7 @@ mod tests {
     //         |.agg(F.sum(F.col('n')).alias('sum')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_05() {
         // TODO: Need to first understand what sum(*) does with multiple columns, then support column tracking
         generates(
@@ -101,7 +101,7 @@ mod tests {
     //         |.agg(F.sum(F.col('n')).alias('sum')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_06() {
         generates(
             r#"n>2 | stats sum(n)"#,
@@ -118,7 +118,7 @@ mod tests {
     //         |.agg(F.sum(F.col('n')).alias('total_sum')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_07() {
         generates(
             r#"n>2 | stats sum(n) AS total_sum"#,
@@ -133,7 +133,7 @@ mod tests {
     //         |.agg(F.collect_set(F.col('d')).alias('set')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_08() {
         generates(
             r#"stats values(d) as set"#,
@@ -149,7 +149,7 @@ mod tests {
     //         |.agg(F.last(F.col('d'), True).alias('latest')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_09() {
         generates(
             r#"stats latest(d) as latest"#,
@@ -165,7 +165,7 @@ mod tests {
     //         |.agg(F.first(F.col('d'), True).alias('earliest')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_10() {
         generates(
             r#"stats earliest(d) as earliest"#,
@@ -179,7 +179,7 @@ mod tests {
     //         |.withColumn('n_large', F.when((F.col('n') > F.lit(3)), F.lit(1)).otherwise(F.lit(0))))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_11() {
         generates(
             r#"eval n_large=if(n > 3, 1, 0)"#,
@@ -194,7 +194,7 @@ mod tests {
     //         |.withColumn('coalesced', F.expr('coalesce(b, c)')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_12() {
         generates(
             r#"index=main | eval coalesced=coalesce(b,c)"#,
@@ -211,7 +211,7 @@ mod tests {
     //         |.withColumn('n', F.col('n.start')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_13() {
         generates(
             r#"bin span=5m n"#,
@@ -225,7 +225,7 @@ mod tests {
     //         |.withColumn('count', F.size(F.col('d'))))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_14() {
         generates(
             r#"eval count=mvcount(d)"#,
@@ -240,7 +240,7 @@ mod tests {
     //         |.withColumn('count', F.expr('slice(d, 1, 2)')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_15() {
         generates(
             r#"eval count=mvindex(d,0,1)"#,
@@ -256,7 +256,7 @@ mod tests {
     //         |.withColumn('mvappended', F.concat(F.col('d'), F.col('d'))))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_16() {
         generates(
             r#"eval mvappended=mvappend(d,d)"#,
@@ -271,7 +271,7 @@ mod tests {
     //         |.withColumn('count', F.size(F.col('d'))))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_17() {
         generates(
             r#"eval count=mvcount(d)"#,
@@ -286,7 +286,7 @@ mod tests {
     //         |.withColumn('mvfiltered', F.filter(F.col('d'), lambda d: (d > F.lit(3)))))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_eval_fn_mvfilter() {
         generates(
@@ -302,7 +302,7 @@ mod tests {
     //         |.withColumn('date', F.date_format(F.col('_time'), 'yyyy-MM-dd HH:mm:ss')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_19() {
         generates(
             r#"eval date=strftime(_time, "%Y-%m-%d %T")"#,
@@ -317,7 +317,7 @@ mod tests {
     //         |.withColumn('min', F.least(F.col('n'), F.lit(100))))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_20() {
         generates(
             r#"eval min=min(n, 100)"#,
@@ -332,7 +332,7 @@ mod tests {
     //         |.withColumn('max', F.greatest(F.col('n'), F.lit(0))))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_21() {
         generates(
             r#"eval max=max(n, 0)"#,
@@ -347,7 +347,7 @@ mod tests {
     //         |.withColumn('rounded', F.round(F.lit(42.003), 0)))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_22() {
         generates(
             r#"eval rounded=round(42.003, 0)"#,
@@ -362,7 +362,7 @@ mod tests {
     //         |.withColumn('sub', F.substring(F.col('a'), 3, 5)))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_23() {
         generates(
             r#"eval sub=substr(a, 3, 5)"#,
@@ -377,7 +377,7 @@ mod tests {
     //         |.withColumn('lenA', F.length(F.col('a'))))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_24() {
         generates(
             r#"eval lenA=len(a)"#,
@@ -394,7 +394,7 @@ mod tests {
     //         |""".stripMargin)
     //     // scalastyle:on
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_25() {}
 
@@ -407,7 +407,7 @@ mod tests {
     //         |""".stripMargin)
     //     // scalastyle:on
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_26() {}
 
@@ -420,7 +420,7 @@ mod tests {
     //         |""".stripMargin)
     //     // scalastyle:on
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_27() {}
 
@@ -438,7 +438,7 @@ mod tests {
     //         |.select('_time'))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_makeresults_1() {
         generates(
             r#"makeresults count=10 annotate=true"#,
@@ -460,7 +460,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_makeresults_2() {
         generates(
             r#"makeresults count=10"#,
@@ -479,7 +479,7 @@ mod tests {
     //         |""".stripMargin)
     //     // scalastyle:on
     //   }
-    #[test]
+    #[rstest]
     fn test_29() {
         generates(
             r#"addtotals fieldname=num_total num_man num_woman"#,
@@ -533,7 +533,7 @@ mod tests {
     //      spark.conf.set("spl.field._raw", "_raw")
     //      spark.conf.set("spl.index", "main")
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_30() {}
 
@@ -546,7 +546,7 @@ mod tests {
     //         |""".stripMargin)
     //     // scalastyle:on
     //   }
-    #[test]
+    #[rstest]
     fn test_31() {
         generates(
             r#"eval in_range=if(cidrmatch("10.0.0.0/24", src_ip), 1, 0)"#,
@@ -571,7 +571,7 @@ mod tests {
     //         |""".stripMargin)
     //     // scalastyle:on
     //   }
-    #[test]
+    #[rstest]
     fn test_32() {
         generates(
             r#"eval in_range=if(cidrmatch(10.0.0.0/24, src_ip), 1, 0)"#,
@@ -586,7 +586,7 @@ mod tests {
     //         |.where(F.expr("cidr_match('10.0.0.0/16', src_ip)")))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_ipv4_cidrmatch_as_eq() {
         generates(
             r#"src_ip = 10.0.0.0/16"#,
@@ -601,7 +601,7 @@ mod tests {
     //         |.where(F.expr("cidr_match('10.0.0.0/16', src_ip)")))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_wildcard_as_eq() {
         generates(
             r#"src_ip = "x*""#,
@@ -621,7 +621,7 @@ mod tests {
     //       |""".stripMargin)
     //     // scalastyle:on
     //   }
-    #[test]
+    #[rstest]
     fn test_34() {
         generates(
             r#"eval fsize_quant=memk(fsize)"#,
@@ -682,7 +682,7 @@ mod tests {
     //         |""".stripMargin)
     //     // scalastyle:on
     //   }
-    #[test]
+    #[rstest]
     fn test_35() {
         generates(
             r#"eval rmunit=rmunit(fsize)"#,
@@ -704,7 +704,7 @@ mod tests {
     //         |.withColumn('rmcomma', F.regexp_replace(F.col('s'), ',', '').cast('double')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_36() {
         generates(
             r#"eval rmcomma=rmcomma(s)"#,
@@ -722,7 +722,7 @@ mod tests {
     //         |.withColumn('year', F.date_format(F.col('_time'), 'yyyy')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_37() {
         generates(
             r#"convert timeformat="%Y" ctime(_time) AS year"#,
@@ -750,7 +750,7 @@ mod tests {
     //         |""".stripMargin)
     //     // scalastyle:on
     //   }
-    #[test]
+    #[rstest]
     fn test_38() {}
 
     //
@@ -763,7 +763,7 @@ mod tests {
     //         |""".stripMargin)
     //     // scalastyle:on
     //   }
-    #[test]
+    #[rstest]
     fn test_39() {
         generates(
             r#"multisearch [index=regionA | fields +country, orders] [index=regionB | fields +country, orders]"#,
@@ -780,7 +780,7 @@ mod tests {
     //         |'left_semi'))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_map_search_1() {
         generates(
@@ -798,7 +798,7 @@ mod tests {
     //           "A combination of negative and positive start and stop indices is not supported.")
     //     )
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_41() {}
 
@@ -811,7 +811,7 @@ mod tests {
     //           "Expression references more than one field")
     //     )
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_42() {}
 
@@ -824,7 +824,7 @@ mod tests {
     //           "com.databricks.labs.transpiler.spl.catalyst.ConversionFailure: Unknown SPL function")
     //     )
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_43() {}
 
@@ -835,7 +835,7 @@ mod tests {
     //         |.where(F.regexp_replace(F.col('myColumn'), 'before', 'after')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_44() {
         generates(
             r#"replace(myColumn, "before", "after")"#,
@@ -849,7 +849,7 @@ mod tests {
     //         |.where(F.lower(F.col('myColumn'))))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_45() {
         generates(
             r#"lower(myColumn)"#,
@@ -865,7 +865,7 @@ mod tests {
     //         |.where(F.date_format(F.col('_time'), 'test')))
     //         |""".stripMargin)
     //   }
-    #[test]
+    #[rstest]
     fn test_46() {
         generates(
             r#"strftime(_time, test)"#,
@@ -880,7 +880,7 @@ mod tests {
     //         "strftime(_time, unknowfn())").contains("Invalid strftime format given")
     //     )
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_47() {}
 
@@ -892,7 +892,7 @@ mod tests {
     //         "com.databricks.labs.transpiler.spl.catalyst.ConversionFailure: ip must be String or Field")
     //     )
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_48() {}
 
@@ -903,30 +903,30 @@ mod tests {
     //     }
     //     assert(caught.getMessage.contains("Only one index allowed"))
     //   }
-    #[test]
+    #[rstest]
     #[ignore]
     fn test_49() {}
 
     /* Custom tests */
-    #[test]
+    #[rstest]
     fn test_head_1() {
         // Ensure that `head 5` generates .limit(5)
         generates(r#"head 5"#, r#"spark.table('main').limit(5)"#);
     }
 
-    #[test]
+    #[rstest]
     fn test_head_2() {
         // Ensure that `head limit=5` generates .limit(5)
         generates(r#"head limit=5"#, r#"spark.table('main').limit(5)"#);
     }
 
-    #[test]
+    #[rstest]
     fn test_head_3() {
         // Ensure that `head count<5` generates .limit(5)
         generates(r#"head count<5"#, r#"spark.table('main').limit(5)"#);
     }
 
-    #[test]
+    #[rstest]
     fn test_head_4() {
         // Ensure that `head count<=5 keeplast=t` generates .limit(7)
         generates(
@@ -935,7 +935,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_top_1() {
         generates(
             r#"index=main | top 5 showperc=false x"#,
@@ -943,7 +943,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_rare_1() {
         generates(
             r#"index=main | rare 5 showperc=false x"#,
@@ -951,7 +951,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_where_1() {
         generates(
             r#"index=alt | where n>2"#,
@@ -959,7 +959,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_table_1() {
         generates(
             r#"index=alt | table x y z"#,
@@ -967,7 +967,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_sort_1() {
         generates(
             r#"index=alt | sort x, -y"#,
@@ -975,7 +975,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_sort_2() {
         generates(
             r#"index=alt | sort 0 x, -y desc"#,
@@ -983,7 +983,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_rex_1() {
         generates(
             r#"index=alt | rex field=_raw "From: <(?<from>.*)> To: <(?<to>.*)>""#,
@@ -997,7 +997,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_regex_1() {
         generates(
             r#"index=alt | regex "From: <(?<from>.*)> To: <(?<to>.*)>""#,
@@ -1007,7 +1007,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_regex_2() {
         generates(
             r#"index=alt | regex c!="From: <(?<from>.*)> To: <(?<to>.*)>""#,
@@ -1017,7 +1017,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_rename_1() {
         generates(
             r#"index=alt | rename x AS y, a AS b"#,
@@ -1025,7 +1025,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_case_fn_1() {
         generates(
             r#"index=alt | eval description=case(status==200, "OK", status==404, "Not found", status==500, "Internal Server Error")"#,
@@ -1045,7 +1045,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_max_fn_multi_1() {
         generates(
             r#"index=alt | eval x=max(a, b, c)"#,
@@ -1056,7 +1056,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_avg_fn_multi_1() {
         generates(
             r#"index=alt | eval x=avg(a, b, c)"#,
@@ -1067,7 +1067,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_percentile_fn_1() {
         generates(
             r#"index=alt | stats percentile99(a) AS x"#,
@@ -1077,12 +1077,12 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_tail_1() {
         generates(r#"tail 5"#, r#"spark.table("main").tail(5)"#);
     }
 
-    #[test]
+    #[rstest]
     fn test_neq_wildcard_1() {
         generates(
             r#"search note!=ESCU*"#,

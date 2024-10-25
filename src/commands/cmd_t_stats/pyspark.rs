@@ -2,11 +2,12 @@ use super::spl::*;
 use crate::commands::cmd_data_model::spl::DataModelCommand;
 use crate::functions::stat_fns::stats_fn;
 use crate::pyspark::alias::Aliasable;
+use crate::pyspark::ast::ColumnLike::FunctionCall;
 use crate::pyspark::ast::*;
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use crate::spl::ast;
 use anyhow::Result;
-use anyhow::{anyhow, bail, ensure};
+use anyhow::{bail, ensure};
 use log::warn;
 
 fn transform_by_field(f: MaybeSpannedField) -> ColumnOrName {
@@ -35,22 +36,23 @@ fn transform_stats_expr(df: DataFrame, expr: &ast::Expr) -> Result<(DataFrame, C
     Ok((df_, e.maybe_with_alias(maybe_name)))
 }
 
-impl TStatsCommand {
-    fn get_df(
-        &self,
-        state: PipelineTransformState,
-        allow_runtime: bool,
-    ) -> Result<PipelineTransformState> {
-        DataModelCommand {
-            data_model_name: self.datamodel.clone(),
-            dataset_name: self.nodename.clone(),
-            search_mode: Some("search".to_string()),
-            strict_fields: false,
-            allow_old_summaries: self.allow_old_summaries,
-            summaries_only: self.summaries_only,
-        }
-        .transform(state, allow_runtime)
+fn transform_stats_runtime_expr(expr: &ast::Expr) -> Result<(String, RuntimeExpr)> {
+    let (e, maybe_name) = expr.clone().unaliased_with_name();
+    let (name, args) = match e {
+        ast::Expr::Call(ast::Call { name, args }) => (name.to_string(), args),
+        _ => bail!(
+            "All `stats` aggregations must be function calls, got {:?}",
+            expr
+        ),
+    };
+    let alias = maybe_name.unwrap_or(name.clone());
+    let args: Result<Vec<Expr>> = args.into_iter().map(TryInto::try_into).collect();
+    let expr: Expr = FunctionCall {
+        func: format!("functions.stats.{}", name).to_string(),
+        args: args?,
     }
+    .into();
+    Ok((alias, RuntimeExpr::from(expr)))
 }
 
 impl PipelineTransformer for TStatsCommand {
@@ -71,6 +73,13 @@ impl PipelineTransformer for TStatsCommand {
         let mut all_kwargs = py_dict! {};
 
         // Options
+        all_kwargs.push(
+            "from_",
+            py_dict! {
+                datamodel=self.datamodel.clone().map(PyLiteral::from),
+                nodename=self.nodename.clone().map(PyLiteral::from),
+            },
+        );
         all_kwargs.push("prestats", PyLiteral::from(self.prestats));
         all_kwargs.push("local", PyLiteral::from(self.local));
         all_kwargs.push("append", PyLiteral::from(self.append));
@@ -83,7 +92,7 @@ impl PipelineTransformer for TStatsCommand {
         }
 
         // From statement
-        let PipelineTransformState { mut df } = self.get_df(state, true)?;
+        // let PipelineTransformState { mut df } = self.get_df(state, true)?;
 
         // Where statement
         if let Some(where_condition) = &self.where_condition {
@@ -103,16 +112,13 @@ impl PipelineTransformer for TStatsCommand {
         }
 
         for e in self.exprs.iter() {
-            let (df_, e) = transform_stats_expr(df, e)?;
-            df = df_;
-            let (e, maybe_name) = e.unaliased_with_name();
-            let name = maybe_name.ok_or(anyhow!("All `stats` aggregations must have names"))?;
+            let (name, e) = transform_stats_runtime_expr(e)?;
             all_kwargs.push(name, e);
         }
 
-        df = DataFrame::runtime(Some(df), "tstats", vec![], all_kwargs.0);
+        let df = DataFrame::runtime(None, "tstats", vec![], all_kwargs.0, &state.ctx);
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 
     fn transform_standalone(
@@ -145,7 +151,16 @@ impl PipelineTransformer for TStatsCommand {
             warn!("`tstats` `allow_old_summaries` argument has no effect in PySpark")
         }
 
-        let PipelineTransformState { mut df } = self.get_df(state, false)?;
+        let state = DataModelCommand {
+            data_model_name: self.datamodel.clone(),
+            dataset_name: self.nodename.clone(),
+            search_mode: Some("search".to_string()),
+            strict_fields: false,
+            allow_old_summaries: self.allow_old_summaries,
+            summaries_only: self.summaries_only,
+        }
+        .transform(state)?;
+        let mut df = state.df.clone().unwrap_or_default();
 
         if let Some(where_condition) = self.where_condition.clone() {
             let condition: Expr = where_condition.try_into()?;
@@ -173,16 +188,16 @@ impl PipelineTransformer for TStatsCommand {
 
         df = df.agg(aggs);
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::pyspark::ast::DataFrame;
     use crate::pyspark::utils::test::{generates, generates_runtime};
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_xsl_script_execution_with_wmic_1() {
         generates(
             r#"tstats
@@ -221,7 +236,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_2() {
         generates(
             r#"tstats
@@ -254,7 +269,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_3() {
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null
@@ -285,7 +300,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_4() {
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null
@@ -332,9 +347,8 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_tstats_5() {
-        DataFrame::reset_df_count();
         let query = r#"tstats
         summariesonly=false allow_old_summaries=true fillnull_value=null
         count min(_time) as firstTime max(_time) as lastTime
@@ -345,17 +359,9 @@ mod tests {
         generates_runtime(
             query,
             r#"
-df_1 = commands.data_model(
+df_1 = commands.tstats(
     None,
-    data_model_name="Endpoint.Processes",
-    dataset_name=None,
-    search_mode="search",
-    strict_fields=False,
-    allow_old_summaries=True,
-    summaries_only=False
-)
-df_2 = commands.tstats(
-    df_1,
+    from_={"datamodel": "Endpoint.Processes", "nodename": None},
     prestats=False,
     local=False,
     append=False,
@@ -387,11 +393,11 @@ df_2 = commands.tstats(
         F.col("Processes.dest"),
         F.col("Processes.user"),
     ],
-    count=F.count(F.lit(1)),
-    firstTime=F.min(F.col("_time")),
-    lastTime=F.max(F.col("_time")),
+    count=functions.stats.count(),
+    firstTime=functions.stats.min(F.col("_time")),
+    lastTime=functions.stats.max(F.col("_time")),
 )
-df_2
+df_1
             "#,
         )
     }

@@ -94,6 +94,7 @@ mod tests {
     use super::*;
     use crate::spl::ast;
     use crate::spl::parser::pipeline;
+    use rstest::rstest;
 
     //
     //   test("rex field=savedsearch_id max_match=10 " +
@@ -108,7 +109,7 @@ mod tests {
     //       )
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_pipeline_rex_1() {
         assert_eq!(double_quoted(r#""\d""#), Ok(("", r#"\d"#)));
         assert_eq!(
@@ -147,7 +148,7 @@ mod tests {
     //       )
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_pipeline_rex_2() {
         assert_eq!(
             pipeline(r#"rex mode=sed "s/(\d{4}-){3}/XXXX-XXXX-XXXX-/g""#),

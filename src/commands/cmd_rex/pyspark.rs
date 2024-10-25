@@ -9,7 +9,7 @@ impl PipelineTransformer for RexCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         ensure!(
             self.mode != Some("sed".into()),
@@ -33,6 +33,6 @@ impl PipelineTransformer for RexCommand {
             );
         }
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

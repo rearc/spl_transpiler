@@ -235,8 +235,9 @@ impl ColumnLike {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_expr_into_search_expr() {
         assert_eq!(
             column_like!([col("A")] == [py_lit(5)]).into_search_expr(),

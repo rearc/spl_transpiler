@@ -52,6 +52,7 @@ mod tests {
     use crate::spl::parser::*;
     use crate::spl::utils::test::*;
     use crate::spl::{ast, operators};
+    use rstest::rstest;
 
     //
     //   test("eval mitre_category=\"Discovery\"") {
@@ -59,7 +60,7 @@ mod tests {
     //       (Field("mitre_category"), StrValue("Discovery"))
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_eval_1() {
         assert_eq!(
             EvalParser::parse("eval mitre_category=\"Discovery\""),
@@ -81,7 +82,7 @@ mod tests {
     //       (Field("email_lower"), Call("lower", Seq(Field("email"))))
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_eval_2() {
         assert_eq!(
             EvalParser::parse("eval email_lower=lower(email)"),
@@ -104,7 +105,7 @@ mod tests {
     //         Call("replace", Seq(Field("email"), StrValue("@.+"), StrValue(""))))
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_eval_3_args() {
         assert_eq!(
             call("replace(email, \"@.+\", \"\")"),
@@ -131,7 +132,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_eval_3() {
         assert_eq!(
             EvalParser::parse("eval replaced=replace(email, \"@.+\", \"\")"),
@@ -159,7 +160,7 @@ mod tests {
     //       (Field("b"), Field("c"))
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_eval_4() {
         assert_eq!(
             EvalParser::parse("eval hash_sha256= lower(hash_sha256), b=c"),
@@ -178,7 +179,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_eval_5() {
         let query = r#"eval key='dest.workload.name' + ":" + 'dest.process.name'"#;
         assert_eq!(

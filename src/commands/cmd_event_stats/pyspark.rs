@@ -8,10 +8,10 @@ impl PipelineTransformer for EventStatsCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let df = state.df;
+        let df = state.df.clone().unwrap_or_default();
 
         bail!("UNIMPLEMENTED");
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

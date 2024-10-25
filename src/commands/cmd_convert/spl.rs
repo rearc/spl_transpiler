@@ -93,6 +93,7 @@ impl SplCommand<ConvertCommand> for ConvertParser {
 mod tests {
     use super::*;
     use crate::spl::ast;
+    use rstest::rstest;
 
     //
     //   test("convert ctime(indextime)") {
@@ -100,7 +101,7 @@ mod tests {
     //       FieldConversion("ctime", Field("indextime"), None)
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_convert_1() {
         assert_eq!(
             ConvertParser::parse("convert ctime(indextime)"),

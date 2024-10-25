@@ -66,12 +66,13 @@ impl SplCommand<FillNullCommand> for FillNullParser {
 mod tests {
     use super::*;
     use crate::spl::ast;
+    use rstest::rstest;
 
     //
     //   test("fillnull") {
     //     p(fillNull(_), FillNullCommand(None, None))
     //   }
-    #[test]
+    #[rstest]
     fn test_fill_null_1() {
         assert_eq!(
             FillNullParser::parse(r#"fillnull"#),
@@ -89,7 +90,7 @@ mod tests {
     //   test("fillnull value=NA") {
     //     p(fillNull(_), FillNullCommand(Some("NA"), None))
     //   }
-    #[test]
+    #[rstest]
     fn test_fill_null_2() {
         assert_eq!(
             FillNullParser::parse(r#"fillnull value="NA""#),
@@ -112,7 +113,7 @@ mod tests {
     //         Field("port")
     //       ))))
     //   }
-    #[test]
+    #[rstest]
     fn test_fill_null_3() {
         assert_eq!(
             FillNullParser::parse(r#"fillnull value="NULL" host port"#),

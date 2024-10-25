@@ -99,8 +99,9 @@ pub fn get_groups(regex: impl ToString) -> Result<Vec<SimplifiedGroup>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_get_groups_with_p() {
         assert_eq!(
             get_groups(r"(?P<name>\w+)@example\.com").unwrap(),
@@ -108,17 +109,17 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_get_groups_none() {
         assert_eq!(get_groups(r"a+b*c?").unwrap(), vec![]);
     }
 
-    #[test]
+    #[rstest]
     fn test_get_groups_numbered() {
         assert_eq!(get_groups(r"(a{2,4})").unwrap(), vec![(1, None)]);
     }
 
-    #[test]
+    #[rstest]
     fn test_get_groups_multiple() {
         assert_eq!(
             get_groups(r"(a{2,4})(?<name>\w+)").unwrap(),

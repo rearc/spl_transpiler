@@ -12,7 +12,7 @@ impl PipelineTransformer for LookupCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         df = df.alias("main");
         let lookup_df = DataFrame::source(self.dataset.clone()).alias("lookup");
@@ -66,6 +66,6 @@ impl PipelineTransformer for LookupCommand {
             output => bail!("Unsupported output definition for `lookup`: {:?}", output),
         });
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

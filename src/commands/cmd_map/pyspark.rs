@@ -17,7 +17,7 @@ impl PipelineTransformer for MapCommand {
         //         |""".stripMargin)
         //   }
 
-        // let mut df = state.df;
+        // let mut df = state.df.clone().unwrap_or_default();
         //
         // let sub_pipeline: TransformedPipeline = self.search.clone().try_into()?;
         // let sub_df: DataFrame = sub_pipeline.try_into()?;
@@ -31,6 +31,6 @@ impl PipelineTransformer for MapCommand {
         //     "left_semi",
         // );
         //
-        // Ok(PipelineTransformState { df })
+        // Ok(state.with_df(df))
     }
 }

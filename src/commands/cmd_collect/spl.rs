@@ -156,6 +156,7 @@ mod tests {
     use super::*;
     use crate::spl::ast;
     use crate::spl::parser::pipeline;
+    use rstest::rstest;
 
     //
     //   test("collect index=threathunting addtime=f x, y,  z") {
@@ -180,7 +181,7 @@ mod tests {
     //       )
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_pipeline_collect_3() {
         assert_eq!(
             pipeline("collect index=threathunting addtime=f x, y,  z"),

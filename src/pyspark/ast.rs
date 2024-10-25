@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 // use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::pyspark::alias::Aliasable;
-use crate::pyspark::base::{PythonCode, ToSparkQuery};
+use crate::pyspark::base::{PysparkTranspileContext, PythonCode, ToSparkQuery};
 use anyhow::{ensure, Result};
 
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -49,7 +49,7 @@ impl From<bool> for PyLiteral {
 }
 
 impl ToSparkQuery for PyLiteral {
-    fn to_spark_query(&self) -> Result<PythonCode> {
+    fn to_spark_query(&self, _ctx: &PysparkTranspileContext) -> Result<PythonCode> {
         Ok(self.0.to_string().into())
     }
 }
@@ -216,18 +216,18 @@ pub(crate) use column_like;
 // <-- the trick
 
 impl ToSparkQuery for ColumnLike {
-    fn to_spark_query(&self) -> Result<PythonCode> {
+    fn to_spark_query(&self, ctx: &PysparkTranspileContext) -> Result<PythonCode> {
         match self {
             ColumnLike::Named { name } => Ok(format!("F.col('{}')", name)),
             ColumnLike::Literal { code } => Ok(format!("F.lit({})", code)),
             ColumnLike::MethodCall { col, func, args } => {
                 let args: Result<Vec<String>> = args
                     .iter()
-                    .map(|e| e.to_spark_query().map(|code| code.to_string()))
+                    .map(|e| e.to_spark_query(ctx).map(|code| code.to_string()))
                     .collect();
                 Ok(format!(
                     "{}.{}({})",
-                    col.to_spark_query()?,
+                    col.to_spark_query(ctx)?,
                     func,
                     args?.join(", ")
                 ))
@@ -235,20 +235,25 @@ impl ToSparkQuery for ColumnLike {
             ColumnLike::FunctionCall { func, args } => {
                 let args: Result<Vec<String>> = args
                     .iter()
-                    .map(|e| e.to_spark_query().map(|code| code.to_string()))
+                    .map(|e| e.to_spark_query(ctx).map(|code| code.to_string()))
                     .collect();
-                Ok(format!("F.{}({})", func, args?.join(", ")))
+                let func = if func.contains(".") {
+                    func.clone()
+                } else {
+                    format!("F.{}", func)
+                };
+                Ok(format!("{}({})", func, args?.join(", ")))
             }
             ColumnLike::Aliased { col, name } => {
-                Ok(format!("{}.alias('{}')", col.to_spark_query()?, name))
+                Ok(format!("{}.alias('{}')", col.to_spark_query(ctx)?, name))
             }
             ColumnLike::BinaryOp { op, left, right } => Ok(format!(
                 "{} {} {}",
-                left.to_spark_query()?,
+                left.to_spark_query(ctx)?,
                 op,
-                right.to_spark_query()?,
+                right.to_spark_query(ctx)?,
             )),
-            ColumnLike::UnaryNot { right } => Ok(format!("~{}", right.to_spark_query()?,)),
+            ColumnLike::UnaryNot { right } => Ok(format!("~{}", right.to_spark_query(ctx)?,)),
         }
         .map(Into::into)
     }
@@ -262,13 +267,13 @@ pub enum Expr {
 }
 
 impl ToSparkQuery for Expr {
-    fn to_spark_query(&self) -> Result<PythonCode> {
+    fn to_spark_query(&self, ctx: &PysparkTranspileContext) -> Result<PythonCode> {
         match self {
             Expr::Column(col @ ColumnLike::BinaryOp { .. }) => {
-                Ok(format!("({})", col.to_spark_query()?,).into())
+                Ok(format!("({})", col.to_spark_query(ctx)?,).into())
             }
-            Expr::Column(col) => col.to_spark_query(),
-            Expr::PyLiteral(literal) => literal.to_spark_query(),
+            Expr::Column(col) => col.to_spark_query(ctx),
+            Expr::PyLiteral(literal) => literal.to_spark_query(ctx),
         }
     }
 }
@@ -312,9 +317,9 @@ impl From<ColumnLike> for ColumnOrName {
 }
 
 impl ToSparkQuery for ColumnOrName {
-    fn to_spark_query(&self) -> Result<PythonCode> {
+    fn to_spark_query(&self, ctx: &PysparkTranspileContext) -> Result<PythonCode> {
         match self {
-            ColumnOrName::Column(col) => col.to_spark_query(),
+            ColumnOrName::Column(col) => col.to_spark_query(ctx),
             ColumnOrName::Name(name) => Ok(format!("\"{}\"", name).into()),
         }
     }
@@ -339,7 +344,7 @@ impl PyDict {
 }
 
 impl ToSparkQuery for PyDict {
-    fn to_spark_query(&self) -> Result<PythonCode> {
+    fn to_spark_query(&self, ctx: &PysparkTranspileContext) -> Result<PythonCode> {
         let mut out_preface = vec![];
         let mut out_vals = vec![];
 
@@ -347,7 +352,7 @@ impl ToSparkQuery for PyDict {
             let PythonCode {
                 preface,
                 primary_df_code,
-            } = value.to_spark_query()?;
+            } = value.to_spark_query(ctx)?;
             out_preface.extend(preface);
             out_vals.push(format!("\"{}\": {}", key, primary_df_code).to_string());
         }
@@ -373,14 +378,16 @@ impl IntoIterator for PyDict {
 #[derive(Debug, PartialEq, Clone, Hash)]
 pub struct PyList(pub Vec<RuntimeExpr>);
 
+#[allow(unused_macros)]
 macro_rules! py_list {
+    () => { PyList(vec![]) };
     ($($value: expr),+ $(,)?) => {
         PyList(vec![$($value.into()),+])
     }
 }
 
 impl ToSparkQuery for PyList {
-    fn to_spark_query(&self) -> Result<PythonCode> {
+    fn to_spark_query(&self, ctx: &PysparkTranspileContext) -> Result<PythonCode> {
         let mut out_preface = vec![];
         let mut out_vals = vec![];
 
@@ -388,7 +395,7 @@ impl ToSparkQuery for PyList {
             let PythonCode {
                 preface,
                 primary_df_code,
-            } = value.to_spark_query()?;
+            } = value.to_spark_query(ctx)?;
             out_preface.extend(preface);
             out_vals.push(primary_df_code);
         }
@@ -419,6 +426,7 @@ pub struct PyRuntimeFunc {
 }
 
 impl PyRuntimeFunc {
+    #[allow(dead_code)]
     pub fn new(name: impl ToString, args: impl Into<PyList>, kwargs: impl Into<PyDict>) -> Self {
         PyRuntimeFunc {
             name: name.to_string(),
@@ -428,6 +436,7 @@ impl PyRuntimeFunc {
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! py_runtime_func {
     ($func: ident ( $($arg: expr),* ; $($kwkey: ident = $kwval: expr),* )) => {
         PyRuntimeFunc::new(
@@ -439,7 +448,7 @@ macro_rules! py_runtime_func {
 }
 
 impl ToSparkQuery for PyRuntimeFunc {
-    fn to_spark_query(&self) -> Result<PythonCode> {
+    fn to_spark_query(&self, ctx: &PysparkTranspileContext) -> Result<PythonCode> {
         let mut out_preface = vec![];
         let mut out_args = vec![];
 
@@ -447,7 +456,7 @@ impl ToSparkQuery for PyRuntimeFunc {
             let PythonCode {
                 preface,
                 primary_df_code,
-            } = arg.to_spark_query()?;
+            } = arg.to_spark_query(ctx)?;
             out_preface.extend(preface);
             out_args.push(primary_df_code);
         }
@@ -456,7 +465,7 @@ impl ToSparkQuery for PyRuntimeFunc {
             let PythonCode {
                 preface,
                 primary_df_code,
-            } = value.to_spark_query()?;
+            } = value.to_spark_query(ctx)?;
             out_preface.extend(preface);
             out_args.push(format!("{}={}", key, primary_df_code).to_string());
         }
@@ -513,14 +522,23 @@ impl From<PyRuntimeFunc> for RuntimeExpr {
     }
 }
 
+impl<T: Into<RuntimeExpr>> From<Option<T>> for RuntimeExpr {
+    fn from(val: Option<T>) -> Self {
+        match val {
+            Some(val) => val.into(),
+            None => RuntimeExpr::Expr(PyLiteral("None".into()).into()),
+        }
+    }
+}
+
 impl ToSparkQuery for RuntimeExpr {
-    fn to_spark_query(&self) -> Result<PythonCode> {
+    fn to_spark_query(&self, ctx: &PysparkTranspileContext) -> Result<PythonCode> {
         match self {
-            RuntimeExpr::DataFrame(val) => val.to_spark_query(),
-            RuntimeExpr::Expr(val) => val.to_spark_query(),
-            RuntimeExpr::PyDict(val) => val.to_spark_query(),
-            RuntimeExpr::PyList(val) => val.to_spark_query(),
-            RuntimeExpr::PyRuntimeFunc(val) => val.to_spark_query(),
+            RuntimeExpr::DataFrame(val) => val.to_spark_query(ctx),
+            RuntimeExpr::Expr(val) => val.to_spark_query(ctx),
+            RuntimeExpr::PyDict(val) => val.to_spark_query(ctx),
+            RuntimeExpr::PyList(val) => val.to_spark_query(ctx),
+            RuntimeExpr::PyRuntimeFunc(val) => val.to_spark_query(ctx),
         }
     }
 }
@@ -604,17 +622,11 @@ pub enum DataFrame {
     },
 }
 
-static DF_COUNTER: AtomicUsize = AtomicUsize::new(1);
-
 #[allow(dead_code)]
 impl DataFrame {
-    fn generate_unique_name() -> String {
-        let uid = DF_COUNTER.fetch_add(1, Ordering::Relaxed);
+    fn generate_unique_name(counter: &AtomicUsize) -> String {
+        let uid = counter.fetch_add(1, Ordering::Relaxed);
         format!("df_{uid}")
-    }
-
-    pub fn reset_df_count() {
-        DF_COUNTER.store(1, Ordering::Relaxed);
     }
 
     pub fn source(name: impl ToString) -> DataFrame {
@@ -627,9 +639,10 @@ impl DataFrame {
         runtime_func: impl ToString,
         args: Vec<RuntimeExpr>,
         kwargs: Vec<(String, RuntimeExpr)>,
+        ctx: &PysparkTranspileContext,
     ) -> Self {
         Self::Runtime {
-            name: Self::generate_unique_name(),
+            name: Self::generate_unique_name(&ctx.df_num),
             source: source.map(Box::new),
             runtime_func: runtime_func.to_string(),
             args,
@@ -641,10 +654,10 @@ impl DataFrame {
             code: code.to_string(),
         }
     }
-    pub fn named(&self, name: Option<String>) -> DataFrame {
+    pub fn named(&self, name: Option<String>, ctx: &PysparkTranspileContext) -> DataFrame {
         DataFrame::Named {
             source: Box::new(self.clone()),
-            name: name.unwrap_or_else(Self::generate_unique_name),
+            name: name.unwrap_or_else(|| Self::generate_unique_name(&ctx.df_num)),
         }
     }
     pub fn select(&self, columns: Vec<ColumnLike>) -> DataFrame {
@@ -741,8 +754,14 @@ impl DataFrame {
     }
 }
 
+impl Default for DataFrame {
+    fn default() -> Self {
+        DataFrame::source("main")
+    }
+}
+
 impl ToSparkQuery for DataFrame {
-    fn to_spark_query(&self) -> Result<PythonCode> {
+    fn to_spark_query(&self, ctx: &PysparkTranspileContext) -> Result<PythonCode> {
         match self {
             DataFrame::Source { name } => Ok(format!("spark.table('{}')", name).into()),
             DataFrame::RawSource { code } => Ok(code.clone().into()),
@@ -754,7 +773,7 @@ impl ToSparkQuery for DataFrame {
                 kwargs,
             } => {
                 let primary_source_code = match source {
-                    Some(ref source) => source.to_spark_query()?,
+                    Some(ref source) => source.to_spark_query(ctx)?,
                     None => PythonCode::from("None".to_string()),
                 };
                 let mut all_preface = vec![];
@@ -763,7 +782,7 @@ impl ToSparkQuery for DataFrame {
                     let PythonCode {
                         preface,
                         primary_df_code,
-                    } = arg.to_spark_query()?;
+                    } = arg.to_spark_query(ctx)?;
                     all_preface.extend(preface);
                     all_args.push(primary_df_code);
                 }
@@ -771,7 +790,7 @@ impl ToSparkQuery for DataFrame {
                     let PythonCode {
                         preface,
                         primary_df_code,
-                    } = kwarg.to_spark_query()?;
+                    } = kwarg.to_spark_query(ctx)?;
                     all_preface.extend(preface);
                     all_args.push(format!("{name}={primary_df_code}"));
                 }
@@ -787,7 +806,7 @@ impl ToSparkQuery for DataFrame {
                 ))
             }
             DataFrame::Named { source, name } => {
-                let source_code = source.to_spark_query()?;
+                let source_code = source.to_spark_query(ctx)?;
                 Ok(PythonCode::new(
                     name.clone(),
                     vec![format!("{} = {}", name, source_code.primary_df_code)],
@@ -797,30 +816,30 @@ impl ToSparkQuery for DataFrame {
             DataFrame::Select { source, columns } => {
                 let columns: Result<Vec<String>> = columns
                     .iter()
-                    .map(|col| col.to_spark_query().map(|code| code.to_string()))
+                    .map(|col| col.to_spark_query(ctx).map(|code| code.to_string()))
                     .collect();
                 Ok(format!(
                     "{}.select({},)",
-                    source.to_spark_query()?,
+                    source.to_spark_query(ctx)?,
                     columns?.join(", ")
                 )
                 .into())
             }
             DataFrame::Where { source, condition } => Ok(format!(
                 "{}.where({},)",
-                source.to_spark_query()?,
-                condition.to_spark_query()?,
+                source.to_spark_query(ctx)?,
+                condition.to_spark_query(ctx)?,
             )
             .into()),
             DataFrame::GroupBy { source, columns } => {
                 // Extra trailing comma is intentional
                 let columns: Result<Vec<String>> = columns
                     .iter()
-                    .map(|s| s.to_spark_query().map(|s| format!("{}, ", s)))
+                    .map(|s| s.to_spark_query(ctx).map(|s| format!("{}, ", s)))
                     .collect();
                 Ok(format!(
                     "{}.groupBy([{}])",
-                    source.to_spark_query()?,
+                    source.to_spark_query(ctx)?,
                     columns?.join("")
                 )
                 .into())
@@ -828,9 +847,14 @@ impl ToSparkQuery for DataFrame {
             DataFrame::Aggregation { source, columns } => {
                 let columns: Result<Vec<String>> = columns
                     .iter()
-                    .map(|col| col.to_spark_query().map(|code| code.to_string()))
+                    .map(|col| col.to_spark_query(ctx).map(|code| code.to_string()))
                     .collect();
-                Ok(format!("{}.agg({},)", source.to_spark_query()?, columns?.join(", ")).into())
+                Ok(format!(
+                    "{}.agg({},)",
+                    source.to_spark_query(ctx)?,
+                    columns?.join(", ")
+                )
+                .into())
             }
             DataFrame::WithColumn {
                 source,
@@ -838,9 +862,9 @@ impl ToSparkQuery for DataFrame {
                 name,
             } => Ok(format!(
                 "{}.withColumn('{}', {},)",
-                source.to_spark_query()?,
+                source.to_spark_query(ctx)?,
                 name,
-                column.to_spark_query()?,
+                column.to_spark_query(ctx)?,
             )
             .into()),
             DataFrame::WithColumnRenamed {
@@ -849,7 +873,7 @@ impl ToSparkQuery for DataFrame {
                 new_name,
             } => Ok(format!(
                 "{}.withColumnRenamed('{}', '{}',)",
-                source.to_spark_query()?,
+                source.to_spark_query(ctx)?,
                 old_name,
                 new_name,
             )
@@ -857,26 +881,26 @@ impl ToSparkQuery for DataFrame {
             DataFrame::OrderBy { source, columns } => {
                 let columns: Result<Vec<String>> = columns
                     .iter()
-                    .map(|col| col.to_spark_query().map(|code| code.to_string()))
+                    .map(|col| col.to_spark_query(ctx).map(|code| code.to_string()))
                     .collect();
                 Ok(format!(
                     "{}.orderBy({},)",
-                    source.to_spark_query()?,
+                    source.to_spark_query(ctx)?,
                     columns?.join(", ")
                 )
                 .into())
             }
             DataFrame::UnionByName { source, other } => Ok(format!(
                 "{}.unionByName({}, allowMissingColumns=True,)",
-                source.to_spark_query()?,
-                other.to_spark_query()?,
+                source.to_spark_query(ctx)?,
+                other.to_spark_query(ctx)?,
             )
             .into()),
             DataFrame::Limit { source, limit } => {
-                Ok(format!("{}.limit({},)", source.to_spark_query()?, limit).into())
+                Ok(format!("{}.limit({},)", source.to_spark_query(ctx)?, limit).into())
             }
             DataFrame::Tail { source, limit } => {
-                Ok(format!("{}.tail({})", source.to_spark_query()?, limit).into())
+                Ok(format!("{}.tail({})", source.to_spark_query(ctx)?, limit).into())
             }
             DataFrame::Join {
                 source,
@@ -885,14 +909,14 @@ impl ToSparkQuery for DataFrame {
                 join_type,
             } => Ok(format!(
                 "{}.join({}, {}, '{}',)",
-                source.to_spark_query()?,
-                other.to_spark_query()?,
-                condition.to_spark_query()?,
+                source.to_spark_query(ctx)?,
+                other.to_spark_query(ctx)?,
+                condition.to_spark_query(ctx)?,
                 join_type
             )
             .into()),
             DataFrame::Alias { source, name } => {
-                Ok(format!("{}.alias('{}',)", source.to_spark_query()?, name,).into())
+                Ok(format!("{}.alias('{}',)", source.to_spark_query(ctx)?, name,).into())
             }
             DataFrame::ArbitraryMethod {
                 source,
@@ -901,11 +925,11 @@ impl ToSparkQuery for DataFrame {
             } => {
                 let params: Result<Vec<String>> = params
                     .iter()
-                    .map(|col| col.to_spark_query().map(|code| code.to_string()))
+                    .map(|col| col.to_spark_query(ctx).map(|code| code.to_string()))
                     .collect();
                 Ok(format!(
                     "{}.{}({},)",
-                    source.to_spark_query()?,
+                    source.to_spark_query(ctx)?,
                     method,
                     params?.join(",")
                 )
@@ -921,11 +945,11 @@ pub struct TransformedPipeline {
 }
 
 impl ToSparkQuery for TransformedPipeline {
-    fn to_spark_query(&self) -> Result<PythonCode> {
+    fn to_spark_query(&self, ctx: &PysparkTranspileContext) -> Result<PythonCode> {
         let dfs: Result<Vec<String>> = self
             .dataframes
             .iter()
-            .map(|df| df.to_spark_query().map(|code| code.to_string()))
+            .map(|df| df.to_spark_query(ctx).map(|code| code.to_string()))
             .collect();
         Ok(dfs?.join("\n\n").into())
     }
@@ -946,13 +970,15 @@ impl TryInto<DataFrame> for TransformedPipeline {
 mod tests {
     use super::*;
     use crate::format_python::format_python_code;
-
+    use crate::pyspark::base::test::test_pyspark_transpile_context;
+    use crate::pyspark::base::RuntimeSelection;
     use crate::pyspark::utils::test::assert_python_code_eq;
+    use rstest::rstest;
     // fn generates(spl_query: &str, spark_query: &str) {
     //     let (_, pipeline_ast) = crate::spl::pipeline(spl_query).expect("Failed to parse SPL query");
     //     let converted = convert(pipeline_ast).expect("Failed to convert SPL query to Spark query");
     //     let rendered = converted
-    //         .to_spark_query()
+    //         .to_spark_query(ctx)
     //         .expect("Failed to render Spark query");
     //     let formatted_rendered = format_python_code(rendered.replace(",)", ")")).expect("Failed to format rendered Spark query");
     //     let formatted_spark_query =
@@ -961,7 +987,8 @@ mod tests {
     // }
 
     fn generates(ast: impl ToSparkQuery, code: impl ToString) {
-        let generated = ast.to_spark_query().expect("Failed to generate code");
+        let ctx = test_pyspark_transpile_context(RuntimeSelection::NoRuntime);
+        let generated = ast.to_spark_query(&ctx).expect("Failed to generate code");
         let formatted_generated = format_python_code(generated.to_string().replace(",)", ")"))
             .expect("Failed to format rendered Spark query");
         let formatted_code = format_python_code(code.to_string().replace(",)", ")"))
@@ -969,7 +996,7 @@ mod tests {
         assert_eq!(formatted_generated, formatted_code);
     }
 
-    #[test]
+    #[rstest]
     fn test_column_like() {
         generates(column_like!(col("x")), r#"F.col("x")"#);
         generates(column_like!(lit(42)), r#"F.lit(42)"#);
@@ -990,7 +1017,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_dataframe() {
         generates(
             DataFrame::source("main").where_(column_like!(col("x"))),
@@ -998,7 +1025,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_with_aliased_column() {
         generates(
             DataFrame::source("main").with_column(
@@ -1009,15 +1036,16 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_named() {
+        let ctx = test_pyspark_transpile_context(RuntimeSelection::NoRuntime);
         generates(
             DataFrame::source("main")
                 .with_column(
                     "final_name",
                     column_like!([col("orig_name")].alias("alias_name")),
                 )
-                .named(Some("prev".to_string())),
+                .named(Some("prev".to_string()), &ctx),
             r#"
 prev = spark.table("main").withColumn("final_name", F.col("orig_name"))
 prev
@@ -1025,24 +1053,26 @@ prev
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_unique_ids() {
-        DataFrame::reset_df_count();
+        let ctx = test_pyspark_transpile_context(RuntimeSelection::NoRuntime);
         let df_1 = DataFrame::runtime(
             // None,
             None,
             "search".to_string(),
             vec![column_like!([col("x")] == [lit(3)]).into()],
             vec![],
+            &ctx,
         );
         let df_2 = DataFrame::runtime(
             Some(df_1),
             "eval".to_string(),
             vec![],
             vec![("y".to_string(), column_like!(length([col("x")])).into())],
+            &ctx,
         );
         assert_python_code_eq(
-            df_2.to_spark_query().unwrap().to_string(),
+            df_2.to_spark_query(&ctx).unwrap().to_string(),
             r#"
 df_1 = commands.search(None, (F.col('x') == F.lit(3)))
 df_2 = commands.eval(df_1, y=F.length(F.col('x')))

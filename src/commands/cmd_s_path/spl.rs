@@ -82,8 +82,9 @@ impl SplCommand<SPathCommand> for SPathParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_spath_1() {
         assert_eq!(
             SPathParser::parse(r#"spath output=myfield path=vendorProductSet.product.desc"#),
@@ -109,7 +110,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_spath_2() {
         assert_eq!(
             SPathParser::parse(r#"spath input=x output=y key.subkey"#),

@@ -102,6 +102,7 @@ mod tests {
     use crate::commands::cmd_t_stats::spl::MaybeSpannedField;
     use crate::spl::ast;
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
     //
     //   test("join product_id [search vendors]") {
@@ -118,7 +119,7 @@ mod tests {
     //       )
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_join_1() {
         assert_eq!(
             JoinParser::parse(r#"join product_id [search vendors]"#),
@@ -162,7 +163,7 @@ mod tests {
     //       )
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_join_2() {
         assert_eq!(
             JoinParser::parse(
@@ -213,7 +214,7 @@ mod tests {
     //       )
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_join_3() {
         assert_eq!(
             JoinParser::parse(r#"join product_id [search vendors | rename pid AS product_id]"#),
@@ -243,7 +244,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_join_4() {
         let query = r#"join process_guid, _time [
             | tstats

@@ -1,15 +1,15 @@
 //noinspection RsDetachedFile
 use crate::commands::spl::{SplCommand, SplCommandOptions};
+use crate::spl::ast;
 use crate::spl::ast::ParsedCommandOptions;
-use crate::spl::parser::ws;
+use crate::spl::parser::{field, ws};
 use crate::spl::python::*;
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
-use nom::combinator::{map, opt};
+use nom::combinator::{map, opt, verify};
 use nom::sequence::tuple;
-use nom::{IResult, Parser};
+use nom::IResult;
 use pyo3::prelude::*;
-
 /*
 | datamodel [<data model name>] [<dataset name>] [<data model search mode>] [strict_fields=<bool>] [allow_old_summaries=<bool>] [summariesonly=<bool>]
  */
@@ -61,6 +61,12 @@ impl TryFrom<ParsedCommandOptions> for DataModelCommandOptions {
     }
 }
 
+fn field_not_keyword(input: &str) -> IResult<&str, ast::Field> {
+    verify(field, |v| {
+        !matches!(v.0.as_str(), "search" | "flat" | "acceleration_search")
+    })(input)
+}
+
 impl SplCommand<DataModelCommand> for DataModelParser {
     type RootCommand = crate::commands::DataModelCommandRoot;
     type Options = DataModelCommandOptions;
@@ -69,8 +75,8 @@ impl SplCommand<DataModelCommand> for DataModelParser {
         map(
             tuple((
                 Self::Options::match_options,
-                opt(ws(tag_no_case("data_model"))),
-                opt(ws(tag_no_case("dataset"))),
+                opt(ws(field_not_keyword)),
+                opt(ws(field_not_keyword)),
                 opt(alt((
                     tag_no_case("search"),
                     tag_no_case("flat"),
@@ -78,13 +84,30 @@ impl SplCommand<DataModelCommand> for DataModelParser {
                 ))),
             )),
             |(options, data_model_name, dataset_name, search_mode)| DataModelCommand {
-                data_model_name: data_model_name.map(|s| s.to_string()),
-                dataset_name: dataset_name.map(|s| s.to_string()),
+                data_model_name: data_model_name.map(|s| s.0),
+                dataset_name: dataset_name.map(|s| s.0),
                 search_mode: search_mode.map(|s| s.to_string()),
                 strict_fields: options.strict_fields,
                 allow_old_summaries: options.allow_old_summaries,
                 summaries_only: options.summaries_only,
             },
         )(input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::pyspark::utils::test::generates_runtime;
+    use rstest::rstest;
+
+    #[rstest]
+    fn test_datamodel_1() {
+        generates_runtime(
+            r#"datamodel Model search"#,
+            r#"
+df_1 = commands.data_model(None, data_model_name="Model", dataset_name=None, search_mode="search", strict_fields=False, allow_old_summaries=False, summaries_only=True)
+df_1
+            "#,
+        )
     }
 }

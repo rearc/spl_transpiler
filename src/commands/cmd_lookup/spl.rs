@@ -107,6 +107,7 @@ mod tests {
     use super::*;
     use crate::spl::ast;
     use crate::spl::parser::pipeline;
+    use rstest::rstest;
 
     //
     //   test("lookup process_create_whitelist a b output reason") {
@@ -128,7 +129,7 @@ mod tests {
     //       )
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_pipeline_lookup_5() {
         let _lookup_cmd = LookupCommand {
             dataset: "process_create_whitelist".to_string(),

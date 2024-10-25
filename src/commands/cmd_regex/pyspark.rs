@@ -9,7 +9,7 @@ impl PipelineTransformer for RegexCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         let (field, invert) = match self.item.clone() {
             None => ("_raw".to_string(), false),
@@ -30,6 +30,6 @@ impl PipelineTransformer for RegexCommand {
 
         df = df.where_(col);
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

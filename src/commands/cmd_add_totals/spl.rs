@@ -95,6 +95,7 @@ mod tests {
     use super::*;
     use crate::spl::ast;
     use crate::spl::parser::command;
+    use rstest::rstest;
 
     //
     //   test("addtotals row=t col=f fieldname=num_total num_1 num_2") {
@@ -107,7 +108,7 @@ mod tests {
     //       label = "Total"
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_command_addtotals_1() {
         assert_eq!(
             command(r#"addtotals row=t col=f fieldname=num_total num_1 num_2"#),

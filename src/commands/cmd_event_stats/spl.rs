@@ -74,6 +74,7 @@ mod tests {
     use crate::spl::ast;
     use crate::spl::parser::command;
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
     //
     //   test("eventstats min(n) by gender") {
@@ -85,7 +86,7 @@ mod tests {
     //       by = Seq(Field("gender"))
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_command_eventstats_1() {
         assert_eq!(
             command(r#"eventstats min(n) by gender"#),

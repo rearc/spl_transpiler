@@ -63,6 +63,7 @@ impl SplCommand<MvCombineCommand> for MvCombineParser {
 mod tests {
     use super::*;
     use crate::spl::ast;
+    use rstest::rstest;
 
     //
     //   test("mvcombine host") {
@@ -71,7 +72,7 @@ mod tests {
     //       Field("host")
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_mvcombine_1() {
         assert_eq!(
             MvCombineParser::parse(r#"mvcombine host"#),
@@ -92,7 +93,7 @@ mod tests {
     //       Field("host")
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_mvcombine_2() {
         assert_eq!(
             MvCombineParser::parse(r#"mvcombine delim="," host"#),

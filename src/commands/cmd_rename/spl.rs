@@ -51,6 +51,7 @@ mod tests {
     use super::*;
     use crate::spl::ast;
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
     //
     //   test("rename _ip AS IPAddress") {
@@ -62,7 +63,7 @@ mod tests {
     //         )))
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_rename_1() {
         assert_eq!(
             RenameParser::parse(r#"rename _ip AS IPAddress"#),
@@ -93,7 +94,7 @@ mod tests {
     //         )))
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_rename_2() {
         assert_eq!(
             RenameParser::parse(r#"rename _ip AS IPAddress, _host AS host, _port AS port"#),
@@ -121,7 +122,7 @@ mod tests {
     //         )))
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_rename_3() {
         assert_eq!(
             RenameParser::parse(r#"rename foo* AS bar*"#),
@@ -144,7 +145,7 @@ mod tests {
     //         )))
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_rename_4() {
         assert_eq!(
             RenameParser::parse(r#"rename count AS "Count of Events""#),
@@ -157,7 +158,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_rename_5() {
         assert_eq!(
             RenameParser::parse(r#"rename "Web".* AS *"#),

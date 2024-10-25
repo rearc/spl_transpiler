@@ -9,7 +9,7 @@ impl PipelineTransformer for BinCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
         let col_name = match self.field.clone() {
             FieldOrAlias::Field(ast::Field(name)) => name,
             FieldOrAlias::Alias(ast::Alias { name, .. }) => name,
@@ -26,6 +26,6 @@ impl PipelineTransformer for BinCommand {
             col_name.clone(),
             column_like!(col(format!("{}.{}", col_name, subfield))),
         );
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

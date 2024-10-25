@@ -11,7 +11,7 @@ impl PipelineTransformer for JoinCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let df = state.df.alias("LEFT");
+        let df = state.df.clone().unwrap_or_default().alias("LEFT");
 
         ensure!(
             self.max == 1,
@@ -19,7 +19,7 @@ impl PipelineTransformer for JoinCommand {
         );
 
         let right_df: TransformedPipeline =
-            TransformedPipeline::transform(self.sub_search.clone(), false)?;
+            TransformedPipeline::transform(self.sub_search.clone(), state.ctx.clone())?;
         let right_df = right_df
             .dataframes
             .first()
@@ -59,15 +59,16 @@ impl PipelineTransformer for JoinCommand {
 
         let df = df.join(right_df, condition, join_type);
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::pyspark::utils::test::*;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_join_1() {
         generates(
             r#"join product_id [search vendors]"#,

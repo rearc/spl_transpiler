@@ -10,10 +10,10 @@ impl PipelineTransformer for SAMPLECommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         bail!("UNIMPLEMENTED");
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

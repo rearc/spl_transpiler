@@ -3,3 +3,5 @@
 Cargo.lock
 *.pyd
 __pycache__
+spark-warehouse
+*.so

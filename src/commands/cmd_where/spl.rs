@@ -45,6 +45,7 @@ mod tests {
     use crate::spl::ast;
     use crate::spl::parser::pipeline;
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
     //
     //   test("where isnull(reason)") {
@@ -58,7 +59,7 @@ mod tests {
     //       )
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_pipeline_where_6() {
         assert_eq!(
             pipeline("where isnull(reason)"),

@@ -651,10 +651,12 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pyspark::base::PysparkTranspileContext;
     use crate::pyspark::utils::test::assert_python_code_eq;
     use crate::pyspark::ToSparkQuery;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_simple_function_max() {
         let result = eval_fn(ast::Call {
             name: "max".to_string(),
@@ -666,7 +668,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_graceful_failure_for_missing_args() {
         let result = eval_fn(ast::Call {
             name: "sin".to_string(),
@@ -675,7 +677,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
+    #[rstest]
     fn test_mvindex_split() {
         let (_, ast) =
             crate::spl::parser::call(r#"mvindex(split(mvindex(BoundaryRanges, -1), ":"), 0)"#)
@@ -693,34 +695,36 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_mvzip_1() {
+    #[rstest]
+    fn test_mvzip_1(#[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext) {
         let (_, ast) = crate::spl::parser::call(r#"mvzip(x,y)"#).unwrap();
         let result = eval_fn(ast);
         assert_python_code_eq(
-            result.unwrap().unaliased().to_spark_query().unwrap(),
+            result.unwrap().unaliased().to_spark_query(&ctx).unwrap(),
             "F.zip_with(F.col('x'), F.col('y'), lambda left_, right_: F.concat_ws(r',', left_, right_))",
             true,
         );
     }
 
-    #[test]
-    fn test_mvzip_2() {
+    #[rstest]
+    fn test_mvzip_2(#[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext) {
         let (_, ast) = crate::spl::parser::call(r#"mvzip(x,y,"_")"#).unwrap();
         let result = eval_fn(ast);
         assert_python_code_eq(
-            result.unwrap().unaliased().to_spark_query().unwrap(),
+            result.unwrap().unaliased().to_spark_query(&ctx).unwrap(),
             "F.zip_with(F.col('x'), F.col('y'), lambda left_, right_: F.concat_ws(r'_', left_, right_))",
             true,
         );
     }
 
-    #[test]
-    fn test_relative_time_1() {
+    #[rstest]
+    fn test_relative_time_1(
+        #[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext,
+    ) {
         let (_, ast) = crate::spl::parser::call(r#"relative_time(now(), "-70m@m")"#).unwrap();
         let result = eval_fn(ast);
         assert_python_code_eq(
-            result.unwrap().unaliased().to_spark_query().unwrap(),
+            result.unwrap().unaliased().to_spark_query(&ctx).unwrap(),
             r#"F.date_trunc(
                 "minute",
                 (F.to_timestamp(F.current_timestamp()) + F.expr("INTERVAL -70 MINUTES"))

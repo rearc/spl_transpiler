@@ -43,6 +43,7 @@ mod tests {
     use super::*;
     use crate::spl::ast;
     use crate::spl::parser::pipeline;
+    use rstest::rstest;
 
     //
     //   test("table foo bar baz*") {
@@ -54,7 +55,7 @@ mod tests {
     //       ))
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_table_1() {
         assert_eq!(
             pipeline("table foo bar baz*"),
@@ -74,7 +75,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_table_2() {
         assert_eq!(
             pipeline("table _time, dest, user, Operation, EventType, Query, Consumer, Filter"),
@@ -99,7 +100,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_table_3() {
         assert_eq!(
             pipeline("table protoPayload.@type protoPayload.status.details{}.@type protoPayload.status.details{}.violations{}.callerIp protoPayload.status.details{}.violations{}.type protoPayload.status.message"),

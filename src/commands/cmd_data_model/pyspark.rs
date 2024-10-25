@@ -10,11 +10,7 @@ impl PipelineTransformer for DataModelCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let PipelineTransformState { df } = state;
-        let df = match df {
-            DataFrame::Source { .. } => None,
-            df => Some(df),
-        };
+        let df = state.df.clone();
         let mut kwargs = py_dict! {};
 
         kwargs.push(
@@ -30,9 +26,9 @@ impl PipelineTransformer for DataModelCommand {
         );
         kwargs.push("summaries_only", PyLiteral::from(self.summaries_only));
 
-        let df = DataFrame::runtime(df, "data_model", vec![], kwargs.0);
+        let df = DataFrame::runtime(df, "data_model", vec![], kwargs.0, &state.ctx);
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 
     fn transform_standalone(
@@ -53,9 +49,9 @@ impl PipelineTransformer for DataModelCommand {
             "UNIMPLEMENTED: `datamodel` command does not support search_mode other than 'search'"
         );
 
-        let df = match (state.df, self.data_model_name.clone(), self.dataset_name.clone()) {
-            (src, None, None) => src,
-            (DataFrame::Source { .. }, data_model, node_name) => DataFrame::source(match (data_model, node_name) {
+        let df = match (state.df.clone(), self.data_model_name.clone(), self.dataset_name.clone()) {
+            (Some(src), None, None) => src,
+            (None, data_model, node_name) => DataFrame::source(match (data_model, node_name) {
                 (Some(data_model), None) => data_model,
                 (Some(data_model), Some(node_name)) => {
                     // data_model = <data_model_name>.<root_dataset_name>
@@ -69,6 +65,6 @@ impl PipelineTransformer for DataModelCommand {
             _ => bail!("UNIMPLEMENTED: `tstats` command requires a source DataFrame and either a data model or a node name"),
         };
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

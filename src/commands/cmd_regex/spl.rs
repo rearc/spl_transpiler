@@ -63,6 +63,7 @@ impl SplCommand<RegexCommand> for RegexParser {
 mod tests {
     use super::*;
     use crate::spl::ast;
+    use rstest::rstest;
 
     //
     //   test("regex _raw=\"(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)\"") {
@@ -70,7 +71,7 @@ mod tests {
     //       Some((Field("_raw"), "=")),
     //       "(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)"))
     //   }
-    #[test]
+    #[rstest]
     fn test_regex_1() {
         assert_eq!(
             RegexParser::parse(r#"regex _raw="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
@@ -90,7 +91,7 @@ mod tests {
     //       Some((Field("_raw"), "!=")),
     //       "(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)"))
     //   }
-    #[test]
+    #[rstest]
     fn test_regex_2() {
         assert_eq!(
             RegexParser::parse(r#"regex _raw!="(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),
@@ -110,7 +111,7 @@ mod tests {
     //       None,
     //       "(?<!\\d)10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)"))
     //   }
-    #[test]
+    #[rstest]
     fn test_regex_3() {
         assert_eq!(
             RegexParser::parse(r#"regex "(?<!\d)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)""#),

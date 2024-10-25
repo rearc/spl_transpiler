@@ -1,34 +1,40 @@
 from typing import Any
 
+from pydantic import BaseModel
 from pyspark.sql import DataFrame
 
 from spl_transpiler.runtime.base import enforce_types, Expr
-from pydantic import BaseModel
-from pyspark.sql import SparkSession
+from spl_transpiler.runtime.commands import data_model
+from spl_transpiler.runtime.commands.fill_null import fill_null
 
 
 class DataModelSpecifier(BaseModel):
     datamodel: str
     nodename: str | None = None
 
+    def __str__(self) -> str:
+        return ".".join(
+            s
+            for name in [self.datamodel.split("."), self.nodename or ""]
+            for s in name.split(".")
+            if s
+        )
+
 
 class StatsExpr(BaseModel):
-    name: str
-    args: list[Expr]
-
     def to_pyspark_expr(self, df) -> tuple[DataFrame, Any]:
         raise NotImplementedError()
 
 
 @enforce_types
 def tstats(
-    df: DataFrame | None,
+    # df: DataFrame | None,
     *,
-    prestats=True,
-    local=True,
-    append=True,
-    include_reduced_buckets=True,
-    fill_null_value="",
+    prestats=False,
+    local=False,
+    append=False,
+    include_reduced_buckets=False,
+    fill_null_value=None,
     from_: DataModelSpecifier | None = None,
     where: Expr | None = None,
     by: list[Expr] = (),
@@ -45,28 +51,14 @@ def tstats(
     if append:
         raise NotImplementedError("`tstats` command does not implement append=True")
 
-    spark = SparkSession.builder.getOrCreate()
-    match (df, from_):
-        case (None, from_):
-            match from_:
-                case DataModelSpecifier(datamodel=datamodel, nodename=None):
-                    df = spark.table(datamodel)
-                case DataModelSpecifier(datamodel=datamodel, nodename=nodename):
-                    table_name = ".".join(
-                        datamodel.split(".") + nodename.split(".")[1:]
-                    )
-                    df = spark.table(table_name)
-                case _:
-                    raise ValueError(from_)
-        case (df_, None):
-            df = df_
-        case (df_, from_):
-            raise ValueError(
-                "Cannot specify both an input dataframe and a source data model"
-            )
+    df = data_model(
+        data_model_name=from_.datamodel,
+        dataset_name=from_.nodename,
+        summaries_only=False,
+    )
 
     if fill_null_value is not None:
-        df = df.na.fill(fill_null_value)
+        df = fill_null(df, value=fill_null_value)
 
     if where:
         df = df.where(where.to_pyspark_expr())

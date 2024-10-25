@@ -8,7 +8,7 @@ pub(crate) mod functions;
 pub(crate) mod pyspark;
 pub(crate) mod spl;
 
-use crate::pyspark::ast::DataFrame;
+use crate::pyspark::base::{PysparkTranspileContext, RuntimeSelection};
 use pyspark::{ToSparkQuery, TransformedPipeline};
 
 #[pymodule]
@@ -41,10 +41,13 @@ fn spl_transpiler(m: &Bound<'_, PyModule>) -> PyResult<()> {
         allow_runtime: bool,
         format_code: bool,
     ) -> PyResult<String> {
-        DataFrame::reset_df_count();
+        let ctx = PysparkTranspileContext::new(match allow_runtime {
+            true => RuntimeSelection::AllowRuntime,
+            false => RuntimeSelection::NoRuntime,
+        });
         let transformed_pipeline: TransformedPipeline =
-            TransformedPipeline::transform(pipeline.clone(), allow_runtime)?;
-        let mut code = transformed_pipeline.to_spark_query()?.to_string();
+            TransformedPipeline::transform(pipeline.clone(), ctx.clone())?;
+        let mut code = transformed_pipeline.to_spark_query(&ctx)?.to_string();
         if format_code {
             code = format_python::safe_format_python_code(code);
         }

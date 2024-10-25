@@ -79,6 +79,7 @@ mod tests {
     use super::*;
     use crate::spl::ast::*;
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
     //
     //   test("head 20") {
@@ -90,7 +91,7 @@ mod tests {
     //       )
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_head_limit_1() {
         assert_eq!(
             HeadParser::parse("head 20"),
@@ -114,7 +115,7 @@ mod tests {
     //         Bool(false))
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_head_limit_2() {
         assert_eq!(
             HeadParser::parse("head limit=400"),
@@ -139,7 +140,7 @@ mod tests {
     //       )
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_head_limit_3() {
         assert_eq!(
             HeadParser::parse("head limit=400 keeplast=true null=false"),
@@ -168,7 +169,7 @@ mod tests {
     //       )
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_head_count_greater_than_10() {
         assert_eq!(
             HeadParser::parse("head count>10"),
@@ -183,7 +184,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_head_count_greater_than_10_keeplast() {
         assert_eq!(
             HeadParser::parse("head count>=10 keeplast=true"),

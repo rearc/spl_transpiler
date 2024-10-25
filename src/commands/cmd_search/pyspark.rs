@@ -80,10 +80,7 @@ impl PipelineTransformer for SearchCommand {
         let mut exprs = vec![];
         break_down_ands(&self.expr, &mut exprs);
 
-        let maybe_df = match state.df {
-            DataFrame::Source { .. } => None,
-            df_ => Some(df_),
-        };
+        let df = state.df.clone();
 
         let mut args = vec![];
         let mut kwargs = vec![];
@@ -107,9 +104,9 @@ impl PipelineTransformer for SearchCommand {
             }
         }
 
-        let df = DataFrame::runtime(maybe_df, "search", args, kwargs);
+        let df = DataFrame::runtime(df, "search", args, kwargs, &state.ctx);
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 
     fn transform_standalone(
@@ -129,7 +126,7 @@ impl PipelineTransformer for SearchCommand {
             }
             _df.unwrap()
         } else {
-            state.df.clone()
+            state.df.clone().unwrap_or_default()
         };
 
         df = match condition_expr {
@@ -140,7 +137,7 @@ impl PipelineTransformer for SearchCommand {
             }
         };
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }
 
@@ -148,6 +145,7 @@ impl PipelineTransformer for SearchCommand {
 mod tests {
     use super::*;
     use crate::pyspark::utils::test::{generates, generates_runtime};
+    use rstest::rstest;
 
     fn check_split_results(
         expr: impl Into<ast::Expr>,
@@ -165,7 +163,7 @@ mod tests {
         assert_eq!(converted_condition, expected_condition);
     }
 
-    #[test]
+    #[rstest]
     fn test_split_conditions_simple_index() {
         check_split_results(
             ast::Binary::new(ast::Field::from("index"), "=", ast::Field::from("lol")),
@@ -174,7 +172,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_split_conditions_no_index() {
         check_split_results(
             ast::Binary::new(ast::Field::from("x"), "=", ast::IntValue::from(2)),
@@ -183,7 +181,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_split_conditions_combined_index() {
         check_split_results(
             ast::Binary::new(
@@ -196,7 +194,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_multi_index_conditions() {
         check_split_results(
             ast::Binary::new(
@@ -217,7 +215,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_search_8() {
         let query = r#"search
         query!="SELECT * FROM Win32_ProcessStartTrace WHERE ProcessName = 'wsmprovhost.exe'"
@@ -237,9 +235,8 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_search_9() {
-        DataFrame::reset_df_count();
         let query = r#"index="lol" sourcetype="src1" len(x)=3"#;
 
         generates_runtime(

@@ -55,8 +55,9 @@ pub fn spl_macros(input: &str) -> IResult<&str, ChunkedQuery> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_spl_macros_simple_no_args() {
         let input = r#"`foo`"#;
         let result = spl_macros(input).unwrap();
@@ -78,7 +79,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_spl_macros_simple_with_args() {
         let input = r#"`foo(bar, 1, "s")`"#;
         let result = spl_macros(input).unwrap();
@@ -104,7 +105,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_spl_macros_simple_named_args() {
         let input = r#"`foo(foo=bar, baz=1)`"#;
         let result = spl_macros(input).unwrap();
@@ -129,7 +130,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_spl_macros_multiple() {
         let input = r#"index=main | `foo(bar, 1, "s")` x=`f` y=3"#;
         let result = spl_macros(input).unwrap();
@@ -164,7 +165,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_spl_macros_quoted_backtick() {
         let input = r#"`foo("`")`"#;
         let result = spl_macros(input).unwrap();

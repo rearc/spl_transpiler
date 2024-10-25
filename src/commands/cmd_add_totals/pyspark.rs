@@ -23,8 +23,11 @@ impl PipelineTransformer for super::spl::AddTotalsCommand {
         let total: ColumnLike =
             join_as_binaries("+", cast_columns).unwrap_or(column_like!(lit(0.0)));
 
-        Ok(PipelineTransformState {
-            df: state.df.with_column(self.field_name.clone(), total),
-        })
+        let df = state
+            .df
+            .clone()
+            .unwrap_or_default()
+            .with_column(self.field_name.clone(), total);
+        Ok(state.with_df(df))
     }
 }

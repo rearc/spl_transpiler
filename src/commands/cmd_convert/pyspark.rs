@@ -8,7 +8,7 @@ impl PipelineTransformer for ConvertCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         for conv in self.convs.iter().cloned() {
             let result = convert_fn(self, &conv)?;
@@ -20,6 +20,6 @@ impl PipelineTransformer for ConvertCommand {
             let name = alias.map(|f| f.0).unwrap_or(name);
             df = df.with_column(name, result)
         }
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

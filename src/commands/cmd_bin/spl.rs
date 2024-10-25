@@ -96,6 +96,7 @@ mod tests {
     use super::*;
     use crate::spl::parser::command;
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
     //
     //   test("bin span=30m minspan=5m bins=20 start=0 end=20 aligntime=latest foo AS bar") {
@@ -108,7 +109,7 @@ mod tests {
     //       Some(20),
     //       Some("latest")))
     //   }
-    #[test]
+    #[rstest]
     fn test_command_bin_1() {
         assert_eq!(
             command(

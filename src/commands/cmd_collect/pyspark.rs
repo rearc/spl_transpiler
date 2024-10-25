@@ -8,10 +8,6 @@ impl PipelineTransformer for CollectCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let df = state.df;
-
-        bail!("UNIMPLEMENTED");
-
-        Ok(PipelineTransformState { df })
+        bail!("UNIMPLEMENTED")
     }
 }

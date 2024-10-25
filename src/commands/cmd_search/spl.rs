@@ -65,6 +65,7 @@ mod tests {
     use crate::spl::ast;
     use crate::spl::parser::field_in;
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
     //   test("search index=dummy host=$host_var$") {
     //     p(search(_), SearchCommand(
@@ -82,7 +83,7 @@ mod tests {
     //         )
     //       )]
     /// Basic search test; explicit search; index and host
-    #[test]
+    #[rstest]
     fn test_search_1() {
         assert_eq!(
             SearchParser::parse("search index=dummy host=$host_var$"),
@@ -129,7 +130,7 @@ mod tests {
     //       )
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_implied_search_2() {
         assert_eq!(
             SearchParser::parse("a=b b=c (c=f OR d=t)"),
@@ -158,7 +159,7 @@ mod tests {
     //         Wildcard("5*")
     //       ))))
     //   }
-    #[test]
+    #[rstest]
     fn test_implied_search_3() {
         assert_eq!(
             SearchParser::parse("code IN(4*, 5*)"),
@@ -186,7 +187,7 @@ mod tests {
     //         Field("str_3")
     //       ))))
     //   }
-    #[test]
+    #[rstest]
     fn test_implied_search_4() {
         assert_eq!(
             field_in("var_5 IN (str_2, str_3)"),
@@ -228,7 +229,7 @@ mod tests {
     //           Wildcard("5*"))))
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_implied_search_5() {
         assert_eq!(
             SearchParser::parse("NOT code IN(4*, 5*)"),
@@ -272,7 +273,7 @@ mod tests {
     //       )
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_implied_search_6() {
         assert_eq!(
             SearchParser::parse("code IN(10, 29, 43) host!=\"localhost\" xqp>5"),
@@ -302,7 +303,7 @@ mod tests {
     }
 
     /// Tests issue with rhs tokens not accepting certain characters
-    #[test]
+    #[rstest]
     fn test_search_7() {
         let query = r#"sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR source=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR source=Syslog:Linux-Sysmon/Operational EventCode=6 Signature="Noriyuki MIYAZAKI" OR ImageLoaded= "*\\WinRing0x64.sys""#;
         assert_eq!(
@@ -350,7 +351,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_search_8() {
         let query = r#"search
         query!="SELECT * FROM Win32_ProcessStartTrace WHERE ProcessName = 'wsmprovhost.exe'"
@@ -377,7 +378,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_search_9() {
         let query = r#"
             sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
@@ -432,7 +433,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_search_10() {
         let query = r#"
         eventtype=wineventlog_security OR Channel=security OR source=XmlWinEventLog:Security
@@ -499,19 +500,19 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_search_11() {
         let query = "eventtype=wineventlog_security OR Channel=security OR source=XmlWinEventLog:Security EventCode=5136 AttributeLDAPDisplayName IN (\"msDS-AllowedToDelegateTo\",\"msDS-AllowedToActOnBehalfOfOtherIdentity\",\"scriptPath\",\"msTSInitialProgram\") OperationType=%%14674";
         assert_eq!(SearchParser::parse(query).unwrap().0, "");
     }
 
-    #[test]
+    #[rstest]
     fn test_search_12() {
         let query = "sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR source=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR source=Syslog:Linux-Sysmon/Operational EventCode=22 QueryName IN (\"*pastebin*\",\"\"*textbin*\"\", \"*ngrok.io*\", \"*discord*\", \"*duckdns.org*\", \"*pasteio.com*\")";
         assert_eq!(SearchParser::parse(query).unwrap().0, "");
     }
 
-    #[test]
+    #[rstest]
     fn test_search_13() {
         assert_eq!(
             SearchParser::parse(r#"search [| inputlookup x]"#)
@@ -524,13 +525,13 @@ mod tests {
         assert_eq!(SearchParser::parse(query).unwrap().0, "");
     }
 
-    #[test]
+    #[rstest]
     fn test_search_14() {
         let query = "sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR source=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR source=Syslog:Linux-Sysmon/Operational EventCode = 8 parent_process_name IN (\"powershell_ise.exe\", \"powershell.exe\") TargetImage IN (\"*\\\\svchost.exe\",\"*\\\\csrss.exe\" \"*\\\\gpupdate.exe\", \"*\\\\explorer.exe\",\"*\\\\services.exe\",\"*\\\\winlogon.exe\",\"*\\\\smss.exe\",\"*\\\\wininit.exe\",\"*\\\\userinit.exe\",\"*\\\\spoolsv.exe\",\"*\\\\taskhost.exe\")";
         assert_eq!(SearchParser::parse(query).unwrap().0, "");
     }
 
-    #[test]
+    #[rstest]
     fn test_search_15() {
         assert_eq!(field_in("email IN(\"\", \"null\")").unwrap().0, "");
         assert_eq!(expr("(email IN(\"\", \"null\"))").unwrap().0, "");
@@ -543,7 +544,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_search_16() {
         let query = r#"search http_method, "POST""#;
         assert_eq!(

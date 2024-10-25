@@ -7,7 +7,7 @@ impl PipelineTransformer for SPathCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         let output_name = self.output.clone().unwrap_or(self.path.clone());
 
@@ -19,15 +19,16 @@ impl PipelineTransformer for SPathCommand {
             )),
         );
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::pyspark::utils::test::generates;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_spath_1() {
         generates(
             r#"spath input=x output=y key.subkey"#,

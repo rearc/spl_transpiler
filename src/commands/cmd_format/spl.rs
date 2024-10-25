@@ -113,6 +113,7 @@ impl SplCommand<FormatCommand> for FormatParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     //
     //   test("format maxresults=10") {
@@ -127,7 +128,7 @@ mod tests {
     //       rowEnd = ")"
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_format_1() {
         assert_eq!(
             FormatParser::parse(r#"format maxresults=10"#),
@@ -160,7 +161,7 @@ mod tests {
     //       rowEnd = "]"
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_format_2() {
         assert_eq!(
             FormatParser::parse(r#"format mvsep="||" "[" "[" "&&" "]" "||" "]""#),

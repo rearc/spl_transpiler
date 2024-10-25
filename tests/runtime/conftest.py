@@ -17,7 +17,7 @@ def spark():
     )
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session", autouse=True)
 def sample_data_1(spark):
     return spark.createDataFrame(
         [
@@ -27,3 +27,41 @@ def sample_data_1(spark):
         ],
         ["sourcetype", "raw"],
     )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def sample_data_2(spark):
+    from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+
+    return spark.createDataFrame(
+        [
+            ("src1", "hello world", 11),
+            ("src1", "some text", 9),
+            ("src2", "y=3", None),
+        ],
+        schema=StructType(
+            [
+                StructField("sourcetype", StringType(), True),
+                StructField("raw", StringType(), True),
+                StructField("maybe_raw_length", IntegerType(), True),
+            ]
+        ),
+    )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def sample_silver_table(spark, sample_data_1):
+    sample_data_1.write.saveAsTable("src1_silver", mode="overwrite")
+    try:
+        yield
+    finally:
+        spark.sql("DROP TABLE src1_silver")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def sample_model_table(spark, sample_data_1):
+    sample_data_1.write.saveAsTable("Model", mode="overwrite")
+    try:
+        yield
+    finally:
+        spark.sql("DROP TABLE Model")

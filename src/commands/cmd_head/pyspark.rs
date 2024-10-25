@@ -8,7 +8,7 @@ impl PipelineTransformer for HeadCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         let limit = match self.eval_expr.clone() {
             ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Int(ast::IntValue(limit)))) => {
@@ -49,6 +49,6 @@ impl PipelineTransformer for HeadCommand {
         };
 
         df = df.limit(limit as u64);
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

@@ -136,8 +136,9 @@ impl SplCommand<TopCommand> for TopParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_top_1() {
         let query = "top  sourceIPs{} user.username verb annotations.authorization.k8s.io/decision";
         assert_eq!(

@@ -11,7 +11,7 @@ impl PipelineTransformer for StatsCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
         let mut aggs: Vec<ColumnLike> = vec![];
         for e in self.funcs.iter() {
             let (e, maybe_name) = e.clone().unaliased_with_name();
@@ -27,6 +27,6 @@ impl PipelineTransformer for StatsCommand {
         df = df.group_by(groupby_columns);
         df = df.agg(aggs);
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }

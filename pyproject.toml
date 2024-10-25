@@ -35,8 +35,10 @@ runtime = [
     "pyspark",
     "ipython",
     "rich",
+    "pydantic-settings",
 ]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 # Ignore the bulk query test by default (it can still be run directly)
-addopts = "--ignore=tests/test_sample_files_parse.py"
+addopts = "--ignore=tests/test_sample_files_parse.py --ignore=tests/sample_data"

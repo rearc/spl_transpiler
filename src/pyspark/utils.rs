@@ -6,6 +6,9 @@ pub mod test {
     use regex::Regex;
     use std::ops::Deref;
 
+    use crate::pyspark::base::test::test_pyspark_transpile_context;
+    use crate::pyspark::base::RuntimeSelection;
+
     pub fn assert_python_code_eq(
         generated_code: impl ToString,
         reference_code: impl ToString,
@@ -44,22 +47,24 @@ pub mod test {
     }
 
     pub fn generates(spl_query: &str, spark_query: &str) {
+        let ctx = test_pyspark_transpile_context(RuntimeSelection::NoRuntime);
         let (_, pipeline_ast) =
             crate::parser::pipeline(spl_query).expect("Failed to parse SPL query");
-        let rendered = TransformedPipeline::transform(pipeline_ast, false)
+        let rendered = TransformedPipeline::transform(pipeline_ast, ctx.clone())
             .expect("Failed to convert SPL query to Spark query")
-            .to_spark_query()
+            .to_spark_query(&ctx)
             .expect("Failed to render Spark query");
 
         assert_python_code_eq(rendered, spark_query, true);
     }
 
     pub fn generates_runtime(spl_query: &str, spark_query: &str) {
+        let ctx = test_pyspark_transpile_context(RuntimeSelection::RequireRuntime);
         let (_, pipeline_ast) =
             crate::parser::pipeline(spl_query).expect("Failed to parse SPL query");
-        let rendered = TransformedPipeline::transform(pipeline_ast, true)
+        let rendered = TransformedPipeline::transform(pipeline_ast, ctx.clone())
             .expect("Failed to convert SPL query to Spark query")
-            .to_spark_query()
+            .to_spark_query(&ctx)
             .expect("Failed to render Spark query");
 
         assert_python_code_eq(rendered, spark_query, false);

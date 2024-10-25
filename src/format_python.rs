@@ -59,8 +59,9 @@ pub fn safe_format_python_code(code: impl ToString) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     // #[ignore]
     fn test_format_python_code() {
         assert_eq!(

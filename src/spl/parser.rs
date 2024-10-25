@@ -1483,8 +1483,9 @@ mod tests {
     use crate::commands::cmd_search::spl::SearchCommand;
     use crate::commands::cmd_sort::spl::{SortCommand, SortParser};
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     fn test_time_span() {
         let input = "5minutes";
         let result = time_span(input);
@@ -1500,14 +1501,14 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_token() {
         let input = "token123";
         let result = token(input);
         assert_eq!(result, Ok(("", "token123")));
     }
 
-    #[test]
+    #[rstest]
     fn test_double_quoted() {
         assert_eq!(
             double_quoted("\"double quoted string\" and then some"),
@@ -1536,14 +1537,14 @@ mod tests {
     //   p(bool(_), Bool(true))
     // }
 
-    #[test]
+    #[rstest]
     fn test_bool() {
         assert_eq!(bool_("false"), Ok(("", false.into())));
         assert_eq!(bool_("f"), Ok(("", false.into())));
         assert_eq!(bool_("true"), Ok(("", true.into())));
         assert_eq!(bool_("t"), Ok(("", true.into())));
     }
-    #[test]
+    #[rstest]
     fn test_wildcard() {
         assert_eq!(wildcard("*"), Ok(("", ast::Wildcard("*".into()))));
         assert_eq!(wildcard("g*"), Ok(("", ast::Wildcard("g*".into()))));
@@ -1566,7 +1567,7 @@ mod tests {
     // test("left") {
     //   p(field(_), Field("left"))
     // }
-    #[test]
+    #[rstest]
     fn test_field() {
         assert_eq!(
             expr("junk"),
@@ -1582,7 +1583,7 @@ mod tests {
     // test("foo   = bar") {
     //   p(fieldAndValue(_), FV("foo", "bar"))
     // }
-    #[test]
+    #[rstest]
     fn test_field_and_value() {
         assert_eq!(
             field_and_value("foo   = bar"),
@@ -1596,7 +1597,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_field_and_constant() {
         assert_eq!(
             field_and_constant("f=g*"),
@@ -1616,7 +1617,7 @@ mod tests {
     //       FC("bar", Field("baz"))
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_command_options() {
         assert_eq!(
             command_options("foo=bar bar=baz"),
@@ -1646,7 +1647,7 @@ mod tests {
     //       Field("d")
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_field_list() {
         assert_eq!(
             field_list0("a ,   b,c, d"),
@@ -1665,7 +1666,7 @@ mod tests {
     //   test("D:\\Work\\Stuff.xls") {
     //     p(filename(_), "D:\\Work\\Stuff.xls")
     //   }
-    #[test]
+    #[rstest]
     fn test_filename() {
         assert_eq!(
             filename("D:\\Work\\Stuff.xls"),
@@ -1676,7 +1677,7 @@ mod tests {
     //   test("-100500") {
     //     p(int(_), IntValue(-100500))
     //   }
-    #[test]
+    #[rstest]
     fn test_int() {
         assert_eq!(int("-100500"), Ok(("", ast::IntValue(-100500))));
     }
@@ -1684,7 +1685,7 @@ mod tests {
     //   test("1sec") {
     //     p(timeSpan(_), TimeSpan(1, "seconds"))
     //   }
-    #[test]
+    #[rstest]
     fn test_time_span_1sec() {
         assert_eq!(
             time_span("1sec"),
@@ -1701,7 +1702,7 @@ mod tests {
     //   test("5s") {
     //     p(timeSpan(_), TimeSpan(5, "seconds"))
     //   }
-    #[test]
+    #[rstest]
     fn test_time_span_5s() {
         assert_eq!(
             time_span("5s"),
@@ -1718,7 +1719,7 @@ mod tests {
     //   test("5second") {
     //     p(timeSpan(_), TimeSpan(5, "seconds"))
     //   }
-    #[test]
+    #[rstest]
     fn test_time_span_5second() {
         assert_eq!(
             time_span("5second"),
@@ -1735,7 +1736,7 @@ mod tests {
     //   test("5sec") {
     //     p(timeSpan(_), TimeSpan(5, "seconds"))
     //   }
-    #[test]
+    #[rstest]
     fn test_time_span_5sec() {
         assert_eq!(
             time_span("5sec"),
@@ -1752,7 +1753,7 @@ mod tests {
     //   test("5m") {
     //     p(timeSpan(_), TimeSpan(5, "minutes"))
     //   }
-    #[test]
+    #[rstest]
     fn test_time_span_5m() {
         assert_eq!(
             time_span("5m"),
@@ -1769,7 +1770,7 @@ mod tests {
     //   test("5mins") {
     //     p(timeSpan(_), TimeSpan(5, "minutes"))
     //   }
-    #[test]
+    #[rstest]
     fn test_time_span_5mins() {
         assert_eq!(
             time_span("5mins"),
@@ -1786,7 +1787,7 @@ mod tests {
     //   test("-5mon") {
     //     p(timeSpan(_), TimeSpan(-5, "months"))
     //   }
-    #[test]
+    #[rstest]
     fn test_time_span_minus5mon() {
         assert_eq!(
             time_span("-5mon"),
@@ -1806,7 +1807,7 @@ mod tests {
     //       "weeks",
     //       Some(TimeSpan(-2, "hours"))))
     //   }
-    #[test]
+    #[rstest]
     fn test_constant_snap_time_1() {
         assert_eq!(
             constant("-5d@w-2h"),
@@ -1833,7 +1834,7 @@ mod tests {
     //       "weeks",
     //       Some(TimeSpan(-2, "hours"))))
     //   }
-    #[test]
+    #[rstest]
     fn test_constant_snap_time_2() {
         assert_eq!(
             constant("-5d@w0-2h"),
@@ -1860,7 +1861,7 @@ mod tests {
     //       "weeks",
     //       None))
     //   }
-    #[test]
+    #[rstest]
     fn test_constant_snap_time_3() {
         assert_eq!(
             constant("-5d@w"),
@@ -1881,7 +1882,7 @@ mod tests {
     //   test("@w") {
     //     p(constant(_), SnapTime(None, "weeks", None))
     //   }
-    #[test]
+    #[rstest]
     fn test_constant_snap_time_4() {
         assert_eq!(
             constant("@w"),
@@ -1899,7 +1900,7 @@ mod tests {
     //   test("@w-1d") {
     //     p(constant(_), SnapTime(None, "weeks", Some(TimeSpan(-1, "days"))))
     //   }
-    #[test]
+    #[rstest]
     fn test_constant_snap_time_5() {
         assert_eq!(
             constant("@w-1d"),
@@ -1920,7 +1921,7 @@ mod tests {
     //   test("-1h@h") {
     //     p(constant(_), SnapTime(Some(TimeSpan(-1, "hours")), "hours", None))
     //   }
-    #[test]
+    #[rstest]
     fn test_constant_snap_time_6() {
         assert_eq!(
             constant("-1h@h"),
@@ -1941,7 +1942,7 @@ mod tests {
     //   test("-h@h") {
     //     p(constant(_), SnapTime(Some(TimeSpan(-1, "hours")), "hours", None))
     //   }
-    #[test]
+    #[rstest]
     fn test_constant_snap_time_7() {
         assert_eq!(
             constant("-h@h"),
@@ -1962,7 +1963,7 @@ mod tests {
     //   test("h@h") {
     //     p(constant(_), SnapTime(Some(TimeSpan(1, "hours")), "hours", None))
     //   }
-    #[test]
+    #[rstest]
     fn test_constant_snap_time_8() {
         assert_eq!(
             constant("h@h"),
@@ -1991,7 +1992,7 @@ mod tests {
     //       FC("k", Bool(false))
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_command_options_1() {
         assert_eq!(
             command_options("a=b c=1 d=\"e\" f=g* h=-15m i=10.0.0.0/8 k=f"),
@@ -2043,7 +2044,7 @@ mod tests {
     //       Field("b")
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_expr_or_1() {
         assert_eq!(
             expr("a OR b"),
@@ -2062,7 +2063,7 @@ mod tests {
     //       Wildcard("S*G01")
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_expr_wildcard_1() {
         assert_eq!(
             expr("productID=\"S*G01\""),
@@ -2096,7 +2097,7 @@ mod tests {
     //       )
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_expr_nested_or_1() {
         assert_eq!(
             expr("(event_id=12 OR event_id=13 OR event_id=14)"),
@@ -2113,7 +2114,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_not() {
         assert_eq!(expr("NOT x"), Ok(("", _not(ast::Field::from("x")))));
     }
@@ -2131,7 +2132,7 @@ mod tests {
     //       )
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_fields_1() {
         assert_eq!(
             FieldsParser::parse("fields column_a, column_b, column_c"),
@@ -2161,7 +2162,7 @@ mod tests {
     //       )
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_fields_2() {
         assert_eq!(
             FieldsParser::parse("fields + column_a, column_b"),
@@ -2190,7 +2191,7 @@ mod tests {
     //       )
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_fields_3() {
         assert_eq!(
             FieldsParser::parse("fields - column_a, column_b"),
@@ -2219,7 +2220,7 @@ mod tests {
     //       )
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_sort_1() {
         assert_eq!(
             SortParser::parse("sort A, -B, +num(C)"),
@@ -2245,7 +2246,7 @@ mod tests {
     //       )
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_pipeline_term_call_1() {
         assert_eq!(
             pipeline("TERM(XXXXX*\\\\XXXXX*)"),
@@ -2280,7 +2281,7 @@ mod tests {
     //                   Field("b")
     //                 )))))))))))
     //   }
-    #[test]
+    #[rstest]
     fn test_pipeline_values_eval_mvappend_1() {
         assert_eq!(
             pipeline("values(eval(mvappend(\"a: \" . a, \"b: \" . b)))"),
@@ -2316,7 +2317,7 @@ mod tests {
     //       )
     //     )
     //   }
-    #[test]
+    #[rstest]
     fn test_sort_2() {
         assert_eq!(
             SortParser::parse("sort A"),
@@ -2367,7 +2368,7 @@ mod tests {
     //       )
     //     )))
     //   }
-    #[test]
+    #[rstest]
     fn test_pipeline_index_eval_collect_4() {
         assert_eq!(
             pipeline("index=foo bar=baz | eval foo=bar | collect index=newer"),
@@ -2407,7 +2408,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_aliased_call() {
         assert_eq!(
             aliased_call("first(startTime) AS startTime"),
@@ -2418,7 +2419,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_stats_call() {
         assert_eq!(
             stats_call("first(startTime) AS startTime, last(histID) AS lastPassHistId"),
@@ -2432,7 +2433,7 @@ mod tests {
         )
     }
 
-    #[test]
+    #[rstest]
     fn test_case_call_1() {
         assert_eq!(
             expr(r#"status==200"#),
@@ -2472,7 +2473,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_logical_expression_1() {
         assert_eq!(
             field(r#"Processes.process_name=wmic.exe"#),
@@ -2504,7 +2505,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_logical_expression_2() {
         assert_eq!(
             logical_expression(
@@ -2526,7 +2527,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_logical_expression_3() {
         assert_eq!(
             logical_expression(r#"Processes.process = "*os get*""#),
@@ -2540,7 +2541,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_logical_expression_4() {
         assert_eq!(
             logical_expression(
@@ -2570,7 +2571,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_logical_expression_5() {
         assert_eq!(
             logical_expression(
@@ -2610,7 +2611,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_logical_expression_6() {
         assert_eq!(
             logical_expression(r#"NOT x=y"#),
@@ -2621,7 +2622,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_logical_expression_7() {
         assert_eq!(
             literal(r#"127.0.0.1"#),
@@ -2682,7 +2683,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_logical_expression_8() {
         assert_eq!(
             logical_expression(r#"a=1 OR b=2 AND c=3 OR (d=4 e=5)"#),
@@ -2705,7 +2706,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_logical_expression_9() {
         assert_eq!(
             logical_expression(r#"a=1 b=2"#),
@@ -2719,13 +2720,13 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_int_in_string_1() {
         assert_eq!(expr("3"), Ok(("", ast::IntValue::from(3).into())));
         assert_eq!(expr("3x"), Ok(("", ast::Field::from("3x").into())));
     }
 
-    #[test]
+    #[rstest]
     fn test_field_starting_with_not() {
         assert_eq!(
             expr("note!=ESCU*"),
@@ -2736,7 +2737,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_logical_expression_10() {
         assert_eq!(
             expr("a=1 AND (b=2 OR c=3)"),
@@ -2753,7 +2754,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_logical_expression_11() {
         assert_eq!(
             logical_expression("isnull(firstTimeSeenUserApiCall) OR firstTimeSeenUserApiCall > relative_time(now(),\"-24h@h\")"),
@@ -2782,7 +2783,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_string_double_double_quotes() {
         // "xyz" => "xyz"
         assert_eq!(double_quoted(r#""xyz""#), Ok(("", r#"xyz"#)));

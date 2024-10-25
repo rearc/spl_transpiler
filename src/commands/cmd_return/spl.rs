@@ -77,6 +77,7 @@ impl SplCommand<ReturnCommand> for ReturnParser {
 mod tests {
     use super::*;
     use crate::spl::utils::test::*;
+    use rstest::rstest;
 
     //
     //   test("return 10 $test $env") {
@@ -88,7 +89,7 @@ mod tests {
     //       )
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_return_1() {
         assert_eq!(
             ReturnParser::parse(r#"return 10 $test $env"#),
@@ -117,7 +118,7 @@ mod tests {
     //       )
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_return_2() {
         assert_eq!(
             ReturnParser::parse(r#"return 10 ip src host port"#),
@@ -146,7 +147,7 @@ mod tests {
     //       )
     //     ))
     //   }
-    #[test]
+    #[rstest]
     fn test_return_3() {
         assert_eq!(
             ReturnParser::parse(r#"return 10 ip=src host=port"#),

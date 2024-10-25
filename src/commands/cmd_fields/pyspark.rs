@@ -8,7 +8,7 @@ impl PipelineTransformer for FieldsCommand {
         &self,
         state: PipelineTransformState,
     ) -> anyhow::Result<PipelineTransformState> {
-        let mut df = state.df;
+        let mut df = state.df.clone().unwrap_or_default();
 
         let cols: Vec<_> = self
             .fields
@@ -18,6 +18,6 @@ impl PipelineTransformer for FieldsCommand {
 
         df = df.select(cols);
 
-        Ok(PipelineTransformState { df })
+        Ok(state.with_df(df))
     }
 }
