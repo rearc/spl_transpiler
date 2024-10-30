@@ -1,5 +1,6 @@
 use super::spl::*;
 use crate::pyspark::ast::*;
+use crate::pyspark::base::{PysparkTranspileContext, ToSparkExpr};
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use crate::spl::ast;
 use anyhow::{bail, ensure, Result};
@@ -16,6 +17,7 @@ fn split_conditions(
     expr: &ast::Expr,
     all_ands: bool,
     indices: &mut HashSet<String>,
+    ctx: &PysparkTranspileContext,
 ) -> Result<Option<ast::Expr>> {
     match expr.clone() {
         // index=lol should result in Source("lol")
@@ -30,7 +32,7 @@ fn split_conditions(
                 (true, "=", false) | (false, "=", true) => {
                     ensure!(all_ands, "Cannot specify an index under an OR branch");
                     let compare_value = if left_is_index { *right } else { *left };
-                    indices.insert(compare_value.try_into()?);
+                    indices.insert(compare_value.with_context(ctx).try_into()?);
                     Ok(None)
                 }
                 (true, _, true) | (true, _, _) | (_, _, true) => {
@@ -38,8 +40,10 @@ fn split_conditions(
                 }
                 (false, op, false) => {
                     let still_all_and = all_ands && op == "AND";
-                    let converted_left = split_conditions(left.as_ref(), still_all_and, indices)?;
-                    let converted_right = split_conditions(right.as_ref(), still_all_and, indices)?;
+                    let converted_left =
+                        split_conditions(left.as_ref(), still_all_and, indices, ctx)?;
+                    let converted_right =
+                        split_conditions(right.as_ref(), still_all_and, indices, ctx)?;
                     match (converted_left, op, converted_right) {
                         (None, _, None) => Ok(None),
                         (Some(left), "AND", None) | (Some(left), "OR", None) => Ok(Some(left)),
@@ -97,10 +101,13 @@ impl PipelineTransformer for SearchCommand {
                             name,
                         )))),
                         "=" | "==",
-                    ) => kwargs.push((name.to_string(), Expr::try_from(*right)?.into())),
-                    _ => args.push(Expr::try_from(expr)?.into()),
+                    ) => kwargs.push((
+                        name.to_string(),
+                        (*right).with_context(&state.ctx).try_into()?,
+                    )),
+                    _ => args.push(expr.with_context(&state.ctx).try_into()?),
                 },
-                _ => args.push(Expr::try_from(expr)?.into()),
+                _ => args.push(expr.with_context(&state.ctx).try_into()?),
             }
         }
 
@@ -114,7 +121,7 @@ impl PipelineTransformer for SearchCommand {
         state: PipelineTransformState,
     ) -> Result<PipelineTransformState> {
         let mut indices = HashSet::new();
-        let condition_expr = split_conditions(&self.expr, true, &mut indices)?;
+        let condition_expr = split_conditions(&self.expr, true, &mut indices, &state.ctx)?;
         let mut df = if !indices.is_empty() {
             let mut _df: Option<DataFrame> = None;
             for new_index in indices.into_iter() {
@@ -132,7 +139,7 @@ impl PipelineTransformer for SearchCommand {
         df = match condition_expr {
             None => df,
             Some(condition) => {
-                let condition: Expr = condition.try_into()?;
+                let condition: Expr = condition.with_context(&state.ctx).try_into()?;
                 df.where_(condition.into_search_expr())
             }
         };
@@ -151,11 +158,14 @@ mod tests {
         expr: impl Into<ast::Expr>,
         mut expected_indices: Vec<String>,
         expected_condition: Option<Expr>,
+        ctx: &PysparkTranspileContext,
     ) {
         let mut indices = HashSet::new();
         let expr = expr.into();
-        let condition: Option<ast::Expr> = split_conditions(&expr, true, &mut indices).unwrap();
-        let converted_condition: Option<Expr> = condition.map(|e| e.try_into().unwrap());
+        let condition: Option<ast::Expr> =
+            split_conditions(&expr, true, &mut indices, ctx).unwrap();
+        let converted_condition: Option<Expr> =
+            condition.map(|e| e.with_context(ctx).try_into().unwrap());
         let mut indices: Vec<_> = indices.into_iter().collect();
         indices.sort();
         expected_indices.sort();
@@ -164,25 +174,33 @@ mod tests {
     }
 
     #[rstest]
-    fn test_split_conditions_simple_index() {
+    fn test_split_conditions_simple_index(
+        #[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext,
+    ) {
         check_split_results(
             ast::Binary::new(ast::Field::from("index"), "=", ast::Field::from("lol")),
             vec!["lol".into()],
             None,
+            &ctx,
         );
     }
 
     #[rstest]
-    fn test_split_conditions_no_index() {
+    fn test_split_conditions_no_index(
+        #[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext,
+    ) {
         check_split_results(
             ast::Binary::new(ast::Field::from("x"), "=", ast::IntValue::from(2)),
             Vec::<String>::new(),
             Some(column_like!([col("x")] == [lit(2)]).into()),
+            &ctx,
         );
     }
 
     #[rstest]
-    fn test_split_conditions_combined_index() {
+    fn test_split_conditions_combined_index(
+        #[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext,
+    ) {
         check_split_results(
             ast::Binary::new(
                 ast::Binary::new(ast::Field::from("x"), "=", ast::IntValue::from(2)),
@@ -191,11 +209,14 @@ mod tests {
             ),
             vec!["lol".into()],
             Some(column_like!([col("x")] == [lit(2)]).into()),
+            &ctx,
         );
     }
 
     #[rstest]
-    fn test_multi_index_conditions() {
+    fn test_multi_index_conditions(
+        #[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext,
+    ) {
         check_split_results(
             ast::Binary::new(
                 ast::Binary::new(
@@ -212,6 +233,7 @@ mod tests {
             ),
             vec!["lol".into(), "two".into()],
             Some(column_like!([[col("x")] == [lit(2)]] & [[col("y")] > [lit(3)]]).into()),
+            &ctx,
         );
     }
 
@@ -242,7 +264,20 @@ mod tests {
         generates_runtime(
             query,
             r#"
-df_1 = commands.search(None, (F.length(F.col("x")) == F.lit(3)), index=F.lit("lol"), sourcetype=F.lit("src1"))
+df_1 = commands.search(None, (functions.eval.len(F.col("x")) == F.lit(3)), index=F.lit("lol"), sourcetype=F.lit("src1"))
+df_1
+            "#,
+        )
+    }
+
+    #[rstest]
+    fn test_search_10() {
+        let query = r#"sourcetype="cisco""#;
+
+        generates_runtime(
+            query,
+            r#"
+df_1 = commands.search(None, sourcetype=F.lit("cisco"))
 df_1
             "#,
         )

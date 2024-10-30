@@ -6,12 +6,13 @@ pub mod stat_fns;
 use crate::pyspark::alias::Aliasable;
 use crate::spl::ast;
 use anyhow::{bail, Result};
+use std::ops::Deref;
 
-impl TryFrom<ast::Expr> for i64 {
+impl TryFrom<ContextualizedExpr<ast::Expr>> for i64 {
     type Error = anyhow::Error;
 
-    fn try_from(value: ast::Expr) -> std::result::Result<i64, Self::Error> {
-        match value {
+    fn try_from(value: ContextualizedExpr<ast::Expr>) -> std::result::Result<i64, Self::Error> {
+        match *value {
             ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Int(ast::IntValue(val)))) => {
                 Ok(val)
             }
@@ -20,10 +21,10 @@ impl TryFrom<ast::Expr> for i64 {
     }
 }
 
-impl TryFrom<ast::Expr> for f64 {
+impl TryFrom<ContextualizedExpr<ast::Expr>> for f64 {
     type Error = anyhow::Error;
-    fn try_from(value: ast::Expr) -> std::result::Result<f64, Self::Error> {
-        match value {
+    fn try_from(value: ContextualizedExpr<ast::Expr>) -> std::result::Result<f64, Self::Error> {
+        match *value {
             ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Double(ast::DoubleValue(
                 val,
             )))) => Ok(val),
@@ -32,12 +33,12 @@ impl TryFrom<ast::Expr> for f64 {
     }
 }
 
-impl TryFrom<ast::Expr> for String {
+impl TryFrom<ContextualizedExpr<ast::Expr>> for String {
     type Error = anyhow::Error;
 
-    fn try_from(value: ast::Expr) -> std::result::Result<String, Self::Error> {
-        match value {
-            ast::Expr::Leaf(ast::LeafExpr::Constant(const_)) => match const_ {
+    fn try_from(value: ContextualizedExpr<ast::Expr>) -> std::result::Result<String, Self::Error> {
+        match value.deref() {
+            ast::Expr::Leaf(ast::LeafExpr::Constant(ref const_)) => match const_ {
                 ast::Constant::Null(_) => {
                     bail!("No default conversion from {:?} to String", const_)
                 }
@@ -60,26 +61,24 @@ impl TryFrom<ast::Expr> for String {
                 ast::Constant::Variable(ast::Variable(val)) => Ok(val.clone()),
                 ast::Constant::IPv4CIDR(ast::IPv4CIDR(val)) => Ok(val.clone()),
             },
-            _ => bail!("Unsupported mvindex start argument: {:?}", value),
+            v => bail!("Unsupported mvindex start argument: {:?}", v),
         }
     }
 }
 
-fn map_arg<E, T>(arg: &ast::Expr) -> Result<T>
+fn map_arg<E, T>(arg: &ContextualizedExpr<ast::Expr>) -> Result<T>
 where
     E: Into<anyhow::Error>,
-    T: TryFrom<ast::Expr, Error = E> + Aliasable,
+    T: TryFrom<ContextualizedExpr<ast::Expr>, Error = E> + Aliasable,
 {
-    arg.clone()
-        .try_into()
-        .map(|e: T| e.unaliased())
-        .map_err(|e: E| e.into())
+    let val: T = arg.clone().try_into().map_err(Into::into)?;
+    Ok(val.unaliased())
 }
 
-fn map_args<E, T>(args: Vec<ast::Expr>) -> Result<Vec<T>>
+fn map_args<E, T>(args: Vec<ContextualizedExpr<ast::Expr>>) -> Result<Vec<T>>
 where
     E: Into<anyhow::Error>,
-    T: TryFrom<ast::Expr, Error = E> + Aliasable,
+    T: TryFrom<ContextualizedExpr<ast::Expr>, Error = E> + Aliasable,
 {
     args.iter().map(|arg| map_arg(arg)).collect()
 }
@@ -137,5 +136,6 @@ macro_rules! function_transform {
     };
 }
 
+use crate::pyspark::base::ContextualizedExpr;
 pub(crate) use _function_args;
 pub(crate) use function_transform;

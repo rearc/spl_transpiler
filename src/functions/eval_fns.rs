@@ -3,12 +3,16 @@ use crate::functions::*;
 use crate::pyspark::alias::Aliasable;
 use crate::pyspark::ast::column_like;
 use crate::pyspark::ast::*;
+use crate::pyspark::base::{
+    ContextualizedExpr, PysparkTranspileContext, RuntimeSelection, ToSparkExpr,
+};
 use crate::pyspark::transpiler::utils::convert_time_format;
 use crate::spl::ast;
 use crate::spl::ast::TimeSpan;
 use anyhow::{bail, ensure, Result};
 use log::warn;
 use std::any::type_name;
+use std::ops::Deref;
 /*
 https://docs.splunk.com/Documentation/SplunkCloud/9.2.2406/SearchReference/CommonEvalFunctions#Function_list_by_category
 Type of function
@@ -167,9 +171,34 @@ fn round_time(time_col: impl Into<Expr>, scale: String) -> Result<ColumnLike> {
     Ok(column_like!(date_trunc([py_lit(round_to)], [time_col])))
 }
 
-pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
+pub fn eval_fn(call: ast::Call, ctx: &PysparkTranspileContext) -> Result<ColumnLike> {
     let ast::Call { name, args } = call;
+    let args: Vec<_> = args.into_iter().map(|arg| arg.with_context(ctx)).collect();
 
+    match ctx.runtime {
+        RuntimeSelection::NoRuntime => eval_fn_bare(name, args),
+        RuntimeSelection::RequireRuntime => eval_fn_runtime(name, args),
+        RuntimeSelection::AllowRuntime => {
+            eval_fn_runtime(name.clone(), args.clone()).or_else(|_| eval_fn_bare(name, args))
+        }
+    }
+}
+
+fn eval_fn_runtime(name: String, args: Vec<ContextualizedExpr<ast::Expr>>) -> Result<ColumnLike> {
+    match name.as_str() {
+        name => {
+            // warn!(
+            //     "Unknown eval function encountered, returning as is: {}",
+            //     name
+            // );
+            let func = format!("functions.eval.{}", name);
+            let args: Result<Vec<Expr>> = map_args(args);
+            Ok(ColumnLike::FunctionCall { func, args: args? })
+        }
+    }
+}
+
+fn eval_fn_bare(name: String, args: Vec<ContextualizedExpr<ast::Expr>>) -> Result<ColumnLike> {
     match name.as_str() {
         // Convert functions (not sure this is actually valid, but it's in the original transpiler...)
         "memk" => function_transform!(memk [args] (c) { memk(c) }),
@@ -305,7 +334,7 @@ pub fn eval_fn(call: ast::Call) -> Result<ColumnLike> {
         "now" => function_transform!(now [args] () { column_like!(current_timestamp()) }),
         // relative_time(<time>,<specifier>)                   	 Adjusts the time by a relative time specifier.
         "relative_time" => function_transform!(now [args ...] (time) {
-            let relative_time_spec = match args.get(1) {
+            let relative_time_spec = match args.get(1).map(Deref::deref) {
                 Some(ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::SnapTime(snap_time)))) => snap_time,
                 Some(v) => bail!("`relative_time` function requires a second argument of type SnapTime, got {:?}", v),
                 None => bail!("`relative_time` function requires a second argument"),
@@ -657,11 +686,16 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-    fn test_simple_function_max() {
-        let result = eval_fn(ast::Call {
-            name: "max".to_string(),
-            args: vec![ast::Field::from("a").into(), ast::Field::from("b").into()],
-        });
+    fn test_simple_function_max(
+        #[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext,
+    ) {
+        let result = eval_fn(
+            ast::Call {
+                name: "max".to_string(),
+                args: vec![ast::Field::from("a").into(), ast::Field::from("b").into()],
+            },
+            &ctx,
+        );
         assert_eq!(
             result.unwrap(),
             column_like!([greatest([col("a")], [col("b")])].alias("max"))
@@ -669,20 +703,27 @@ mod tests {
     }
 
     #[rstest]
-    fn test_graceful_failure_for_missing_args() {
-        let result = eval_fn(ast::Call {
-            name: "sin".to_string(),
-            args: vec![],
-        });
+    fn test_graceful_failure_for_missing_args(
+        #[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext,
+    ) {
+        let result = eval_fn(
+            ast::Call {
+                name: "sin".to_string(),
+                args: vec![],
+            },
+            &ctx,
+        );
         assert!(result.is_err());
     }
 
     #[rstest]
-    fn test_mvindex_split() {
+    fn test_mvindex_split(
+        #[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext,
+    ) {
         let (_, ast) =
             crate::spl::parser::call(r#"mvindex(split(mvindex(BoundaryRanges, -1), ":"), 0)"#)
                 .unwrap();
-        let result = eval_fn(ast);
+        let result = eval_fn(ast, &ctx);
         assert_eq!(
             result.unwrap().unaliased(),
             column_like!(get(
@@ -698,7 +739,7 @@ mod tests {
     #[rstest]
     fn test_mvzip_1(#[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext) {
         let (_, ast) = crate::spl::parser::call(r#"mvzip(x,y)"#).unwrap();
-        let result = eval_fn(ast);
+        let result = eval_fn(ast, &ctx);
         assert_python_code_eq(
             result.unwrap().unaliased().to_spark_query(&ctx).unwrap(),
             "F.zip_with(F.col('x'), F.col('y'), lambda left_, right_: F.concat_ws(r',', left_, right_))",
@@ -709,7 +750,7 @@ mod tests {
     #[rstest]
     fn test_mvzip_2(#[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext) {
         let (_, ast) = crate::spl::parser::call(r#"mvzip(x,y,"_")"#).unwrap();
-        let result = eval_fn(ast);
+        let result = eval_fn(ast, &ctx);
         assert_python_code_eq(
             result.unwrap().unaliased().to_spark_query(&ctx).unwrap(),
             "F.zip_with(F.col('x'), F.col('y'), lambda left_, right_: F.concat_ws(r'_', left_, right_))",
@@ -722,7 +763,7 @@ mod tests {
         #[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext,
     ) {
         let (_, ast) = crate::spl::parser::call(r#"relative_time(now(), "-70m@m")"#).unwrap();
-        let result = eval_fn(ast);
+        let result = eval_fn(ast, &ctx);
         assert_python_code_eq(
             result.unwrap().unaliased().to_spark_query(&ctx).unwrap(),
             r#"F.date_trunc(

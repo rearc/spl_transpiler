@@ -119,23 +119,25 @@ impl TransformedPipeline {
 mod tests {
     use super::*;
     use crate::pyspark::ast::column_like;
+    use crate::pyspark::base::ToSparkExpr;
     use rstest::rstest;
 
     #[rstest]
-    fn test_field() {
+    fn test_field(#[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext) {
         assert_eq!(
             // Expr::Column(ColumnLike::Named { name: "x".to_string() }),
             Expr::Column(column_like!(col("x"))),
             ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(
                 ast::Field::from("x")
             )))
+            .with_context(&ctx)
             .try_into()
             .unwrap(),
         )
     }
 
     #[rstest]
-    fn test_binary_op() {
+    fn test_binary_op(#[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext) {
         assert_eq!(
             Expr::Column(ColumnLike::binary_op(
                 Expr::Column(ColumnLike::named("x")),
@@ -151,13 +153,14 @@ mod tests {
                     ast::Field::from("y")
                 ))),
             ))
+            .with_context(&ctx)
             .try_into()
             .unwrap(),
         )
     }
 
     #[rstest]
-    fn test_field_in_0() {
+    fn test_field_in_0(#[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext) {
         assert_eq!(
             Expr::Column(ColumnLike::Literal {
                 code: "True".to_string()
@@ -166,39 +169,46 @@ mod tests {
                 field: "junk".to_string(),
                 exprs: vec![]
             })
+            .with_context(&ctx)
             .try_into()
             .unwrap()
         );
     }
 
     #[rstest]
-    fn test_field_in_1_wildcard() {
+    fn test_field_in_1_wildcard(
+        #[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext,
+    ) {
         assert_eq!(
             Expr::Column(column_like!([col("c")].like([py_lit("abc%")]))),
             ast::Expr::FieldIn(ast::FieldIn {
                 field: "c".to_string(),
                 exprs: vec![ast::Wildcard::from("abc*").into()]
             })
+            .with_context(&ctx)
             .try_into()
             .unwrap()
         );
     }
 
     #[rstest]
-    fn test_field_in_1_exact() {
+    fn test_field_in_1_exact(
+        #[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext,
+    ) {
         assert_eq!(
             Expr::Column(column_like!([col("c")] == [py_lit("abc")])),
             ast::Expr::FieldIn(ast::FieldIn {
                 field: "c".to_string(),
                 exprs: vec![ast::StrValue::from("abc").into()]
             })
+            .with_context(&ctx)
             .try_into()
             .unwrap()
         );
     }
 
     #[rstest]
-    fn test_field_in_2() {
+    fn test_field_in_2(#[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext) {
         assert_eq!(
             Expr::Column(column_like!(
                 [[col("c")] == [py_lit("abc")]] | [[col("c")].like([py_lit("abc%")])]
@@ -210,13 +220,14 @@ mod tests {
                     ast::Wildcard::from("abc*").into(),
                 ]
             })
+            .with_context(&ctx)
             .try_into()
             .unwrap()
         );
     }
 
     #[rstest]
-    fn test_field_in_3() {
+    fn test_field_in_3(#[from(crate::pyspark::base::test::ctx_bare)] ctx: PysparkTranspileContext) {
         assert_eq!(
             Expr::Column(column_like!(
                 [[[col("c")] == [py_lit("abc")]] | [[col("c")].like([py_lit("abc%")])]]
@@ -230,6 +241,7 @@ mod tests {
                     ast::StrValue::from("xyz").into(),
                 ]
             })
+            .with_context(&ctx)
             .try_into()
             .unwrap()
         );

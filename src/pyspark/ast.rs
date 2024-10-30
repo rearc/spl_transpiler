@@ -1,8 +1,9 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
-// use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::pyspark::alias::Aliasable;
-use crate::pyspark::base::{PysparkTranspileContext, PythonCode, ToSparkQuery};
+use crate::pyspark::base::{
+    ContextualizedExpr, PysparkTranspileContext, PythonCode, ToSparkExpr, ToSparkQuery,
+};
 use anyhow::{ensure, Result};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Debug, PartialEq, Clone, Hash)]
 // #[pyclass(frozen,eq,hash)]
@@ -492,6 +493,14 @@ impl From<DataFrame> for RuntimeExpr {
 impl<E: Into<Expr>> From<E> for RuntimeExpr {
     fn from(val: E) -> Self {
         RuntimeExpr::Expr(val.into())
+    }
+}
+
+impl<E: ToSparkExpr> TryFrom<ContextualizedExpr<E>> for RuntimeExpr {
+    type Error = anyhow::Error;
+    fn try_from(val: ContextualizedExpr<E>) -> Result<Self, Self::Error> {
+        let expr: Expr = val.try_into()?;
+        Ok(expr.into())
     }
 }
 

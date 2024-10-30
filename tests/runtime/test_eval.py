@@ -22,7 +22,7 @@ def test_transpiled_eval():
         format_code=True,
     )
     expected_code = r"""
-    df_1 = commands.eval(None, raw_len=F.length(F.col("raw")))
+    df_1 = commands.eval(None, raw_len=functions.eval.len(F.col("raw")))
     df_1
     """
     assert_python_code_equals(transpiled_code, expected_code)

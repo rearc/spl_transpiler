@@ -19,7 +19,7 @@ impl PipelineTransformer for StatsCommand {
                 matches!(e, ast::Expr::Call(_)),
                 "All `stats` aggregations must be function calls"
             );
-            let (df_, expr) = stats_fn(e, df)?;
+            let (df_, expr) = stats_fn(e, df, &state.ctx)?;
             df = df_;
             aggs.push(expr.maybe_with_alias(maybe_name));
         }

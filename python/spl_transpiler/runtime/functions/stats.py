@@ -479,7 +479,7 @@ class EarliestStatsFn(StatsFunction):
 
     def to_pyspark_expr(self, df: DataFrame):
         df = df.orderBy(F.col("_time").asc())
-        return F.first(self.value.to_pyspark_expr(), ignorenulls=True)
+        return (df, F.first(self.value.to_pyspark_expr(), ignorenulls=True))
 
 
 @enforce_types
@@ -518,7 +518,7 @@ class LatestStatsFn(StatsFunction):
 
     def to_pyspark_expr(self, df: DataFrame):
         df = df.orderBy(F.col("_time").asc())
-        return F.last(self.value.to_pyspark_expr(), ignorenulls=True)
+        return (df, F.last(self.value.to_pyspark_expr(), ignorenulls=True))
 
 
 @enforce_types
@@ -556,11 +556,8 @@ class PerDayStatsFn(StatsFunction):
     value: Expr
 
     def to_pyspark_expr_simple(self):
-        return F.collect_list(
-            F.struct(
-                F.date_trunc("day", F.col("_time")).alias("time"),
-                self.value.to_pyspark_expr().alias("value"),
-            )
+        raise NotImplementedError(
+            f"No implementation yet for stats function `{self.name}`"
         )
 
 
@@ -581,11 +578,8 @@ class PerHourStatsFn(StatsFunction):
     value: Expr
 
     def to_pyspark_expr_simple(self):
-        return F.collect_list(
-            F.struct(
-                F.date_trunc("hour", F.col("_time")).alias("time"),
-                self.value.to_pyspark_expr().alias("value"),
-            )
+        raise NotImplementedError(
+            f"No implementation yet for stats function `{self.name}`"
         )
 
 
@@ -606,11 +600,8 @@ class PerMinuteStatsFn(StatsFunction):
     value: Expr
 
     def to_pyspark_expr_simple(self):
-        return F.collect_list(
-            F.struct(
-                F.date_trunc("minute", F.col("_time")).alias("time"),
-                self.value.to_pyspark_expr().alias("value"),
-            )
+        raise NotImplementedError(
+            f"No implementation yet for stats function `{self.name}`"
         )
 
 
@@ -631,11 +622,8 @@ class PerSecondStatsFn(StatsFunction):
     value: Expr
 
     def to_pyspark_expr_simple(self):
-        return F.collect_list(
-            F.struct(
-                F.date_trunc("second", F.col("_time")).alias("time"),
-                self.value.to_pyspark_expr().alias("value"),
-            )
+        raise NotImplementedError(
+            f"No implementation yet for stats function `{self.name}`"
         )
 
 

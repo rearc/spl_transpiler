@@ -1,8 +1,9 @@
-use std::fmt::Display;
+use crate::pyspark::ast::Expr;
+use anyhow::Result;
+use std::fmt::{Debug, Display};
+use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::atomic::AtomicUsize;
-// use crate::format_python::format_python_code;
-use anyhow::Result;
 
 #[derive(Debug, Clone)]
 pub enum RuntimeSelection {
@@ -76,6 +77,43 @@ impl Display for PythonCode {
 
 pub trait ToSparkQuery {
     fn to_spark_query(&self, ctx: &PysparkTranspileContext) -> Result<PythonCode>;
+}
+
+pub trait ToSparkExpr: Sized + Debug + Clone {
+    fn to_spark_expr(&self, ctx: &PysparkTranspileContext) -> Result<Expr>;
+
+    fn with_context(self, ctx: &PysparkTranspileContext) -> ContextualizedExpr<Self> {
+        ContextualizedExpr {
+            ctx: ctx.clone(),
+            val: self,
+        }
+    }
+
+    // fn with_default_context(self) -> ContextualizedExpr<Self> {
+    //
+    // }
+}
+
+#[derive(Debug, Clone)]
+pub struct ContextualizedExpr<T: ToSparkExpr> {
+    ctx: PysparkTranspileContext,
+    val: T,
+}
+
+impl<T: ToSparkExpr> Deref for ContextualizedExpr<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.val
+    }
+}
+
+impl<T: ToSparkExpr> TryFrom<ContextualizedExpr<T>> for Expr {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ContextualizedExpr<T>) -> std::result::Result<Self, Self::Error> {
+        value.val.to_spark_expr(&value.ctx)
+    }
 }
 
 #[cfg(test)]

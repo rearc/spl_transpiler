@@ -3,10 +3,10 @@ from spl_transpiler import convert_spl_to_pyspark
 from utils import assert_python_code_equals
 
 
-def test_basic_data_model(sample_data_1):
+def test_basic_data_model(sample_data_2):
     df = commands.data_model("Model")
     model_results = df.collect()
-    known_results = sample_data_1.collect()
+    known_results = sample_data_2.collect()
     assert model_results == known_results
 
 

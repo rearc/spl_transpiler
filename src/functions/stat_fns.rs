@@ -48,6 +48,7 @@ rate_sum(<value>)                    	 Returns the summed rates for the time ser
 use crate::functions::*;
 use crate::pyspark::ast::ColumnLike;
 use crate::pyspark::ast::*;
+use crate::pyspark::base::{PysparkTranspileContext, RuntimeSelection, ToSparkExpr};
 use crate::spl::ast;
 use anyhow::{bail, ensure, Result};
 use log::warn;
@@ -63,14 +64,52 @@ fn _as_call_and_alias(expr: &ast::Expr) -> Result<(ast::Call, Option<String>)> {
     }
 }
 
-pub fn stats_fn(expr: ast::Expr, mut df: DataFrame) -> Result<(DataFrame, ColumnLike)> {
+pub fn stats_fn(
+    expr: ast::Expr,
+    df: DataFrame,
+    ctx: &PysparkTranspileContext,
+) -> Result<(DataFrame, ColumnLike)> {
     let (expr, maybe_alias) = expr.unaliased_with_name();
     let (name, args) = match expr {
         ast::Expr::Call(ast::Call { name, args }) => (name, args),
         _ => bail!("Expected a stats function call, got {:?}", expr),
     };
+    let args: Vec<_> = args.into_iter().map(|arg| arg.with_context(ctx)).collect();
 
-    let expr: Result<ColumnLike> = match name.as_str() {
+    let (df, expr) = match ctx.runtime {
+        RuntimeSelection::NoRuntime => stats_fn_bare(name, args, df),
+        RuntimeSelection::RequireRuntime => stats_fn_runtime(name, args, df),
+        RuntimeSelection::AllowRuntime => stats_fn_runtime(name.clone(), args.clone(), df.clone())
+            .or_else(|_| stats_fn_bare(name, args, df)),
+    }?;
+
+    Ok((df, expr.maybe_with_alias(maybe_alias)))
+}
+
+fn stats_fn_runtime(
+    name: String,
+    args: Vec<ContextualizedExpr<ast::Expr>>,
+    df: DataFrame,
+) -> Result<(DataFrame, ColumnLike)> {
+    match name.as_str() {
+        name => {
+            // warn!(
+            //     "Unknown eval function encountered, returning as is: {}",
+            //     name
+            // );
+            let func = format!("functions.stats.{}", name);
+            let args: Result<Vec<Expr>> = map_args(args);
+            Ok((df, ColumnLike::FunctionCall { func, args: args? }))
+        }
+    }
+}
+
+fn stats_fn_bare(
+    name: String,
+    args: Vec<ContextualizedExpr<ast::Expr>>,
+    mut df: DataFrame,
+) -> Result<(DataFrame, ColumnLike)> {
+    let expr: ColumnLike = match name.as_str() {
         // avg(<value>)                         	 Returns the average of the values in the field specified.
         "avg" => function_transform!(avg [args] (x) { column_like!(avg([x])) }),
         // count(<value>)                       	 Returns the number of occurrences where the field that you specify contains any value (is not empty). You can also count the occurrences of a specific value in the field by using the eval command with the count function. For example: count( eval(field_name="value")).
@@ -224,7 +263,7 @@ pub fn stats_fn(expr: ast::Expr, mut df: DataFrame) -> Result<(DataFrame, Column
                 name
             );
             let args: Vec<Expr> = map_args(args)?;
-            Ok(ColumnLike::Aliased {
+            anyhow::Ok(ColumnLike::Aliased {
                 name: name.into(),
                 col: Box::new(
                     ColumnLike::FunctionCall {
@@ -235,7 +274,7 @@ pub fn stats_fn(expr: ast::Expr, mut df: DataFrame) -> Result<(DataFrame, Column
                 ),
             })
         }
-    };
+    }?;
 
-    Ok((df, expr?.maybe_with_alias(maybe_alias)))
+    Ok((df, expr))
 }

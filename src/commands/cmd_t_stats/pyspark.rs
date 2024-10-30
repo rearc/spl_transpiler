@@ -4,6 +4,7 @@ use crate::functions::stat_fns::stats_fn;
 use crate::pyspark::alias::Aliasable;
 use crate::pyspark::ast::ColumnLike::FunctionCall;
 use crate::pyspark::ast::*;
+use crate::pyspark::base::{PysparkTranspileContext, ToSparkExpr};
 use crate::pyspark::transpiler::{PipelineTransformState, PipelineTransformer};
 use crate::spl::ast;
 use anyhow::Result;
@@ -26,17 +27,24 @@ fn transform_by_field(f: MaybeSpannedField) -> ColumnOrName {
     }
 }
 
-fn transform_stats_expr(df: DataFrame, expr: &ast::Expr) -> Result<(DataFrame, ColumnLike)> {
+fn transform_stats_expr(
+    df: DataFrame,
+    expr: &ast::Expr,
+    ctx: &PysparkTranspileContext,
+) -> Result<(DataFrame, ColumnLike)> {
     let (e, maybe_name) = expr.clone().unaliased_with_name();
     ensure!(
         matches!(e, ast::Expr::Call(_)),
         "All `stats` aggregations must be function calls"
     );
-    let (df_, e) = stats_fn(e, df)?;
+    let (df_, e) = stats_fn(e, df, ctx)?;
     Ok((df_, e.maybe_with_alias(maybe_name)))
 }
 
-fn transform_stats_runtime_expr(expr: &ast::Expr) -> Result<(String, RuntimeExpr)> {
+fn transform_stats_runtime_expr(
+    expr: &ast::Expr,
+    ctx: &PysparkTranspileContext,
+) -> Result<(String, RuntimeExpr)> {
     let (e, maybe_name) = expr.clone().unaliased_with_name();
     let (name, args) = match e {
         ast::Expr::Call(ast::Call { name, args }) => (name.to_string(), args),
@@ -46,7 +54,10 @@ fn transform_stats_runtime_expr(expr: &ast::Expr) -> Result<(String, RuntimeExpr
         ),
     };
     let alias = maybe_name.unwrap_or(name.clone());
-    let args: Result<Vec<Expr>> = args.into_iter().map(TryInto::try_into).collect();
+    let args: Result<Vec<Expr>> = args
+        .into_iter()
+        .map(|e| e.with_context(ctx).try_into())
+        .collect();
     let expr: Expr = FunctionCall {
         func: format!("functions.stats.{}", name).to_string(),
         args: args?,
@@ -76,11 +87,11 @@ impl PipelineTransformer for TStatsCommand {
         //     "include_reduced_buckets",
         //     PyLiteral::from(self.include_reduced_buckets),
         // );
-        ensure!(self.prestats, "`tstats` only supports `prestats`=false");
-        ensure!(self.local, "`tstats` only supports `local`=false");
-        ensure!(self.append, "`tstats` only supports `append`=false");
+        ensure!(!self.prestats, "`tstats` only supports `prestats`=false");
+        ensure!(!self.local, "`tstats` only supports `local`=false");
+        ensure!(!self.append, "`tstats` only supports `append`=false");
         ensure!(
-            self.include_reduced_buckets,
+            !self.include_reduced_buckets,
             "`tstats` only supports `include_reduced_buckets`=false"
         );
 
@@ -104,7 +115,10 @@ impl PipelineTransformer for TStatsCommand {
 
         // Where statement
         if let Some(where_condition) = &self.where_condition {
-            let where_condition: Expr = where_condition.clone().try_into()?;
+            let where_condition: Expr = where_condition
+                .clone()
+                .with_context(&state.ctx)
+                .try_into()?;
             all_kwargs.push("where", where_condition);
         }
 
@@ -120,7 +134,7 @@ impl PipelineTransformer for TStatsCommand {
         }
 
         for e in self.exprs.iter() {
-            let (name, e) = transform_stats_runtime_expr(e)?;
+            let (name, e) = transform_stats_runtime_expr(e, &state.ctx)?;
             all_kwargs.push(name, e);
         }
 
@@ -171,13 +185,13 @@ impl PipelineTransformer for TStatsCommand {
         let mut df = state.df.clone().unwrap_or_default();
 
         if let Some(where_condition) = self.where_condition.clone() {
-            let condition: Expr = where_condition.try_into()?;
+            let condition: Expr = where_condition.with_context(&state.ctx).try_into()?;
             df = df.where_(condition);
         }
 
         let mut aggs: Vec<ColumnLike> = vec![];
         for e in self.exprs.iter() {
-            let (df_, e) = transform_stats_expr(df, e)?;
+            let (df_, e) = transform_stats_expr(df, e, &state.ctx)?;
             df = df_;
             aggs.push(e);
         }
@@ -368,6 +382,7 @@ mod tests {
             query,
             r#"
 df_1 = commands.tstats(
+    None,
     from_={"datamodel": "Endpoint.Processes", "nodename": None},
     fill_null_value="null",
     where=(

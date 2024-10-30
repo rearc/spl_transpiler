@@ -46,6 +46,67 @@ This provides an in-terminal user interface ([using `textual`](https://github.co
 type an SPL query and see the converted Pyspark code in real time, alongside a visual representation of how the
 transpiler is understanding your query.
 
+## Runtime
+
+The Runtime is a library provided (currently) as part of the SPL Transpiler which can provide more robust implementation
+as well as an SPL-like authoring experience when writing PySpark code directly.
+
+For example, the following code snippets are equivalent:
+
+In SPL (which can be transpiled and run on Spark):
+
+```
+... | where x=5 | ...
+```
+
+In PySpark:
+
+```python
+...
+df = df.where(F.col("x") == 5)
+...
+```
+
+In the SPL Runtime:
+
+```python
+...
+df = commands.where(df, x=5)
+...
+```
+
+For more complicated SPL commands, like `tstats`, these runtime functions provide a compact way of writing PySpark code
+with an SPL-like interface.
+
+This runtime is a collection of helper functions on top of PySpark, and can be intermingled with other PySpark code.
+This means you can leverage an SPL-like experience where convenient while still using regular PySpark code where
+convenient.
+
+In addition to these helper functions, the runtime also provides UDFs (user-defined functions) to provide data
+processing functions that aren't natively available in Spark.
+For example, in `eval is_local=cidrmatch(...)`, the `cidrmatch` function has no direct equivalent in Spark.
+The runtime provides a UDF that can be used as follows, either directly:
+
+```python
+from spl_transpiler.runtime import udfs
+
+df = df.withColumn("is_local", udfs.cidr_match(...))
+```
+
+Or via the runtime:
+
+```python
+from spl_transpiler.runtime import commands, functions
+
+# functions.cidrmatch wraps udfs.cidr_match
+df = commands.eval(df, is_local=functions.cidrmatch(...))
+```
+
+The transpiler, by default, will not assume the presence of the runtime.
+You need to explicitly allow the runtime to enable these features:
+
+
+
 # Why?
 
 Why transpile SPL into Spark?
@@ -112,157 +173,160 @@ Support status can be one of the following:
   supported. _This library is still early in its development, and commands might get marked as `Complete` while still
   having unknown bugs or limitations._
 
-| Command               | Support | Target |
-|-----------------------|---------|--------|
-| **High Priority**     |         |        |
-| `bin` (`bucket`)      | Partial | Yes    |
-| `convert`             | Yes     | Yes    |
-| `dedup`               | Parser  | Yes    |
-| `eval`                | Partial | Yes    |
-| `eventstats`          | Partial | Yes    |
-| `fields`              | Yes     | Yes    |
-| `fillnull`            | Partial | Yes    |
-| `head`                | Partial | Yes    |
-| `inputlookup`         | Parser  | Yes    |
-| `iplocation`          | None    | Yes    |
-| `join`                | Partial | Yes    |
-| `lookup`              | Partial | Yes    |
-| `mstats`              | None    | Yes    |
-| `multisearch`         | Partial | Yes    |
-| `mvexpand`            | Parser  | Yes    |
-| `outputlookup`        | None    | Yes    |
-| `rare`                | Yes     | Yes    |
-| `regex`               | Yes     | Yes    |
-| `rename`              | Partial | Yes    |
-| `rex`                 | Partial | Yes    |
-| `search`              | Partial | Yes    |
-| `sort`                | Partial | Yes    |
-| `spath`               | Partial | Yes    |
-| `stats`               | Partial | Yes    |
-| `streamstats`         | Parser  | Yes    |
-| `table`               | Partial | Yes    |
-| `tail`                | Yes     | Yes    |
-| `top`                 | Yes     | Yes    |
-| `tstats`              | Partial | Yes    |
-| `where`               | Partial | Yes    |
-| **Planned/Supported** |         |        |
-| `addtotals`           | Partial | Yes    |
-| `anomalydetection`    | None    | Maybe  |
-| `append`              | None    | Maybe  |
-| `appendpipe`          | None    | Maybe  |
-| `chart`               | None    | Maybe  |
-| `collect`             | Parser  | Maybe  |
-| `extract` (`kv`)      | None    | Maybe  |
-| `foreach`             | None    | Yes    |
-| `format`              | Parser  | Yes    |
-| `from`                | None    | Yes    |
-| `makecontinuous`      | None    | Maybe  |
-| `makemv`              | None    | Maybe  |
-| `makeresults`         | Parser  | Yes    |
-| `map`                 | Parser  | Yes    |
-| `multikv`             | None    | Maybe  |
-| `replace`             | None    | Maybe  |
-| `return`              | Parser  | Yes    |
-| `transaction`         | None    | Yes    |
-| `xmlkv`               | None    | Yes    |
-| **Unsupported**       |         |        |
-| `abstract`            | None    |        |
-| `accum`               | None    |        |
-| `addcoltotals`        | None    |        |
-| `addinfo`             | None    |        |
-| `analyzefields`       | None    |        |
-| `anomalies`           | None    |        |
-| `anomalousvalue`      | None    |        |
-| `appendcols`          | None    |        |
-| `arules`              | None    |        |
-| `associate`           | None    |        |
-| `autoregress`         | None    |        |
-| `bucketdir`           | None    |        |
-| `cluster`             | None    |        |
-| `cofilter`            | None    |        |
-| `concurrency`         | None    |        |
-| `contingency`         | None    |        |
-| `correlate`           | None    |        |
-| `datamodel`           | None    |        |
-| `dbinspect`           | None    |        |
-| `delete`              | None    |        |
-| `delta`               | None    |        |
-| `diff`                | None    |        |
-| `erex`                | None    |        |
-| `eventcount`          | None    |        |
-| `fieldformat`         | None    |        |
-| `fieldsummary`        | None    |        |
-| `filldown`            | None    |        |
-| `findtypes`           | None    |        |
-| `folderize`           | None    |        |
-| `gauge`               | None    |        |
-| `gentimes`            | None    |        |
-| `geom`                | None    |        |
-| `geomfilter`          | None    |        |
-| `geostats`            | None    |        |
-| `highlight`           | None    |        |
-| `history`             | None    |        |
-| `iconify`             | None    |        |
-| `inputcsv`            | None    |        |
-| `kmeans`              | None    |        |
-| `kvform`              | None    |        |
-| `loadjob`             | None    |        |
-| `localize`            | None    |        |
-| `localop`             | None    |        |
-| `mcollect`            | None    |        |
-| `metadata`            | None    |        |
-| `metasearch`          | None    |        |
-| `meventcollect`       | None    |        |
-| `mpreview`            | None    |        |
-| `msearch`             | None    |        |
-| `mvcombine`           | Parser  |        |
-| `nomv`                | None    |        |
-| `outlier`             | None    | Maybe  |
-| `outputcsv`           | None    |        |
-| `outputtext`          | None    |        |
-| `overlap`             | None    |        |
-| `pivot`               | None    |        |
-| `predict`             | None    |        |
-| `rangemap`            | None    |        |
-| `redistribute`        | None    |        |
-| `reltime`             | None    |        |
-| `require`             | None    |        |
-| `rest`                | None    |        |
-| `reverse`             | None    |        |
-| `rtorder`             | None    |        |
-| `savedsearch`         | None    |        |
-| `script` (`run`)      | None    |        |
-| `scrub`               | None    |        |
-| `searchtxn`           | None    |        |
-| `selfjoin`            | None    |        |
-| `sendalert`           | None    |        |
-| `sendemail`           | None    |        |
-| `set`                 | None    |        |
-| `setfields`           | None    |        |
-| `sichart`             | None    |        |
-| `sirare`              | None    |        |
-| `sistats`             | None    |        |
-| `sitimechart`         | None    |        |
-| `sitop`               | None    |        |
-| `strcat`              | None    |        |
-| `tags`                | None    |        |
-| `timechart`           | None    | Maybe  |
-| `timewrap`            | None    |        |
-| `tojson`              | None    |        |
-| `transpose`           | None    |        |
-| `trendline`           | None    |        |
-| `tscollect`           | None    |        |
-| `typeahead`           | None    |        |
-| `typelearner`         | None    |        |
-| `typer`               | None    |        |
-| `union`               | None    |        |
-| `uniq`                | None    |        |
-| `untable`             | None    |        |
-| `walklex`             | None    |        |
-| `x11`                 | None    |        |
-| `xmlunescape`         | None    |        |
-| `xpath`               | None    |        |
-| `xyseries`            | None    |        |
+Commands that don't yet support the Runtime can still be converted to raw PySpark code. The only difference will be that
+the PySpark code will be verbose and native, rather than using the SPL-like interface the runtime provides.
+
+| Command               | Support | Runtime | Target |
+|-----------------------|---------|---------|--------|
+| **High Priority**     |         |         |        |
+| `bin` (`bucket`)      | Partial |         | Yes    |
+| `convert`             | Yes     |         | Yes    |
+| `dedup`               | Parser  |         | Yes    |
+| `eval`                | Partial | Yes     | Yes    |
+| `eventstats`          | Partial |         | Yes    |
+| `fields`              | Yes     |         | Yes    |
+| `fillnull`            | Partial | Yes     | Yes    |
+| `head`                | Partial |         | Yes    |
+| `inputlookup`         | Parser  |         | Yes    |
+| `iplocation`          | None    |         | Yes    |
+| `join`                | Partial |         | Yes    |
+| `lookup`              | Partial |         | Yes    |
+| `mstats`              | None    |         | Yes    |
+| `multisearch`         | Partial |         | Yes    |
+| `mvexpand`            | Parser  |         | Yes    |
+| `outputlookup`        | None    |         | Yes    |
+| `rare`                | Yes     |         | Yes    |
+| `regex`               | Yes     |         | Yes    |
+| `rename`              | Partial |         | Yes    |
+| `rex`                 | Partial |         | Yes    |
+| `search`              | Partial | Yes     | Yes    |
+| `sort`                | Partial |         | Yes    |
+| `spath`               | Partial |         | Yes    |
+| `stats`               | Partial |         | Yes    |
+| `streamstats`         | Parser  |         | Yes    |
+| `table`               | Partial |         | Yes    |
+| `tail`                | Yes     |         | Yes    |
+| `top`                 | Yes     |         | Yes    |
+| `tstats`              | Partial | Yes     | Yes    |
+| `where`               | Partial |         | Yes    |
+| **Planned/Supported** |         |         |        |
+| `addtotals`           | Partial |         | Yes    |
+| `anomalydetection`    | None    |         | Maybe  |
+| `append`              | None    |         | Maybe  |
+| `appendpipe`          | None    |         | Maybe  |
+| `chart`               | None    |         | Maybe  |
+| `collect`             | Parser  |         | Maybe  |
+| `extract` (`kv`)      | None    |         | Maybe  |
+| `foreach`             | None    |         | Yes    |
+| `format`              | Parser  |         | Yes    |
+| `from`                | None    |         | Yes    |
+| `makecontinuous`      | None    |         | Maybe  |
+| `makemv`              | None    |         | Maybe  |
+| `makeresults`         | Parser  |         | Yes    |
+| `map`                 | Parser  |         | Yes    |
+| `multikv`             | None    |         | Maybe  |
+| `replace`             | None    |         | Maybe  |
+| `return`              | Parser  |         | Yes    |
+| `transaction`         | None    |         | Yes    |
+| `xmlkv`               | None    |         | Yes    |
+| **Unsupported**       |         |         |        |
+| `abstract`            | None    |         |        |
+| `accum`               | None    |         |        |
+| `addcoltotals`        | None    |         |        |
+| `addinfo`             | None    |         |        |
+| `analyzefields`       | None    |         |        |
+| `anomalies`           | None    |         |        |
+| `anomalousvalue`      | None    |         |        |
+| `appendcols`          | None    |         |        |
+| `arules`              | None    |         |        |
+| `associate`           | None    |         |        |
+| `autoregress`         | None    |         |        |
+| `bucketdir`           | None    |         |        |
+| `cluster`             | None    |         |        |
+| `cofilter`            | None    |         |        |
+| `concurrency`         | None    |         |        |
+| `contingency`         | None    |         |        |
+| `correlate`           | None    |         |        |
+| `datamodel`           | None    |         |        |
+| `dbinspect`           | None    |         |        |
+| `delete`              | None    |         |        |
+| `delta`               | None    |         |        |
+| `diff`                | None    |         |        |
+| `erex`                | None    |         |        |
+| `eventcount`          | None    |         |        |
+| `fieldformat`         | None    |         |        |
+| `fieldsummary`        | None    |         |        |
+| `filldown`            | None    |         |        |
+| `findtypes`           | None    |         |        |
+| `folderize`           | None    |         |        |
+| `gauge`               | None    |         |        |
+| `gentimes`            | None    |         |        |
+| `geom`                | None    |         |        |
+| `geomfilter`          | None    |         |        |
+| `geostats`            | None    |         |        |
+| `highlight`           | None    |         |        |
+| `history`             | None    |         |        |
+| `iconify`             | None    |         |        |
+| `inputcsv`            | None    |         |        |
+| `kmeans`              | None    |         |        |
+| `kvform`              | None    |         |        |
+| `loadjob`             | None    |         |        |
+| `localize`            | None    |         |        |
+| `localop`             | None    |         |        |
+| `mcollect`            | None    |         |        |
+| `metadata`            | None    |         |        |
+| `metasearch`          | None    |         |        |
+| `meventcollect`       | None    |         |        |
+| `mpreview`            | None    |         |        |
+| `msearch`             | None    |         |        |
+| `mvcombine`           | Parser  |         |        |
+| `nomv`                | None    |         |        |
+| `outlier`             | None    |         | Maybe  |
+| `outputcsv`           | None    |         |        |
+| `outputtext`          | None    |         |        |
+| `overlap`             | None    |         |        |
+| `pivot`               | None    |         |        |
+| `predict`             | None    |         |        |
+| `rangemap`            | None    |         |        |
+| `redistribute`        | None    |         |        |
+| `reltime`             | None    |         |        |
+| `require`             | None    |         |        |
+| `rest`                | None    |         |        |
+| `reverse`             | None    |         |        |
+| `rtorder`             | None    |         |        |
+| `savedsearch`         | None    |         |        |
+| `script` (`run`)      | None    |         |        |
+| `scrub`               | None    |         |        |
+| `searchtxn`           | None    |         |        |
+| `selfjoin`            | None    |         |        |
+| `sendalert`           | None    |         |        |
+| `sendemail`           | None    |         |        |
+| `set`                 | None    |         |        |
+| `setfields`           | None    |         |        |
+| `sichart`             | None    |         |        |
+| `sirare`              | None    |         |        |
+| `sistats`             | None    |         |        |
+| `sitimechart`         | None    |         |        |
+| `sitop`               | None    |         |        |
+| `strcat`              | None    |         |        |
+| `tags`                | None    |         |        |
+| `timechart`           | None    |         | Maybe  |
+| `timewrap`            | None    |         |        |
+| `tojson`              | None    |         |        |
+| `transpose`           | None    |         |        |
+| `trendline`           | None    |         |        |
+| `tscollect`           | None    |         |        |
+| `typeahead`           | None    |         |        |
+| `typelearner`         | None    |         |        |
+| `typer`               | None    |         |        |
+| `union`               | None    |         |        |
+| `uniq`                | None    |         |        |
+| `untable`             | None    |         |        |
+| `walklex`             | None    |         |        |
+| `x11`                 | None    |         |        |
+| `xmlunescape`         | None    |         |        |
+| `xpath`               | None    |         |        |
+| `xyseries`            | None    |         |        |
 
 ## Functions
 
@@ -276,149 +340,149 @@ Like with commands, there are a lot of built-in functions and not all of them ma
 This transpiler intends to support most queries and will thus support the most common functions.
 However, there is no goal at this time to support all Splunk functions.
 
-| Category | Subcategory                 | Function                | Support | Target |
-|----------|-----------------------------|-------------------------|---------|--------|
-| Eval     | Bitwise                     | `bit_and`               | Yes     | Yes    |
-| Eval     | Bitwise                     | `bit_or`                | Yes     | Yes    |
-| Eval     | Bitwise                     | `bit_not`               | Yes     | Yes    |
-| Eval     | Bitwise                     | `bit_xor`               | Yes     | Yes    |
-| Eval     | Bitwise                     | `bit_shift_left`        | Yes     | Yes    |
-| Eval     | Bitwise                     | `bit_shift_right`       | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `case`                  | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `cidrmatch`             | Yes*    | Yes    |
-| Eval     | Comparison and Conditional  | `coalesce`              | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `false`                 | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `if`                    | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `in`                    | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `like`                  | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `lookup`                | No      |        |
-| Eval     | Comparison and Conditional  | `match`                 | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `null`                  | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `nullif`                | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `searchmatch`           | No      |        |
-| Eval     | Comparison and Conditional  | `true`                  | Yes     | Yes    |
-| Eval     | Comparison and Conditional  | `validate`              | Yes     | Yes    |
-| Eval     | Conversion                  | `ipmask`                | No      |        |
-| Eval     | Conversion                  | `printf`                | No      |        |
-| Eval     | Conversion                  | `tonumber`              | Partial | Yes    |
-| Eval     | Conversion                  | `tostring`              | Partial | Yes    |
-| Eval     | Cryptographic               | `md5`                   | Yes     | Yes    |
-| Eval     | Cryptographic               | `sha1`                  | Yes     | Yes    |
-| Eval     | Cryptographic               | `sha256`                | Yes     | Yes    |
-| Eval     | Cryptographic               | `sha512`                | Yes     | Yes    |
-| Eval     | Date and Time               | `now`                   | Yes     | Yes    |
-| Eval     | Date and Time               | `relative_time`         | Yes     | Yes    |
-| Eval     | Date and Time               | `strftime`              | Partial | Yes    |
-| Eval     | Date and Time               | `strptime`              | Partial | Yes    |
-| Eval     | Date and Time               | `time`                  | Yes     | Yes    |
-| Eval     | Informational               | `isbool`                | No      | No     |
-| Eval     | Informational               | `isint`                 | No      | No     |
-| Eval     | Informational               | `isnotnull`             | Yes     | Yes    |
-| Eval     | Informational               | `isnull`                | Yes     | Yes    |
-| Eval     | Informational               | `isnum`                 | No      | No     |
-| Eval     | Informational               | `isstr`                 | No      | No     |
-| Eval     | Informational               | `typeof`                | No      | No     |
-| Eval     | JSON                        | `json_object`           | No      |        |
-| Eval     | JSON                        | `json_append`           | No      |        |
-| Eval     | JSON                        | `json_array`            | No      |        |
-| Eval     | JSON                        | `json_array_to_mv`      | No      |        |
-| Eval     | JSON                        | `json_extend`           | No      |        |
-| Eval     | JSON                        | `json_extract`          | No      |        |
-| Eval     | JSON                        | `json_extract_exact`    | No      |        |
-| Eval     | JSON                        | `json_keys`             | Yes     |        |
-| Eval     | JSON                        | `json_set`              | No      |        |
-| Eval     | JSON                        | `json_set_exact`        | No      |        |
-| Eval     | JSON                        | `json_valid`            | Yes     |        |
-| Eval     | Mathematical                | `abs`                   | Yes     | Yes    |
-| Eval     | Mathematical                | `ceiling` (`ceil`)      | Yes     | Yes    |
-| Eval     | Mathematical                | `exact`                 | No      | No     |
-| Eval     | Mathematical                | `exp`                   | Yes     | Yes    |
-| Eval     | Mathematical                | `floor`                 | Yes     | Yes    |
-| Eval     | Mathematical                | `ln`                    | Yes     | Yes    |
-| Eval     | Mathematical                | `log`                   | Yes     | Yes    |
-| Eval     | Mathematical                | `pi`                    | Yes     | Yes    |
-| Eval     | Mathematical                | `pow`                   | Yes     | Yes    |
-| Eval     | Mathematical                | `round`                 | Yes     | Yes    |
-| Eval     | Mathematical                | `sigfig`                | No      | No     |
-| Eval     | Mathematical                | `sqrt`                  | Yes     | Yes    |
-| Eval     | Mathematical                | `sum`                   | Yes     | Yes    |
-| Eval     | Multivalue                  | `commands`              | No      |        |
-| Eval     | Multivalue                  | `mvappend`              | Yes     | Yes    |
-| Eval     | Multivalue                  | `mvcount`               | Yes     | Yes    |
-| Eval     | Multivalue                  | `mvdedup`               | No      |        |
-| Eval     | Multivalue                  | `mvfilter`              | No      | Yes    |
-| Eval     | Multivalue                  | `mvfind`                | No      |        |
-| Eval     | Multivalue                  | `mvindex`               | Yes     | Yes    |
-| Eval     | Multivalue                  | `mvjoin`                | No      | Yes    |
-| Eval     | Multivalue                  | `mvmap`                 | No      |        |
-| Eval     | Multivalue                  | `mvrange`               | No      |        |
-| Eval     | Multivalue                  | `mvsort`                | No      |        |
-| Eval     | Multivalue                  | `mvzip`                 | Yes     |        |
-| Eval     | Multivalue                  | `mv_to_json_array`      | No      |        |
-| Eval     | Multivalue                  | `split`                 | Yes     | Yes    |
-| Eval     | Statistical                 | `avg`                   | Yes     | Yes    |
-| Eval     | Statistical                 | `max`                   | Yes     | Yes    |
-| Eval     | Statistical                 | `min`                   | Yes     | Yes    |
-| Eval     | Statistical                 | `random`                | Yes     | Yes    |
-| Eval     | Text                        | `len`                   | Yes     | Yes    |
-| Eval     | Text                        | `lower`                 | Yes     | Yes    |
-| Eval     | Text                        | `ltrim`                 | Yes     | Yes    |
-| Eval     | Text                        | `replace`               | Yes     | Yes    |
-| Eval     | Text                        | `rtrim`                 | Yes     | Yes    |
-| Eval     | Text                        | `spath`                 | No      |        |
-| Eval     | Text                        | `substr`                | Yes     | Yes    |
-| Eval     | Text                        | `trim`                  | Yes     | Yes    |
-| Eval     | Text                        | `upper`                 | Yes     | Yes    |
-| Eval     | Text                        | `urldecode`             | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `acos`                  | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `acosh`                 | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `asin`                  | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `asinh`                 | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `atan`                  | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `atan2`                 | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `atanh`                 | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `cos`                   | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `cosh`                  | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `hypot`                 | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `sin`                   | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `sinh`                  | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `tan`                   | Yes     | Yes    |
-| Eval     | Trigonometry and Hyperbolic | `tanh`                  | Yes     | Yes    |
-| Stats    | Aggregate                   | `avg`                   | Yes     | Yes    |
-| Stats    | Aggregate                   | `count`                 | Yes     | Yes    |
-| Stats    | Aggregate                   | `distinct_count` (`dc`) | Yes     | Yes    |
-| Stats    | Aggregate                   | `estdc`                 | Yes     |        |
-| Stats    | Aggregate                   | `estdc_error`           | No      |        |
-| Stats    | Aggregate                   | `exactperc`             | Yes     |        |
-| Stats    | Aggregate                   | `max`                   | Yes     | Yes    |
-| Stats    | Aggregate                   | `mean`                  | Yes     | Yes    |
-| Stats    | Aggregate                   | `median`                | Yes     | Yes    |
-| Stats    | Aggregate                   | `min`                   | Yes     | Yes    |
-| Stats    | Aggregate                   | `mode`                  | Yes     | Yes    |
-| Stats    | Aggregate                   | `percentile`            | Yes     | Yes    |
-| Stats    | Aggregate                   | `range`                 | Yes     | Yes    |
-| Stats    | Aggregate                   | `stdev`                 | Yes     | Yes    |
-| Stats    | Aggregate                   | `stdevp`                | Yes     | Yes    |
-| Stats    | Aggregate                   | `sum`                   | Yes     | Yes    |
-| Stats    | Aggregate                   | `sumsq`                 | Yes     | Yes    |
-| Stats    | Aggregate                   | `upperperc`             | Yes     | Yes    |
-| Stats    | Aggregate                   | `var`                   | Yes     | Yes    |
-| Stats    | Aggregate                   | `varp`                  | Yes     | Yes    |
-| Stats    | Event order                 | `first`                 | Yes     |        |
-| Stats    | Event order                 | `last`                  | Yes     |        |
-| Stats    | Multivalue stats and chart  | `list`                  | Yes     |        |
-| Stats    | Multivalue stats and chart  | `values`                | Yes     | Yes    |
-| Stats    | Time                        | `earliest`              | Yes     | Yes    |
-| Stats    | Time                        | `earliest_time`         | Yes?    |        |
-| Stats    | Time                        | `latest`                | Yes     | Yes    |
-| Stats    | Time                        | `latest_time`           | Yes?    |        |
-| Stats    | Time                        | `per_day`               | No      |        |
-| Stats    | Time                        | `per_hour`              | No      |        |
-| Stats    | Time                        | `per_minute`            | No      |        |
-| Stats    | Time                        | `per_second`            | No      |        |
-| Stats    | Time                        | `rate`                  | Yes?    |        |
-| Stats    | Time                        | `rate_avg`              | No      |        |
-| Stats    | Time                        | `rate_sum`              | No      |        |
+| Category | Subcategory                 | Function                | Support | Runtime   | Target |
+|----------|-----------------------------|-------------------------|---------|-----------|--------|
+| Eval     | Bitwise                     | `bit_and`               | Yes     | Yes       | Yes    |
+| Eval     | Bitwise                     | `bit_or`                | Yes     | Yes       | Yes    |
+| Eval     | Bitwise                     | `bit_not`               | Yes     | Yes       | Yes    |
+| Eval     | Bitwise                     | `bit_xor`               | Yes     | Yes       | Yes    |
+| Eval     | Bitwise                     | `bit_shift_left`        | Yes     | Yes       | Yes    |
+| Eval     | Bitwise                     | `bit_shift_right`       | Yes     | Yes       | Yes    |
+| Eval     | Comparison and Conditional  | `case`                  | Yes     | Yes       | Yes    |
+| Eval     | Comparison and Conditional  | `cidrmatch`             | Yes*    | Yes (UDF) | Yes    |
+| Eval     | Comparison and Conditional  | `coalesce`              | Yes     | Yes       | Yes    |
+| Eval     | Comparison and Conditional  | `false`                 | Yes     | Yes       | Yes    |
+| Eval     | Comparison and Conditional  | `if`                    | Yes     | Yes       | Yes    |
+| Eval     | Comparison and Conditional  | `in`                    | Yes     | Yes       | Yes    |
+| Eval     | Comparison and Conditional  | `like`                  | Yes     | Yes       | Yes    |
+| Eval     | Comparison and Conditional  | `lookup`                | No      | No        |        |
+| Eval     | Comparison and Conditional  | `match`                 | Yes     | Yes       | Yes    |
+| Eval     | Comparison and Conditional  | `null`                  | Yes     | Yes       | Yes    |
+| Eval     | Comparison and Conditional  | `nullif`                | Yes     | Yes       | Yes    |
+| Eval     | Comparison and Conditional  | `searchmatch`           | No      | No        |        |
+| Eval     | Comparison and Conditional  | `true`                  | Yes     | Yes       | Yes    |
+| Eval     | Comparison and Conditional  | `validate`              | Yes     | Yes       | Yes    |
+| Eval     | Conversion                  | `ipmask`                | No      | Yes (UDF) |        |
+| Eval     | Conversion                  | `printf`                | No      | Yes (UDF) |        |
+| Eval     | Conversion                  | `tonumber`              | Partial | Yes (UDF) | Yes    |
+| Eval     | Conversion                  | `tostring`              | Partial | Yes (UDF) | Yes    |
+| Eval     | Cryptographic               | `md5`                   | Yes     | Yes       | Yes    |
+| Eval     | Cryptographic               | `sha1`                  | Yes     | Yes       | Yes    |
+| Eval     | Cryptographic               | `sha256`                | Yes     | Yes       | Yes    |
+| Eval     | Cryptographic               | `sha512`                | Yes     | Yes       | Yes    |
+| Eval     | Date and Time               | `now`                   | Yes     | Yes       | Yes    |
+| Eval     | Date and Time               | `relative_time`         | Yes     | Yes       | Yes    |
+| Eval     | Date and Time               | `strftime`              | Partial | Partial   | Yes    |
+| Eval     | Date and Time               | `strptime`              | Partial | Partial   | Yes    |
+| Eval     | Date and Time               | `time`                  | Yes     | Yes       | Yes    |
+| Eval     | Informational               | `isbool`                | No      | No        | No     |
+| Eval     | Informational               | `isint`                 | No      | No        | No     |
+| Eval     | Informational               | `isnotnull`             | Yes     | Yes       | Yes    |
+| Eval     | Informational               | `isnull`                | Yes     | Yes       | Yes    |
+| Eval     | Informational               | `isnum`                 | No      | No        | No     |
+| Eval     | Informational               | `isstr`                 | No      | No        | No     |
+| Eval     | Informational               | `typeof`                | No      | No        | No     |
+| Eval     | JSON                        | `json_object`           | No      | No        |        |
+| Eval     | JSON                        | `json_append`           | No      | No        |        |
+| Eval     | JSON                        | `json_array`            | No      | No        |        |
+| Eval     | JSON                        | `json_array_to_mv`      | No      | No        |        |
+| Eval     | JSON                        | `json_extend`           | No      | No        |        |
+| Eval     | JSON                        | `json_extract`          | No      | No        |        |
+| Eval     | JSON                        | `json_extract_exact`    | No      | No        |        |
+| Eval     | JSON                        | `json_keys`             | Yes     | Yes       |        |
+| Eval     | JSON                        | `json_set`              | No      | No        |        |
+| Eval     | JSON                        | `json_set_exact`        | No      | No        |        |
+| Eval     | JSON                        | `json_valid`            | Yes     | Yes       |        |
+| Eval     | Mathematical                | `abs`                   | Yes     | Yes       | Yes    |
+| Eval     | Mathematical                | `ceiling` (`ceil`)      | Yes     | Yes       | Yes    |
+| Eval     | Mathematical                | `exact`                 | Yes*    | Yes*      | No     |
+| Eval     | Mathematical                | `exp`                   | Yes     | Yes       | Yes    |
+| Eval     | Mathematical                | `floor`                 | Yes     | Yes       | Yes    |
+| Eval     | Mathematical                | `ln`                    | Yes     | Yes       | Yes    |
+| Eval     | Mathematical                | `log`                   | Yes     | Yes       | Yes    |
+| Eval     | Mathematical                | `pi`                    | Yes     | Yes       | Yes    |
+| Eval     | Mathematical                | `pow`                   | Yes     | Yes       | Yes    |
+| Eval     | Mathematical                | `round`                 | Yes     | Yes       | Yes    |
+| Eval     | Mathematical                | `sigfig`                | No      | Yes       | No     |
+| Eval     | Mathematical                | `sqrt`                  | Yes     | Yes       | Yes    |
+| Eval     | Mathematical                | `sum`                   | Yes     | Yes       | Yes    |
+| Eval     | Multivalue                  | `commands`              | No      | No        |        |
+| Eval     | Multivalue                  | `mvappend`              | Yes     | Yes       | Yes    |
+| Eval     | Multivalue                  | `mvcount`               | Yes     | Yes       | Yes    |
+| Eval     | Multivalue                  | `mvdedup`               | No      | No        |        |
+| Eval     | Multivalue                  | `mvfilter`              | No      | No        | Yes    |
+| Eval     | Multivalue                  | `mvfind`                | No      | No        |        |
+| Eval     | Multivalue                  | `mvindex`               | Yes     | Yes       | Yes    |
+| Eval     | Multivalue                  | `mvjoin`                | No      | No        | Yes    |
+| Eval     | Multivalue                  | `mvmap`                 | No      | No        |        |
+| Eval     | Multivalue                  | `mvrange`               | No      | No        |        |
+| Eval     | Multivalue                  | `mvsort`                | No      | No        |        |
+| Eval     | Multivalue                  | `mvzip`                 | Yes     | Yes       |        |
+| Eval     | Multivalue                  | `mv_to_json_array`      | No      | No        |        |
+| Eval     | Multivalue                  | `split`                 | Yes     | Yes       | Yes    |
+| Eval     | Statistical                 | `avg`                   | Yes     | Yes       | Yes    |
+| Eval     | Statistical                 | `max`                   | Yes     | Yes       | Yes    |
+| Eval     | Statistical                 | `min`                   | Yes     | Yes       | Yes    |
+| Eval     | Statistical                 | `random`                | Yes     | Yes       | Yes    |
+| Eval     | Text                        | `len`                   | Yes     | Yes       | Yes    |
+| Eval     | Text                        | `lower`                 | Yes     | Yes       | Yes    |
+| Eval     | Text                        | `ltrim`                 | Yes     | Yes       | Yes    |
+| Eval     | Text                        | `replace`               | Yes     | Yes       | Yes    |
+| Eval     | Text                        | `rtrim`                 | Yes     | Yes       | Yes    |
+| Eval     | Text                        | `spath`                 | No      | No        |        |
+| Eval     | Text                        | `substr`                | Yes     | Yes       | Yes    |
+| Eval     | Text                        | `trim`                  | Yes     | Yes       | Yes    |
+| Eval     | Text                        | `upper`                 | Yes     | Yes       | Yes    |
+| Eval     | Text                        | `urldecode`             | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `acos`                  | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `acosh`                 | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `asin`                  | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `asinh`                 | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `atan`                  | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `atan2`                 | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `atanh`                 | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `cos`                   | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `cosh`                  | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `hypot`                 | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `sin`                   | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `sinh`                  | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `tan`                   | Yes     | Yes       | Yes    |
+| Eval     | Trigonometry and Hyperbolic | `tanh`                  | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `avg`                   | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `count`                 | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `distinct_count` (`dc`) | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `estdc`                 | Yes     | Yes       |        |
+| Stats    | Aggregate                   | `estdc_error`           | No      | No        |        |
+| Stats    | Aggregate                   | `exactperc`             | Yes     | Yes       |        |
+| Stats    | Aggregate                   | `max`                   | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `mean`                  | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `median`                | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `min`                   | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `mode`                  | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `percentile`            | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `range`                 | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `stdev`                 | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `stdevp`                | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `sum`                   | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `sumsq`                 | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `upperperc`             | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `var`                   | Yes     | Yes       | Yes    |
+| Stats    | Aggregate                   | `varp`                  | Yes     | Yes       | Yes    |
+| Stats    | Event order                 | `first`                 | Yes     | Yes       |        |
+| Stats    | Event order                 | `last`                  | Yes     | Yes       |        |
+| Stats    | Multivalue stats and chart  | `list`                  | Yes     | Yes       |        |
+| Stats    | Multivalue stats and chart  | `values`                | Yes     | Yes       | Yes    |
+| Stats    | Time                        | `earliest`              | Yes     | Yes       | Yes    |
+| Stats    | Time                        | `earliest_time`         | Yes?    | Yes?      |        |
+| Stats    | Time                        | `latest`                | Yes     | Yes       | Yes    |
+| Stats    | Time                        | `latest_time`           | Yes?    | Yes?      |        |
+| Stats    | Time                        | `per_day`               | No      | No        |        |
+| Stats    | Time                        | `per_hour`              | No      | No        |        |
+| Stats    | Time                        | `per_minute`            | No      | No        |        |
+| Stats    | Time                        | `per_second`            | No      | No        |        |
+| Stats    | Time                        | `rate`                  | Yes?    | Yes?      |        |
+| Stats    | Time                        | `rate_avg`              | No      | Yes?      |        |
+| Stats    | Time                        | `rate_sum`              | No      | Yes?      |        |
 
 \* Pyspark output depends on custom UDFs instead of native Spark functions. Some of these may be provided by this
 package, some may be provided by Databricks Sirens.
@@ -427,7 +491,8 @@ package, some may be provided by Databricks Sirens.
 
 - [x] Support macro syntax (separate pre-processing function?)
 - [x] Use sample queries to create prioritized list of remaining commands
-- [ ] ~~Incorporate [standard macros that come with CIM](https://docs.splunk.com/Documentation/CIM/5.3.2/User/UsetheCIMFiltersmacrostoexcludedata)~~
+- [ ] ~~
+  Incorporate [standard macros that come with CIM](https://docs.splunk.com/Documentation/CIM/5.3.2/User/UsetheCIMFiltersmacrostoexcludedata)~~
 - [x] Support re-using intermediate results (saving off as tables or variables, `.cache()`)
 - [ ] Migrate existing commands into runtime
 - [ ] Migrate eval, stats, and collect functions into runtime
@@ -442,36 +507,53 @@ package, some may be provided by Databricks Sirens.
 ## Installation
 
 You'll need [`cargo` (Rust)](https://rustup.rs/) and `python` installed.
-I recommend [using `uv`](https://docs.astral.sh/uv/getting-started/installation/) for managing the Python environment, dependencies, and tools needed for this project.
+I recommend [using `uv`](https://docs.astral.sh/uv/getting-started/installation/) for managing the Python environment,
+dependencies, and tools needed for this project.
 
 Note that PySpark is currently only compatible with Python 3.11 and older, 3.12 and 3.13 are not yet supported.
-E.g., you can use `uv venv --python 3.11` to create a `.venv` virtual environment with the appropriate Python interpreter.
+E.g., you can use `uv venv --python 3.11` to create a `.venv` virtual environment with the appropriate Python
+interpreter.
 `spl_transpiler` is developed against Python 3.10 and likely requires at least that.
 
-This project uses `maturin` and `pyo3` for the Rust <-> Python interfacing, you'll need to [install `maturin`](https://www.maturin.rs/installation.html), e.g. using `uvx maturin` commands which will auto-install the tool on first use.
+This project uses `maturin` and `pyo3` for the Rust <-> Python interfacing, you'll need to [install
+`maturin`](https://www.maturin.rs/installation.html), e.g. using `uvx maturin` commands which will auto-install the tool
+on first use.
 
 This project uses [`pre-commit` to automate linting and formatting](https://pre-commit.com/#usage).
 E.g. you can use `uvx pre-commit install` to install pre-commit and set up its git hooks.
 
-You can then build and install `spl_transpiler` and all dependencies. First, make sure you have your virtual environment activated (`uv` commands will detect the venv by default if you use that, else follow activation instructions for your virtual environment tool), then run `uv pip install -e .[cli,test,runtime]`.
+You can then build and install `spl_transpiler` and all dependencies. First, make sure you have your virtual environment
+activated (`uv` commands will detect the venv by default if you use that, else follow activation instructions for your
+virtual environment tool), then run `uv pip install -e .[cli,test,runtime]`.
 
 ## Running Tests
 
 You can test the core transpiler using `cargo test`.
-The Rust test suites include full end-to-end tests of query conversions, ensuring that the transpiler compiles and converts a wide range of known inputs into expected outputs.
+The Rust test suites include full end-to-end tests of query conversions, ensuring that the transpiler compiles and
+converts a wide range of known inputs into expected outputs.
 
-The Python-side tests can be run with `pytest` and primarily ensure that the Rust <-> Python interface is behaving as expected.
-It also includes runtime tests, which validate that hand-written and transpiled runtime code does what is expected using known input/output _data_ pairs running in an ephemeral Spark cluster.
+The Python-side tests can be run with `pytest` and primarily ensure that the Rust <-> Python interface is behaving as
+expected.
+It also includes runtime tests, which validate that hand-written and transpiled runtime code does what is expected using
+known input/output _data_ pairs running in an ephemeral Spark cluster.
 
 There is also a large-scale Python test that can be run using `pytest tests/test_sample_files_parse.py`.
 By default, this test is ignored because it is slow and currently does not pass.
-It runs the transpiler on >1,800 sample SPL queries and ensure that the transpiler doesn't crash, generating detailed logs and error summaries along the way.
-This test is useful when expanding the transpiler to support new syntax, command, functions, etc. to see if the changes cause more commands/queries to transpile successfully.
+It runs the transpiler on >1,800 sample SPL queries and ensure that the transpiler doesn't crash, generating detailed
+logs and error summaries along the way.
+This test is useful when expanding the transpiler to support new syntax, command, functions, etc. to see if the changes
+cause more commands/queries to transpile successfully.
 It's also useful for identifying what elements of SPL should be prioritized next to support more real-world use cases.
 
 # Acknowledgements
 
 This project is deeply indebted to several other projects:
 
-- [Databricks Labs' Transpiler](https://github.com/databrickslabs/transpiler) provided most of the starting point for this parser, including an unambiguous grammar definition and numerous test cases which have been copied mostly verbatim. The license for that transpiler can be found [here](https://github.com/databrickslabs/transpiler/blob/main/LICENSE). Copyright 2021-2022 Databricks, Inc.
-- Numerous real-world SPL queries have been provided by [Splunk Security Content](https://github.com/splunk/security_content/tree/develop) under [Apache 2.0 License](https://github.com/splunk/security_content/blob/5c0471784331db5ec3e28f105b955ae84c4ecf17/LICENSE). Copyright 2022 Splunk Inc.
+- [Databricks Labs' Transpiler](https://github.com/databrickslabs/transpiler) provided most of the starting point for
+  this parser, including an unambiguous grammar definition and numerous test cases which have been copied mostly
+  verbatim. The license for that transpiler can be
+  found [here](https://github.com/databrickslabs/transpiler/blob/main/LICENSE). Copyright 2021-2022 Databricks, Inc.
+- Numerous real-world SPL queries have been provided
+  by [Splunk Security Content](https://github.com/splunk/security_content/tree/develop)
+  under [Apache 2.0 License](https://github.com/splunk/security_content/blob/5c0471784331db5ec3e28f105b955ae84c4ecf17/LICENSE).
+  Copyright 2022 Splunk Inc.

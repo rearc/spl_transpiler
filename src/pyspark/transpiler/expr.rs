@@ -1,6 +1,7 @@
 use crate::functions::eval_fns::eval_fn;
 use crate::pyspark::alias::Aliasable;
 use crate::pyspark::ast::*;
+use crate::pyspark::base::{PysparkTranspileContext, ToSparkExpr};
 use crate::pyspark::transpiler::utils::join_as_binaries;
 use crate::spl::ast;
 use anyhow::{anyhow, bail};
@@ -14,11 +15,9 @@ static SIMPLE_OP_MAP: phf::Map<&'static str, &'static str> = phf_map! {
     "NOT" => "~",
 };
 
-impl TryFrom<ast::Expr> for Expr {
-    type Error = anyhow::Error;
-
-    fn try_from(expr: ast::Expr) -> anyhow::Result<Self> {
-        match expr {
+impl ToSparkExpr for ast::Expr {
+    fn to_spark_expr(&self, ctx: &PysparkTranspileContext) -> anyhow::Result<Expr> {
+        match self.clone() {
             // Binary operation -> Binary op
             ast::Expr::Binary(ast::Binary {
                 left,
@@ -48,7 +47,7 @@ impl TryFrom<ast::Expr> for Expr {
                         ast::Wildcard(pattern),
                     ))),
                 ) => {
-                    let lhs: Expr = lhs.try_into()?;
+                    let lhs: Expr = lhs.with_context(ctx).try_into()?;
                     let match_wildcard =
                         column_like!([lhs].like([py_lit(pattern.replace("*", "%"))]));
                     match op {
@@ -59,12 +58,17 @@ impl TryFrom<ast::Expr> for Expr {
                     }
                 }
                 // a [op] b -> a [op] b
-                (left, op, right) => Ok(ColumnLike::try_binary_op(left, op, right)?.into()),
+                (left, op, right) => Ok(ColumnLike::try_binary_op(
+                    left.with_context(ctx),
+                    op,
+                    right.with_context(ctx),
+                )?
+                .into()),
             },
 
             // Unary operation -> Unary op
             ast::Expr::Unary(ast::Unary { symbol, right }) if symbol == "NOT" => {
-                Ok(ColumnLike::try_unary_not(*right)?.into())
+                Ok(ColumnLike::try_unary_not((*right).with_context(ctx))?.into())
             }
 
             // Field -> Named column
@@ -172,9 +176,9 @@ impl TryFrom<ast::Expr> for Expr {
                 // }.into())
             }
 
-            ast::Expr::Call(call @ ast::Call { .. }) => Ok(eval_fn(call)?.into()),
+            ast::Expr::Call(call @ ast::Call { .. }) => Ok(eval_fn(call, ctx)?.into()),
 
-            _ => Err(anyhow!("Unsupported expression: {:?}", expr)),
+            _ => Err(anyhow!("Unsupported expression: {:?}", self)),
         }
     }
 }

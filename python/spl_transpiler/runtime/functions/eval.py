@@ -126,11 +126,7 @@ def cidrmatch(cidr: Expr, ip: Expr) -> Expr:
 
 @enforce_types
 def coalesce(*args: Expr) -> Expr:
-    if not args:
-        raise ValueError("coalesce() function requires at least one argument.")
-
-    pyspark_args = [arg.to_pyspark_expr() for arg in args]
-    return F.coalesce(*pyspark_args)
+    return F.coalesce(*(arg.to_pyspark_expr() for arg in args))
 
 
 #         // false()                                             	 Returns FALSE.
@@ -254,18 +250,6 @@ def true() -> Expr:
 
 @enforce_types
 def validate(*args) -> Expr:
-    # if len(args) % 2 != 0:
-    #     raise ValueError("case() function requires an even number of arguments (conditions and values).")
-    #
-    # if not args:
-    #     raise ValueError("No arguments found in case() function.")
-    #
-    # result = F
-    # for condition, value in zip(args[::2], args[1::2]):
-    #     result.when(condition.to_pyspark_expr(), value.to_pyspark_expr())
-    #
-    # return result
-
     if len(args) % 2 != 0:
         raise ValueError(
             "validate() function requires an even number of arguments (conditions and values)."
@@ -723,11 +707,8 @@ def ln(num: Expr) -> Expr:
 
 
 @enforce_types
-def log(num: Expr, base: Expr = None) -> Expr:
-    if base is None:
-        return F.log10(num.to_pyspark_expr())
-    else:
-        return F.log(num.to_pyspark_expr(), base.to_pyspark_expr())
+def log(num: Expr, base: int = 10) -> Expr:
+    return F.log(num.to_pyspark_expr(), base)
 
 
 #         // pi()                                                	 Returns the constant pi to 11 digits of precision.
@@ -736,7 +717,9 @@ def log(num: Expr, base: Expr = None) -> Expr:
 
 @enforce_types
 def pi() -> Expr:
-    return F.lit(3.141592653589793)
+    import math
+
+    return F.lit(math.pi)
 
 
 #         // pow(<num>,<exp>)                                    	 Returns <num> to the power of <exp>, <num><exp>.
