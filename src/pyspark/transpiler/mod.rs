@@ -29,11 +29,11 @@ impl PipelineTransformState {
 pub trait PipelineTransformer: Debug {
     fn transform(&self, state: PipelineTransformState) -> Result<PipelineTransformState> {
         match state.ctx.runtime {
-            RuntimeSelection::NoRuntime => self.transform_standalone(state),
-            RuntimeSelection::AllowRuntime => self
+            RuntimeSelection::Disallow => self.transform_standalone(state),
+            RuntimeSelection::Allow => self
                 .transform_for_runtime(state.clone())
                 .or_else(|_| self.transform_standalone(state)),
-            RuntimeSelection::RequireRuntime => self.transform_for_runtime(state.clone()),
+            RuntimeSelection::Require => self.transform_for_runtime(state.clone()),
         }
     }
 

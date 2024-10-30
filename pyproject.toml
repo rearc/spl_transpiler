@@ -29,7 +29,8 @@ test = [
     "pyparsing",
 ]
 cli = [
-    "textual[syntax]"
+    "textual[syntax]",
+    "pyperclip",
 ]
 runtime = [
     "pyspark",

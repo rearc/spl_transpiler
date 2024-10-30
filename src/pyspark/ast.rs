@@ -996,7 +996,7 @@ mod tests {
     // }
 
     fn generates(ast: impl ToSparkQuery, code: impl ToString) {
-        let ctx = test_pyspark_transpile_context(RuntimeSelection::NoRuntime);
+        let ctx = test_pyspark_transpile_context(RuntimeSelection::Disallow);
         let generated = ast.to_spark_query(&ctx).expect("Failed to generate code");
         let formatted_generated = format_python_code(generated.to_string().replace(",)", ")"))
             .expect("Failed to format rendered Spark query");
@@ -1047,7 +1047,7 @@ mod tests {
 
     #[rstest]
     fn test_named() {
-        let ctx = test_pyspark_transpile_context(RuntimeSelection::NoRuntime);
+        let ctx = test_pyspark_transpile_context(RuntimeSelection::Disallow);
         generates(
             DataFrame::source("main")
                 .with_column(
@@ -1064,7 +1064,7 @@ prev
 
     #[rstest]
     fn test_unique_ids() {
-        let ctx = test_pyspark_transpile_context(RuntimeSelection::NoRuntime);
+        let ctx = test_pyspark_transpile_context(RuntimeSelection::Disallow);
         let df_1 = DataFrame::runtime(
             // None,
             None,

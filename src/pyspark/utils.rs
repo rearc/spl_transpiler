@@ -47,7 +47,7 @@ pub mod test {
     }
 
     pub fn generates(spl_query: &str, spark_query: &str) {
-        let ctx = test_pyspark_transpile_context(RuntimeSelection::NoRuntime);
+        let ctx = test_pyspark_transpile_context(RuntimeSelection::Disallow);
         let (_, pipeline_ast) =
             crate::parser::pipeline(spl_query).expect("Failed to parse SPL query");
         let rendered = TransformedPipeline::transform(pipeline_ast, ctx.clone())
@@ -59,7 +59,7 @@ pub mod test {
     }
 
     pub fn generates_runtime(spl_query: &str, spark_query: &str) {
-        let ctx = test_pyspark_transpile_context(RuntimeSelection::RequireRuntime);
+        let ctx = test_pyspark_transpile_context(RuntimeSelection::Require);
         let (_, pipeline_ast) =
             crate::parser::pipeline(spl_query).expect("Failed to parse SPL query");
         let rendered = TransformedPipeline::transform(pipeline_ast, ctx.clone())

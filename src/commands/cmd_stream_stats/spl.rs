@@ -1,6 +1,7 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::ast::{Expr, Field, ParsedCommandOptions};
-use crate::spl::parser::{field_list0, stats_call, ws};
+use crate::commands::stats_utils;
+use crate::spl::ast::{Expr, ParsedCommandOptions};
+use crate::spl::parser::{stats_call, ws};
 use crate::spl::python::*;
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::{map, opt};
@@ -25,13 +26,13 @@ pub struct StreamStatsCommand {
     #[pyo3(get)]
     pub funcs: Vec<Expr>,
     #[pyo3(get)]
-    pub by: Vec<Field>,
+    pub by: Vec<stats_utils::MaybeSpannedField>,
     #[pyo3(get)]
     pub current: bool,
     #[pyo3(get)]
     pub window: i64,
 }
-impl_pyclass!(StreamStatsCommand { funcs: Vec<Expr>, by: Vec<Field>, current: bool, window: i64 });
+impl_pyclass!(StreamStatsCommand { funcs: Vec<Expr>, by: Vec<stats_utils::MaybeSpannedField>, current: bool, window: i64 });
 
 #[derive(Debug, Default)]
 pub struct StreamStatsParser {}
@@ -62,7 +63,10 @@ impl SplCommand<StreamStatsCommand> for StreamStatsParser {
             tuple((
                 Self::Options::match_options,
                 ws(stats_call),
-                opt(preceded(ws(tag_no_case("by")), field_list0)),
+                opt(preceded(
+                    ws(tag_no_case("by")),
+                    stats_utils::maybe_spanned_field_list1,
+                )),
             )),
             |(options, funcs, by)| StreamStatsCommand {
                 funcs,

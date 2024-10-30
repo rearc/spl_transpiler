@@ -1,6 +1,8 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::ast::{Expr, Field, ParsedCommandOptions};
-use crate::spl::parser::{bool_, field_list1, stats_call, ws};
+use crate::commands::stats_utils;
+use crate::commands::stats_utils::maybe_spanned_field_list1;
+use crate::spl::ast::{Expr, ParsedCommandOptions};
+use crate::spl::parser::{bool_, stats_call, ws};
 use crate::spl::python::*;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
@@ -27,7 +29,7 @@ use pyo3::prelude::*;
 #[pyclass(frozen, eq, hash)]
 pub struct StatsCommand {
     #[pyo3(get)]
-    pub partitions: i64,
+    pub partitions: usize,
     #[pyo3(get)]
     pub all_num: bool,
     #[pyo3(get)]
@@ -35,16 +37,16 @@ pub struct StatsCommand {
     #[pyo3(get)]
     pub funcs: Vec<Expr>,
     #[pyo3(get)]
-    pub by: Vec<Field>,
+    pub by: Option<Vec<stats_utils::MaybeSpannedField>>,
     #[pyo3(get)]
     pub dedup_split_vals: bool,
 }
-impl_pyclass!(StatsCommand { partitions: i64, all_num: bool, delim: String, funcs: Vec<Expr>, by: Vec<Field>, dedup_split_vals: bool });
+impl_pyclass!(StatsCommand { partitions: usize, all_num: bool, delim: String, funcs: Vec<Expr>, dedup_split_vals: bool, by: Option<Vec<stats_utils::MaybeSpannedField>> });
 
 #[derive(Debug, Default)]
 pub struct StatsParser {}
 pub struct StatsCommandOptions {
-    partitions: i64,
+    partitions: usize,
     all_num: bool,
     delim: String,
 }
@@ -56,7 +58,7 @@ impl TryFrom<ParsedCommandOptions> for StatsCommandOptions {
 
     fn try_from(value: ParsedCommandOptions) -> Result<Self, Self::Error> {
         Ok(Self {
-            partitions: value.get_int("partitions", 1)?,
+            partitions: value.get_int("partitions", 1)? as usize,
             all_num: value.get_boolean("allnum", false)?,
             delim: value.get_string("delim", " ")?,
         })
@@ -72,7 +74,7 @@ impl SplCommand<StatsCommand> for StatsParser {
             tuple((
                 Self::Options::match_options,
                 stats_call,
-                opt(preceded(ws(tag_no_case("by")), field_list1)),
+                opt(preceded(ws(tag_no_case("by")), maybe_spanned_field_list1)),
                 opt(preceded(
                     pair(ws(tag_no_case("dedup_splitvals")), ws(tag("="))),
                     bool_,
@@ -83,7 +85,7 @@ impl SplCommand<StatsCommand> for StatsParser {
                 all_num: options.all_num,
                 delim: options.delim,
                 funcs: exprs,
-                by: fields.unwrap_or(vec![]),
+                by: fields,
                 dedup_split_vals: dedup.map(|b| b.0).unwrap_or(false),
             },
         )(input)
@@ -141,7 +143,7 @@ mod tests {
                             _alias("lastPassHistId", _call!(last(ast::Field::from("histID"))))
                                 .into(),
                         ],
-                        by: vec![ast::Field::from("testCaseId")],
+                        by: Some(vec![ast::Field::from("testCaseId").into()]),
                         dedup_split_vals: false
                     }
                     .into()],
@@ -187,7 +189,7 @@ mod tests {
                             ast::IntValue(404)
                         )))))
                         .into()],
-                        by: vec![],
+                        by: None,
                         dedup_split_vals: false
                     }
                     .into()],
@@ -238,7 +240,7 @@ mod tests {
                             _alias("latest", _call!(latest(ast::Field::from("_time")))).into(),
                             _alias("var_2", _call!(values(ast::Field::from("var_2")))).into(),
                         ],
-                        by: vec![ast::Field::from("var_1")],
+                        by: Some(vec![ast::Field::from("var_1").into()]),
                         dedup_split_vals: false
                     }
                     .into()],
@@ -266,15 +268,15 @@ mod tests {
                         _alias("firstTime", _call!(min(ast::Field::from("_time")))).into(),
                         _alias("lastTime", _call!(max(ast::Field::from("_time")))).into(),
                     ],
-                    by: vec![
-                        ast::Field::from("action"),
-                        ast::Field::from("deviceowner"),
-                        ast::Field::from("user"),
-                        ast::Field::from("urlcategory"),
-                        ast::Field::from("url"),
-                        ast::Field::from("src"),
-                        ast::Field::from("dest"),
-                    ],
+                    by: Some(vec![
+                        ast::Field::from("action").into(),
+                        ast::Field::from("deviceowner").into(),
+                        ast::Field::from("user").into(),
+                        ast::Field::from("urlcategory").into(),
+                        ast::Field::from("url").into(),
+                        ast::Field::from("src").into(),
+                        ast::Field::from("dest").into(),
+                    ]),
                     dedup_split_vals: false,
                 }
             ))
@@ -293,7 +295,10 @@ mod tests {
                     all_num: false,
                     delim: " ".to_string(),
                     funcs: vec![_alias("instances_launched", _call!(count())).into(),],
-                    by: vec![ast::Field::from("_time"), ast::Field::from("userName"),],
+                    by: Some(vec![
+                        ast::Field::from("_time").into(),
+                        ast::Field::from("userName").into(),
+                    ]),
                     dedup_split_vals: false,
                 }
             ))

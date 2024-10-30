@@ -176,9 +176,9 @@ pub fn eval_fn(call: ast::Call, ctx: &PysparkTranspileContext) -> Result<ColumnL
     let args: Vec<_> = args.into_iter().map(|arg| arg.with_context(ctx)).collect();
 
     match ctx.runtime {
-        RuntimeSelection::NoRuntime => eval_fn_bare(name, args),
-        RuntimeSelection::RequireRuntime => eval_fn_runtime(name, args),
-        RuntimeSelection::AllowRuntime => {
+        RuntimeSelection::Disallow => eval_fn_bare(name, args),
+        RuntimeSelection::Require => eval_fn_runtime(name, args),
+        RuntimeSelection::Allow => {
             eval_fn_runtime(name.clone(), args.clone()).or_else(|_| eval_fn_bare(name, args))
         }
     }
@@ -186,6 +186,12 @@ pub fn eval_fn(call: ast::Call, ctx: &PysparkTranspileContext) -> Result<ColumnL
 
 fn eval_fn_runtime(name: String, args: Vec<ContextualizedExpr<ast::Expr>>) -> Result<ColumnLike> {
     match name.as_str() {
+        "cidrmatch" => function_transform!(cidrmatch [args] (cidr: String, col) {
+            ColumnLike::FunctionCall {
+                func: "functions.eval.cidrmatch".into(),
+                args: vec![PyLiteral::from(cidr).into(), col]
+            }
+        }),
         name => {
             // warn!(
             //     "Unknown eval function encountered, returning as is: {}",
@@ -770,6 +776,19 @@ mod tests {
                 "minute",
                 (F.to_timestamp(F.current_timestamp()) + F.expr("INTERVAL -70 MINUTES"))
             )"#,
+            true,
+        );
+    }
+
+    #[rstest]
+    fn test_cidrmatch(
+        #[from(crate::pyspark::base::test::ctx_runtime)] ctx: PysparkTranspileContext,
+    ) {
+        let (_, ast) = crate::spl::parser::call(r#"cidrmatch("123.132.32.0/25",ip)"#).unwrap();
+        let result = eval_fn(ast, &ctx);
+        assert_python_code_eq(
+            result.unwrap().unaliased().to_spark_query(&ctx).unwrap(),
+            r#"functions.eval.cidrmatch("123.132.32.0/25", F.col("ip"))"#,
             true,
         );
     }

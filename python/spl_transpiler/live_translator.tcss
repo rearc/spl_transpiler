@@ -22,3 +22,24 @@ PysparkCode {
 #log {
     height: 20%;
 }
+
+.container {
+    height: auto;
+    width: auto;
+}
+
+Switch {
+    height: auto;
+    width: auto;
+}
+
+.label {
+    height: 3;
+    content-align: center middle;
+    width: auto;
+}
+
+RichLog {
+    height: auto;
+    width: auto;
+}

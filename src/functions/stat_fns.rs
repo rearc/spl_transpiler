@@ -77,9 +77,9 @@ pub fn stats_fn(
     let args: Vec<_> = args.into_iter().map(|arg| arg.with_context(ctx)).collect();
 
     let (df, expr) = match ctx.runtime {
-        RuntimeSelection::NoRuntime => stats_fn_bare(name, args, df),
-        RuntimeSelection::RequireRuntime => stats_fn_runtime(name, args, df),
-        RuntimeSelection::AllowRuntime => stats_fn_runtime(name.clone(), args.clone(), df.clone())
+        RuntimeSelection::Disallow => stats_fn_bare(name, args, df),
+        RuntimeSelection::Require => stats_fn_runtime(name, args, df),
+        RuntimeSelection::Allow => stats_fn_runtime(name.clone(), args.clone(), df.clone())
             .or_else(|_| stats_fn_bare(name, args, df)),
     }?;
 
@@ -91,17 +91,17 @@ fn stats_fn_runtime(
     args: Vec<ContextualizedExpr<ast::Expr>>,
     df: DataFrame,
 ) -> Result<(DataFrame, ColumnLike)> {
-    match name.as_str() {
-        name => {
-            // warn!(
-            //     "Unknown eval function encountered, returning as is: {}",
-            //     name
-            // );
-            let func = format!("functions.stats.{}", name);
-            let args: Result<Vec<Expr>> = map_args(args);
-            Ok((df, ColumnLike::FunctionCall { func, args: args? }))
-        }
-    }
+    // match name.as_str() {
+    //     name => {
+    // warn!(
+    //     "Unknown eval function encountered, returning as is: {}",
+    //     name
+    // );
+    let func = format!("functions.stats.{}", name);
+    let args: Result<Vec<Expr>> = map_args(args);
+    Ok((df, ColumnLike::FunctionCall { func, args: args? }))
+    // }
+    // }
 }
 
 fn stats_fn_bare(

@@ -1,16 +1,15 @@
 use crate::commands::spl::{SplCommand, SplCommandOptions};
-use crate::spl::ast::{Call, Expr, Field, ParsedCommandOptions, TimeSpan};
-use crate::spl::parser::{
-    comma_or_space_separated_list1, field, field_in, logical_expression, space_separated_list1,
-    time_span, token, ws,
-};
+use crate::commands::stats_utils;
+use crate::commands::stats_utils::maybe_spanned_field_list1;
+use crate::spl::ast::{Call, Expr, Field, ParsedCommandOptions};
+use crate::spl::parser::{field, field_in, logical_expression, space_separated_list1, token, ws};
 use crate::spl::python::*;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::character::complete::multispace1;
 use nom::combinator::{eof, into, map, opt, recognize, verify};
 use nom::multi::separated_list1;
-use nom::sequence::{delimited, pair, preceded, separated_pair, tuple};
+use nom::sequence::{delimited, pair, preceded, tuple};
 use nom::IResult;
 use pyo3::prelude::*;
 /*
@@ -75,7 +74,7 @@ pub struct TStatsCommand {
     #[pyo3(get)]
     pub where_condition: Option<Expr>,
     #[pyo3(get)]
-    pub by_fields: Option<Vec<MaybeSpannedField>>,
+    pub by_fields: Option<Vec<stats_utils::MaybeSpannedField>>,
     #[pyo3(get)]
     pub by_prefix: Option<String>,
 }
@@ -92,7 +91,7 @@ impl_pyclass!(TStatsCommand {
     fillnull_value: Option<String>,
     datamodel: Option<String>,
     nodename: Option<String>,
-    by_fields: Option<Vec<MaybeSpannedField>>,
+    by_fields: Option<Vec<stats_utils::MaybeSpannedField>>,
     by_prefix: Option<String>
 });
 
@@ -156,21 +155,8 @@ fn _parse_where(input: &str) -> IResult<&str, Expr> {
 
 #[derive(Debug, Default)]
 struct ByClause {
-    fields: Option<Vec<MaybeSpannedField>>,
+    fields: Option<Vec<stats_utils::MaybeSpannedField>>,
     prefix: Option<String>,
-}
-
-#[derive(Debug, PartialEq, Clone, Hash)]
-#[pyclass(frozen, eq, hash)]
-pub struct MaybeSpannedField {
-    pub field: Field,
-    pub span: Option<TimeSpan>,
-}
-
-impl From<Field> for MaybeSpannedField {
-    fn from(field: Field) -> Self {
-        MaybeSpannedField { field, span: None }
-    }
 }
 
 fn _parse_by(input: &str) -> IResult<&str, ByClause> {
@@ -180,23 +166,7 @@ fn _parse_by(input: &str) -> IResult<&str, ByClause> {
             alt((
                 // Freaking seriously? This can be either a space-delimited or comma-delimited list
                 // WHY?!?
-                map(
-                    comma_or_space_separated_list1(alt((
-                        map(
-                            separated_pair(
-                                field,
-                                multispace1,
-                                preceded(ws(tag_no_case("span=")), time_span),
-                            ),
-                            |(field, span)| MaybeSpannedField {
-                                field,
-                                span: Some(span),
-                            },
-                        ),
-                        map(field, |field| MaybeSpannedField { field, span: None }),
-                    ))),
-                    |fields| (Some(fields), None),
-                ),
+                map(maybe_spanned_field_list1, |fields| (Some(fields), None)),
                 map(
                     ws(preceded(
                         tag_no_case("PREFIX"),
@@ -300,6 +270,7 @@ impl SplCommand<TStatsCommand> for TStatsParser {
 mod tests {
     use super::*;
     use crate::spl::ast;
+    use crate::spl::ast::TimeSpan;
     use crate::spl::parser::logical_expression_term;
     use crate::spl::utils::test::*;
     use nom::combinator::all_consuming;
@@ -464,7 +435,7 @@ mod tests {
                     nodename: None,
                     where_condition: None,
                     by_fields: Some(vec![
-                        MaybeSpannedField {
+                        stats_utils::MaybeSpannedField {
                             field: ast::Field::from("_time"),
                             span: Some(TimeSpan {
                                 value: 1,
@@ -617,7 +588,7 @@ mod tests {
                         )
                     )),
                     by_fields: Some(vec![
-                        MaybeSpannedField {
+                        stats_utils::MaybeSpannedField {
                             field: ast::Field::from("_time"),
                             span: Some(TimeSpan {
                                 value: 1,
@@ -725,7 +696,7 @@ mod tests {
                             ast::StrValue::from("failure")
                         )
                     )),
-                    by_fields: Some(vec![MaybeSpannedField {
+                    by_fields: Some(vec![stats_utils::MaybeSpannedField {
                         field: Field::from("_time"),
                         span: Some(TimeSpan {
                             value: 1,

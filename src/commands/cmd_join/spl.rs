@@ -99,7 +99,7 @@ mod tests {
     use super::*;
     use crate::commands::cmd_rename::spl::RenameCommand;
     use crate::commands::cmd_search::spl::SearchCommand;
-    use crate::commands::cmd_t_stats::spl::MaybeSpannedField;
+    use crate::commands::stats_utils::MaybeSpannedField;
     use crate::spl::ast;
     use crate::spl::utils::test::*;
     use rstest::rstest;

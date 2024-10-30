@@ -1,3 +1,5 @@
+from spl_transpiler import convert_spl_to_pyspark
+
 # Overview
 
 `spl_transpiler` is a Rust + Python port of [Databricks Labs'
@@ -56,27 +58,39 @@ For example, the following code snippets are equivalent:
 In SPL (which can be transpiled and run on Spark):
 
 ```
-... | where x=5 | ...
+sourcetype="cisco" | eval x=len(raw) | stats max(x) AS longest BY source
 ```
 
 In PySpark:
 
 ```python
-...
-df = df.where(F.col("x") == 5)
-...
+from pyspark.sql import functions as F
+spark.table(...).where(
+    (F.col("sourcetype") == F.lit("cisco")),
+).withColumn(
+    "x",
+    F.length(F.col("raw")),
+).groupBy(
+    [
+        "source",
+    ]
+).agg(
+    F.max(F.col("x")).alias("longest"),
+)
 ```
 
 In the SPL Runtime:
 
 ```python
-...
-df = commands.where(df, x=5)
-...
+from pyspark.sql import functions as F
+from spl_transpiler.runtime import commands, functions
+df_1 = commands.search(None, sourcetype=F.lit("cisco"))
+df_2 = commands.eval(df_1, x=functions.eval.len(F.col("raw")))
+df_3 = commands.stats(
+    df_2, by=[F.col("source")], longest=functions.stats.max(F.col("x"))
+)
+df_3
 ```
-
-For more complicated SPL commands, like `tstats`, these runtime functions provide a compact way of writing PySpark code
-with an SPL-like interface.
 
 This runtime is a collection of helper functions on top of PySpark, and can be intermingled with other PySpark code.
 This means you can leverage an SPL-like experience where convenient while still using regular PySpark code where
@@ -84,28 +98,35 @@ convenient.
 
 In addition to these helper functions, the runtime also provides UDFs (user-defined functions) to provide data
 processing functions that aren't natively available in Spark.
-For example, in `eval is_local=cidrmatch(...)`, the `cidrmatch` function has no direct equivalent in Spark.
+For example, in `eval is_local=cidrmatch("10.0.0.0/8", ip)`, the `cidrmatch` function has no direct equivalent in Spark.
 The runtime provides a UDF that can be used as follows, either directly:
 
 ```python
+from pyspark.sql import functions as F
 from spl_transpiler.runtime import udfs
 
-df = df.withColumn("is_local", udfs.cidr_match(...))
+df = df.withColumn("is_local", udfs.cidr_match("10.0.0.0/8", F.col("ip")))
 ```
 
 Or via the runtime:
 
 ```python
+from pyspark.sql import functions as F
 from spl_transpiler.runtime import commands, functions
-
-# functions.cidrmatch wraps udfs.cidr_match
-df = commands.eval(df, is_local=functions.cidrmatch(...))
+df_1 = commands.eval(None, is_local=functions.eval.cidrmatch("10.0.0.0/8", F.col("ip")))
+df_1
 ```
 
 The transpiler, by default, will not assume the presence of the runtime.
-You need to explicitly allow the runtime to enable these features:
+You need to explicitly allow the runtime to enable these features (it is enabled by default in the TUI):
 
-
+```python
+from spl_transpiler import convert_spl_to_pyspark
+convert_spl_to_pyspark(
+    '''eval is_local=cidrmatch("10.0.0.0/8", ip)''',
+    allow_runtime=True
+)
+```
 
 # Why?
 

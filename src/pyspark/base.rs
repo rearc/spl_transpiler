@@ -7,10 +7,10 @@ use std::sync::atomic::AtomicUsize;
 
 #[derive(Debug, Clone)]
 pub enum RuntimeSelection {
-    NoRuntime,
-    AllowRuntime,
+    Disallow,
+    Allow,
     #[warn(dead_code)]
-    RequireRuntime,
+    Require,
 }
 
 #[derive(Debug, Clone)]
@@ -33,7 +33,7 @@ impl Default for PysparkTranspileContext {
     fn default() -> Self {
         PysparkTranspileContext {
             df_num: Rc::new(AtomicUsize::new(1)),
-            runtime: RuntimeSelection::NoRuntime,
+            runtime: RuntimeSelection::Disallow,
         }
     }
 }
@@ -130,11 +130,11 @@ pub mod test {
 
     #[fixture]
     pub fn ctx_bare() -> PysparkTranspileContext {
-        test_pyspark_transpile_context(RuntimeSelection::NoRuntime)
+        test_pyspark_transpile_context(RuntimeSelection::Disallow)
     }
 
     #[fixture]
     pub fn ctx_runtime() -> PysparkTranspileContext {
-        test_pyspark_transpile_context(RuntimeSelection::RequireRuntime)
+        test_pyspark_transpile_context(RuntimeSelection::Require)
     }
 }

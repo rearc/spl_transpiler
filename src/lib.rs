@@ -42,8 +42,8 @@ fn spl_transpiler(m: &Bound<'_, PyModule>) -> PyResult<()> {
         format_code: bool,
     ) -> PyResult<String> {
         let ctx = PysparkTranspileContext::new(match allow_runtime {
-            true => RuntimeSelection::AllowRuntime,
-            false => RuntimeSelection::NoRuntime,
+            true => RuntimeSelection::Allow,
+            false => RuntimeSelection::Disallow,
         });
         let transformed_pipeline: TransformedPipeline =
             TransformedPipeline::transform(pipeline.clone(), ctx.clone())?;

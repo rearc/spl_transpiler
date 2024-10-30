@@ -150,6 +150,7 @@ xpath            	 Redefines the XML path.
 xyseries         	 Converts results into a format suitable for graphing.
  */
 pub mod spl;
+mod stats_utils;
 
 use const_str::replace;
 use paste::paste;
