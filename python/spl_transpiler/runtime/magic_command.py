@@ -1,29 +1,14 @@
-import ast
-
 from argparse import ArgumentParser, BooleanOptionalAction
-from typing import Any
 
 from spl_transpiler import convert_spl_to_pyspark
+from spl_transpiler.runtime.utils import exec_with_return
+from spl_transpiler.runtime import commands, functions
 
 try:
     from IPython.core.magic import register_cell_magic, get_ipython  # noqa: F401
 except ImportError:
     pass
 else:
-    # https://stackoverflow.com/questions/33908794/get-value-of-last-expression-in-exec-call
-    def exec_with_return(code: str, globals: dict, locals: dict) -> Any | None:
-        a = ast.parse(code)
-        last_expression = None
-        if a.body:
-            if isinstance(a_last := a.body[-1], ast.Expr):
-                last_expression = ast.unparse(a.body.pop())
-            elif isinstance(a_last, ast.Assign):
-                last_expression = ast.unparse(a_last.targets[0])
-            elif isinstance(a_last, (ast.AnnAssign, ast.AugAssign)):
-                last_expression = ast.unparse(a_last.target)
-        exec(ast.unparse(a), globals, locals)
-        if last_expression:
-            return eval(last_expression, globals, locals)
 
     @register_cell_magic
     def spl(line, cell):
@@ -69,6 +54,13 @@ else:
 
         if not args.dry_run:
             try:
-                return exec_with_return(pyspark_code, globals(), {})
+                return exec_with_return(
+                    pyspark_code,
+                    {},
+                    {
+                        "commands": commands,
+                        "functions": functions,
+                    },
+                )
             except Exception as e:
                 raise RuntimeError("Error executing PySpark code") from e

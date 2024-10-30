@@ -48,3 +48,17 @@ class Expr(BaseModel):
                 return self.value
             case _:
                 raise ValueError(f"Unsupported expression kind: {self.kind}")
+
+
+class TimeScale(str, enum.Enum):
+    MONTHS = "months"
+    WEEKS = "weeks"
+    DAYS = "days"
+    HOURS = "hours"
+    MINUTES = "minutes"
+    SECONDS = "seconds"
+
+
+class TimeSpan(BaseModel):
+    value: int
+    scale: TimeScale

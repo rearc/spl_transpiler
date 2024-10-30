@@ -1,11 +1,10 @@
-from typing import Any
-
 from pydantic import BaseModel
 from pyspark.sql import DataFrame
 
 from spl_transpiler.runtime.base import enforce_types, Expr
 from spl_transpiler.runtime.commands import data_model
 from spl_transpiler.runtime.commands.fill_null import fill_null
+from spl_transpiler.runtime.functions.stats import StatsFunction
 
 
 class DataModelSpecifier(BaseModel):
@@ -21,41 +20,29 @@ class DataModelSpecifier(BaseModel):
         )
 
 
-class StatsExpr(BaseModel):
-    def to_pyspark_expr(self, df) -> tuple[DataFrame, Any]:
-        raise NotImplementedError()
-
-
 @enforce_types
 def tstats(
-    # df: DataFrame | None,
+    df: DataFrame | None = None,
     *,
-    prestats=False,
-    local=False,
-    append=False,
-    include_reduced_buckets=False,
     fill_null_value=None,
     from_: DataModelSpecifier | None = None,
     where: Expr | None = None,
     by: list[Expr] = (),
-    **stat_exprs: StatsExpr,
+    **stat_exprs: StatsFunction,
 ) -> DataFrame:
-    if prestats:
-        raise NotImplementedError("`tstats` command does not implement prestats=True")
-    if local:
-        raise NotImplementedError("`tstats` command does not implement local=True")
-    if include_reduced_buckets:
-        raise NotImplementedError(
-            "`tstats` command does not implement include_reduced_buckets=True"
-        )
-    if append:
-        raise NotImplementedError("`tstats` command does not implement append=True")
-
-    df = data_model(
-        data_model_name=from_.datamodel,
-        dataset_name=from_.nodename,
-        summaries_only=False,
-    )
+    match (df, from_):
+        case (None, from_):
+            df = data_model(
+                data_model_name=from_.datamodel,
+                dataset_name=from_.nodename,
+                summaries_only=False,
+            )
+        case (df, None):
+            pass
+        case (None, None):
+            raise ValueError("Either `df` or `from_` must be provided")
+        case _:
+            raise ValueError("Invalid combination of `df` and `from_`")
 
     if fill_null_value is not None:
         df = fill_null(df, value=fill_null_value)
@@ -68,7 +55,7 @@ def tstats(
         df, agg_expr = expr.to_pyspark_expr(df)
         aggs.append(agg_expr.alias(label))
 
-    df = df.groupBy(*by)
+    df = df.groupBy(*(v.to_pyspark_expr() for v in by))
     df = df.agg(*aggs)
 
     return df

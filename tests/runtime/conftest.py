@@ -50,8 +50,8 @@ def sample_data_2(spark):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def sample_silver_table(spark, sample_data_1):
-    sample_data_1.write.saveAsTable("src1_silver", mode="overwrite")
+def sample_silver_table(spark, sample_data_2):
+    sample_data_2.write.saveAsTable("src1_silver", mode="overwrite")
     try:
         yield
     finally:
@@ -59,8 +59,8 @@ def sample_silver_table(spark, sample_data_1):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def sample_model_table(spark, sample_data_1):
-    sample_data_1.write.saveAsTable("Model", mode="overwrite")
+def sample_model_table(spark, sample_data_2):
+    sample_data_2.write.saveAsTable("Model", mode="overwrite")
     try:
         yield
     finally:

@@ -69,6 +69,20 @@ impl PipelineTransformer for TStatsCommand {
         if !self.allow_old_summaries {
             warn!("`tstats` `allow_old_summaries` argument has no effect in PySpark")
         }
+        // all_kwargs.push("prestats", PyLiteral::from(self.prestats));
+        // all_kwargs.push("local", PyLiteral::from(self.local));
+        // all_kwargs.push("append", PyLiteral::from(self.append));
+        // all_kwargs.push(
+        //     "include_reduced_buckets",
+        //     PyLiteral::from(self.include_reduced_buckets),
+        // );
+        ensure!(self.prestats, "`tstats` only supports `prestats`=false");
+        ensure!(self.local, "`tstats` only supports `local`=false");
+        ensure!(self.append, "`tstats` only supports `append`=false");
+        ensure!(
+            self.include_reduced_buckets,
+            "`tstats` only supports `include_reduced_buckets`=false"
+        );
 
         let mut all_kwargs = py_dict! {};
 
@@ -80,13 +94,7 @@ impl PipelineTransformer for TStatsCommand {
                 nodename=self.nodename.clone().map(PyLiteral::from),
             },
         );
-        all_kwargs.push("prestats", PyLiteral::from(self.prestats));
-        all_kwargs.push("local", PyLiteral::from(self.local));
-        all_kwargs.push("append", PyLiteral::from(self.append));
-        all_kwargs.push(
-            "include_reduced_buckets",
-            PyLiteral::from(self.include_reduced_buckets),
-        );
+
         if let Some(fill_null_value) = &self.fillnull_value {
             all_kwargs.push("fill_null_value", PyLiteral::from(fill_null_value.clone()));
         }
@@ -354,18 +362,13 @@ mod tests {
         count min(_time) as firstTime max(_time) as lastTime
         from datamodel=Endpoint.Processes
         where (Processes.process_name ="7z.exe" OR Processes.process_name = "7za.exe" OR Processes.original_file_name = "7z.exe" OR Processes.original_file_name =  "7za.exe") AND (Processes.process="*\\C$\\*" OR Processes.process="*\\Admin$\\*" OR Processes.process="*\\IPC$\\*")
-        by Processes.original_file_name Processes.parent_process_name Processes.parent_process Processes.process_name Processes.process Processes.parent_process_id Processes.process_id  Processes.dest Processes.user"#;
+        by _time span=1h Processes.original_file_name Processes.parent_process_name Processes.parent_process Processes.process_name Processes.process Processes.parent_process_id Processes.process_id  Processes.dest Processes.user"#;
 
         generates_runtime(
             query,
             r#"
 df_1 = commands.tstats(
-    None,
     from_={"datamodel": "Endpoint.Processes", "nodename": None},
-    prestats=False,
-    local=False,
-    append=False,
-    include_reduced_buckets=False,
     fill_null_value="null",
     where=(
         (
@@ -383,6 +386,7 @@ df_1 = commands.tstats(
         )
     ),
     by=[
+        F.window("_time", "1 hours"),
         F.col("Processes.original_file_name"),
         F.col("Processes.parent_process_name"),
         F.col("Processes.parent_process"),
