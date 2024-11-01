@@ -197,6 +197,15 @@ fn eval_fn_runtime(name: String, args: Vec<ContextualizedExpr<ast::Expr>>) -> Re
             //     "Unknown eval function encountered, returning as is: {}",
             //     name
             // );
+            let name = match name {
+                "if" => "if_",
+                "in" => "in_",
+                "len" => "len_",
+                "sum" => "sum_",
+                "max" => "max_",
+                "min" => "min_",
+                name => name,
+            };
             let func = format!("functions.eval.{}", name);
             let args: Result<Vec<Expr>> = map_args(args);
             Ok(ColumnLike::FunctionCall { func, args: args? })

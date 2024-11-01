@@ -1,15 +1,23 @@
-from spl_transpiler import convert_spl_to_pyspark
-
 # Overview
 
-`spl_transpiler` is a Rust + Python port of [Databricks Labs'
-`spl_transpiler`](https://github.com/databrickslabs/transpiler).
-The goal is to provide a high-performance, highly portable, convenient tool for adapting common SPL code into PySpark
+`spl_transpiler` provides a high-performance, highly portable, convenient tool for adapting common SPL code into PySpark
 code when possible, making it easy to migrate from Splunk to other data platforms for log processing.
+The project started as a Rust + Python port of [Databricks Labs'
+`spl_transpiler`](https://github.com/databrickslabs/transpiler), but at this point is far more usable and feature-complete than the original.
 
 # Installation
 
-```pip install spl_transpiler```
+You can install the basic library with
+
+```bash
+pip install spl_transpiler
+```
+
+or install all tools using
+
+```bash
+pip install spl_transpiler[cli,runtime]
+````
 
 # Usage
 
@@ -30,7 +38,6 @@ print(convert_spl_to_pyspark(r"""multisearch
 #     ),
 #     allowMissingColumns=True,
 # )
-
 ```
 
 ## Interactive CLI
@@ -53,15 +60,35 @@ transpiler is understanding your query.
 The Runtime is a library provided (currently) as part of the SPL Transpiler which can provide more robust implementation
 as well as an SPL-like authoring experience when writing PySpark code directly.
 
+The runtime is optional and must be installed explicitly:
+```bash
+pip install spl_transpiler[runtime]
+````
+
 For example, the following code snippets are equivalent:
 
 In SPL (which can be transpiled and run on Spark):
 
 ```
-sourcetype="cisco" | eval x=len(raw) | stats max(x) AS longest BY source
+sourcetype="cisco"
+| eval x=len(raw)
+| stats max(x) AS longest BY source
 ```
 
-In PySpark:
+In the SPL Runtime:
+
+```python
+from pyspark.sql import functions as F
+from spl_transpiler.runtime import commands, functions
+df_1 = commands.search(None, sourcetype=F.lit("cisco"))
+df_2 = commands.eval(df_1, x=functions.eval.len(F.col("raw")))
+df_3 = commands.stats(
+    df_2, by=[F.col("source")], longest=functions.stats.max(F.col("x"))
+)
+df_3
+```
+
+In raw PySpark without the Runtime, this is much more verbose and is less obviously equivalent:
 
 ```python
 from pyspark.sql import functions as F
@@ -77,19 +104,6 @@ spark.table(...).where(
 ).agg(
     F.max(F.col("x")).alias("longest"),
 )
-```
-
-In the SPL Runtime:
-
-```python
-from pyspark.sql import functions as F
-from spl_transpiler.runtime import commands, functions
-df_1 = commands.search(None, sourcetype=F.lit("cisco"))
-df_2 = commands.eval(df_1, x=functions.eval.len(F.col("raw")))
-df_3 = commands.stats(
-    df_2, by=[F.col("source")], longest=functions.stats.max(F.col("x"))
-)
-df_3
 ```
 
 This runtime is a collection of helper functions on top of PySpark, and can be intermingled with other PySpark code.
@@ -118,7 +132,7 @@ df_1
 ```
 
 The transpiler, by default, will not assume the presence of the runtime.
-You need to explicitly allow the runtime to enable these features (it is enabled by default in the TUI):
+You need to explicitly allow the runtime to enable these features:
 
 ```python
 from spl_transpiler import convert_spl_to_pyspark
@@ -167,6 +181,8 @@ Ways to contribute:
 
 - Add SPL queries and what the equivalent PySpark could would be. These test cases can drive development and prioritize
   the most commonly used features.
+- Add runtime functionality (commands, functions, and UDFS) with supporting tests.
+- Add known input and output data pairs with associated SPL queries as tests for future implementation.
 
 # Support Matrix
 
@@ -207,11 +223,16 @@ the PySpark code will be verbose and native, rather than using the SPL-like inte
 | `eventstats`          | Partial |         | Yes    |
 | `fields`              | Yes     |         | Yes    |
 | `fillnull`            | Partial | Yes     | Yes    |
+| `geom`                | None    |         | Yes    |
+| `geomfilter`          | None    |         | Yes    |
+| `geostats`            | None    |         | Yes    |
 | `head`                | Partial |         | Yes    |
+| `history`             | None    |         | Yes    |
 | `inputlookup`         | Parser  |         | Yes    |
 | `iplocation`          | None    |         | Yes    |
 | `join`                | Partial |         | Yes    |
 | `lookup`              | Partial |         | Yes    |
+| `metadata`            | None    |         | Yes    |
 | `mstats`              | None    |         | Yes    |
 | `multisearch`         | Partial |         | Yes    |
 | `mvexpand`            | Parser  |         | Yes    |
@@ -223,7 +244,7 @@ the PySpark code will be verbose and native, rather than using the SPL-like inte
 | `search`              | Partial | Yes     | Yes    |
 | `sort`                | Partial |         | Yes    |
 | `spath`               | Partial |         | Yes    |
-| `stats`               | Partial |         | Yes    |
+| `stats`               | Partial | Yes     | Yes    |
 | `streamstats`         | Parser  |         | Yes    |
 | `table`               | Partial |         | Yes    |
 | `tail`                | Yes     |         | Yes    |
@@ -268,7 +289,7 @@ the PySpark code will be verbose and native, rather than using the SPL-like inte
 | `concurrency`         | None    |         |        |
 | `contingency`         | None    |         |        |
 | `correlate`           | None    |         |        |
-| `datamodel`           | None    |         |        |
+| `datamodel`           | Partial | Yes     |        |
 | `dbinspect`           | None    |         |        |
 | `delete`              | None    |         |        |
 | `delta`               | None    |         |        |
@@ -282,11 +303,7 @@ the PySpark code will be verbose and native, rather than using the SPL-like inte
 | `folderize`           | None    |         |        |
 | `gauge`               | None    |         |        |
 | `gentimes`            | None    |         |        |
-| `geom`                | None    |         |        |
-| `geomfilter`          | None    |         |        |
-| `geostats`            | None    |         |        |
 | `highlight`           | None    |         |        |
-| `history`             | None    |         |        |
 | `iconify`             | None    |         |        |
 | `inputcsv`            | None    |         |        |
 | `kmeans`              | None    |         |        |
@@ -295,7 +312,6 @@ the PySpark code will be verbose and native, rather than using the SPL-like inte
 | `localize`            | None    |         |        |
 | `localop`             | None    |         |        |
 | `mcollect`            | None    |         |        |
-| `metadata`            | None    |         |        |
 | `metasearch`          | None    |         |        |
 | `meventcollect`       | None    |         |        |
 | `mpreview`            | None    |         |        |
@@ -360,6 +376,17 @@ primarily for use in `stats`).
 Like with commands, there are a lot of built-in functions and not all of them may map cleanly to Spark.
 This transpiler intends to support most queries and will thus support the most common functions.
 However, there is no goal at this time to support all Splunk functions.
+
+If you are using the runtime, these functions are available as follows:
+```python
+from spl_transpiler.runtime import functions
+x = functions.eval.len(...)
+y = functions.stats.max(...)
+```
+These functions are _all_ wrappers and provide no new functionality.
+In cases where the SPL function's behavior can be matched by a built-in function from the core Spark library, this wrapper simply converts an SPL-like syntax into the Spark equivalent.
+In other cases where no Spark function exists (e.g. `cidrmatch`), the wrapper calls a custom UDF from `spl_transpiler.runtime.udfs`.
+Even in these cases, the wrapper might still provide a more SPL-like syntax around the UDF, since the UDF is written and optimized for use apart from the wrapper (e.g. it might only provide part of the functionality of the overall SPL function).
 
 | Category | Subcategory                 | Function                | Support | Runtime   | Target |
 |----------|-----------------------------|-------------------------|---------|-----------|--------|

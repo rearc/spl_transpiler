@@ -63,12 +63,13 @@ def default_table_lookup(
 
     if index:
         table = spark.table(index)
-    elif source and source_type:
-        table = spark.table(f"{source}_{source_type}_silver")
+    elif source or source_type:
+        table_name = "_".join(v for v in [source, source_type, "silver"] if v)
+        table = spark.table(table_name)
         conditions = conditions[2:]
     else:
         raise ValueError(
-            "Either `index` or `source` and `source_type` must be provided for table lookup"
+            "Either `index` or `source` or `source_type` must be provided for table lookup"
         )
 
     conditions = [c for c in conditions if c is not None]

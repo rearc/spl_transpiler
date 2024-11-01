@@ -62,8 +62,8 @@ mod tests {
         generates_runtime(
             r#"index="main" | eval x=len(raw)"#,
             r#"
-df_1 = commands.search(None, index=F.lit("main"))
-df_2 = commands.eval(df_1, x=functions.eval.len(F.col("raw")))
+df_1 = commands.search(None, index="main")
+df_2 = commands.eval(df_1, x=functions.eval.len_(F.col("raw")))
 df_2
             "#,
         )

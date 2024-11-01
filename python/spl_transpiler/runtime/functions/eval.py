@@ -537,7 +537,7 @@ def json_object(*members) -> Expr:
 
 
 @enforce_types
-def json_append(json: Expr, *path_value_pairs: (str, Expr)) -> Expr:
+def json_append(json: Expr, **values: Expr) -> Expr:
     raise NotImplementedError("`json_append` function is not implemented")
 
 
@@ -570,7 +570,7 @@ def json_array_to_mv(json_array: Expr, boolean: bool) -> Expr:
 
 
 @enforce_types
-def json_extend(json: Expr, *path_value_pairs: (str, Expr)) -> Expr:
+def json_extend(json: Expr, **values: Expr) -> Expr:
     raise NotImplementedError("`json_extend` function is not implemented")
 
 
@@ -614,7 +614,7 @@ def json_keys(json: Expr) -> Expr:
 
 
 @enforce_types
-def json_set(json: Expr, *path_value_pairs: (str, Expr)) -> Expr:
+def json_set(json: Expr, **values: Expr) -> Expr:
     raise NotImplementedError("`json_set` function is not implemented")
 
 
@@ -625,7 +625,7 @@ def json_set(json: Expr, *path_value_pairs: (str, Expr)) -> Expr:
 
 
 @enforce_types
-def json_set_exact(json: Expr, *key_value_pairs: (str, Expr)) -> Expr:
+def json_set_exact(json: Expr, **values: Expr) -> Expr:
     raise NotImplementedError("`json_set_exact` function is not implemented")
 
 

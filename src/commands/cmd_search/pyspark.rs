@@ -76,6 +76,16 @@ fn break_down_ands(expr: &ast::Expr, exprs: &mut Vec<ast::Expr>) {
     }
 }
 
+const INDEX: &str = "index";
+const SOURCE: &str = "source";
+const SOURCE_TYPE: &str = "sourcetype";
+const HOST: &str = "host";
+const HOST_TAG: &str = "hosttag";
+const EVENT_TYPE: &str = "eventtype";
+const EVENT_TYPE_TAG: &str = "eventtypetag";
+const SAVED_SPLUNK: &str = "savedsplunk";
+const SPLUNK_SERVER: &str = "splunk_server";
+
 impl PipelineTransformer for SearchCommand {
     fn transform_for_runtime(
         &self,
@@ -95,18 +105,63 @@ impl PipelineTransformer for SearchCommand {
                     left,
                     symbol,
                     right,
-                }) => match (*left.clone(), symbol.as_str()) {
-                    (
-                        ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(
-                            name,
-                        )))),
-                        "=" | "==",
-                    ) => kwargs.push((
-                        name.to_string(),
-                        (*right).with_context(&state.ctx).try_into()?,
-                    )),
-                    _ => args.push(expr.with_context(&state.ctx).try_into()?),
-                },
+                }) => {
+                    match (*left.clone(), symbol.as_str()) {
+                        (
+                            ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(
+                                ast::Field(name),
+                            ))),
+                            op,
+                        ) if matches!(
+                            name.as_str(),
+                            INDEX
+                                | SOURCE
+                                | SOURCE_TYPE
+                                | HOST
+                                | HOST_TAG
+                                | EVENT_TYPE
+                                | EVENT_TYPE_TAG
+                                | SAVED_SPLUNK
+                                | SPLUNK_SERVER
+                        ) =>
+                        {
+                            ensure!(
+                                matches!(op, "=" | "=="),
+                                format!("`{}` must use equality comparison", name)
+                            );
+                            let name = match name.as_str() {
+                                INDEX => INDEX,
+                                SOURCE => SOURCE,
+                                SOURCE_TYPE => "source_type",
+                                HOST => HOST,
+                                HOST_TAG => "host_tag",
+                                EVENT_TYPE => "event_type",
+                                EVENT_TYPE_TAG => "event_type_tag",
+                                SAVED_SPLUNK => "saved_splunk",
+                                SPLUNK_SERVER => SPLUNK_SERVER,
+                                _ => panic!("How on earth did we get here?!?"),
+                            };
+                            let rhs_value = match *right {
+                            ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(ast::Field(
+                                                                                             val,
+                                                                                         )))) => val,
+                            ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Str(ast::StrValue(val)))) => val,
+                            _ => bail!("Right-hand side of comparison to {} must be a string-like value", name),
+                        };
+                            kwargs.push((name.to_string(), column_like!(py_lit(rhs_value)).into()))
+                        }
+                        (
+                            ast::Expr::Leaf(ast::LeafExpr::Constant(ast::Constant::Field(
+                                ast::Field(name),
+                            ))),
+                            "=" | "==",
+                        ) => kwargs.push((
+                            name.to_string(),
+                            (*right).with_context(&state.ctx).try_into()?,
+                        )),
+                        _ => args.push(expr.with_context(&state.ctx).try_into()?),
+                    }
+                }
                 _ => args.push(expr.with_context(&state.ctx).try_into()?),
             }
         }
@@ -264,7 +319,7 @@ mod tests {
         generates_runtime(
             query,
             r#"
-df_1 = commands.search(None, (functions.eval.len(F.col("x")) == F.lit(3)), index=F.lit("lol"), sourcetype=F.lit("src1"))
+df_1 = commands.search(None, (functions.eval.len_(F.col("x")) == F.lit(3)), index="lol", source_type="src1")
 df_1
             "#,
         )
@@ -272,12 +327,12 @@ df_1
 
     #[rstest]
     fn test_search_10() {
-        let query = r#"sourcetype="cisco""#;
+        let query = r#"sourcetype=cisco"#;
 
         generates_runtime(
             query,
             r#"
-df_1 = commands.search(None, sourcetype=F.lit("cisco"))
+df_1 = commands.search(None, source_type="cisco")
 df_1
             "#,
         )
