@@ -19,6 +19,12 @@ or install all tools using
 pip install spl_transpiler[cli,runtime]
 ````
 
+You can also use the TUI directly using `uvx` or `pipx`:
+
+```bash
+uvx spl_transpiler
+```
+
 # Usage
 
 ```python

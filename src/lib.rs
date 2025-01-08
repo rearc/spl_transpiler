@@ -64,7 +64,7 @@ fn spl_transpiler(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_class::<spl::macros::MacroCall>()?;
 
-    let ast_m = PyModule::new_bound(m.py(), "ast")?;
+    let ast_m = PyModule::new(m.py(), "ast")?;
     spl::python::ast(&ast_m)?;
     m.add_submodule(&ast_m)?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;

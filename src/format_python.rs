@@ -24,10 +24,10 @@ pub fn format_python_code(code: impl ToString) -> Result<String> {
     // from black import format_str, FileMode
     // res = format_str("some python code", mode=FileMode())
     let result: Result<String> = Python::with_gil(|py| {
-        let black = PyModule::import_bound(py, "black").map_err(|_| BlackNotInstalled())?;
+        let black = PyModule::import(py, "black").map_err(|_| BlackNotInstalled())?;
         let mode = black.getattr("FileMode")?.call0()?;
         let args = (code.to_string(),);
-        let kwargs = [("mode", mode)].into_py_dict_bound(py);
+        let kwargs = [("mode", mode)].into_py_dict(py)?;
         let formatted = black.getattr("format_str")?.call(args, Some(&kwargs))?;
         // TODO: ::from_object_bound is about to be deprecated, renamed to ::from_object in 0.23.0
         // let py_s: Bound<PyString> = formatted.to_string();
