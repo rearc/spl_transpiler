@@ -5,3 +5,5 @@ Cargo.lock
 __pycache__
 spark-warehouse
 *.so
+.ipynb_checkpoints
+*.ipynb

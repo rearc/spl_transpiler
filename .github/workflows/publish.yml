@@ -30,13 +30,20 @@ jobs:
       RUSTFLAGS: -Awarnings
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: 3.x
-      - run: pip install maturin
-      - run: pip install -e .[dev,runtime]
-      - run: pytest
-#      - run: cargo test
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install the project
+        run: uv sync --all-extras --dev
+
+      - name: Run tests
+        run: uv run pytest tests
 
 #  linux:
 #    runs-on: ${{ matrix.platform.runner }}
@@ -141,8 +148,9 @@ jobs:
     strategy:
       matrix:
         platform:
-          - runner: macos-12
-            target: x86_64
+          # Not working right now...?
+#          - runner: macos-12
+#            target: x86_64
           - runner: macos-14
             target: aarch64
     steps:
