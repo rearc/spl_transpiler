@@ -22,7 +22,7 @@ pip install spl_transpiler[cli,runtime]
 You can also use the TUI directly using `uvx` or `pipx`:
 
 ```bash
-uvx spl_transpiler
+uvx run spl_transpiler
 ```
 
 # Usage
