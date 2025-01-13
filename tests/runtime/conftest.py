@@ -25,7 +25,7 @@ def sample_data_1(spark):
             ("src1", "some text"),
             ("src2", "y=3"),
         ],
-        ["sourcetype", "raw"],
+        ["_sourcetype", "raw"],
     )
 
 
@@ -41,7 +41,7 @@ def sample_data_2(spark):
         ],
         schema=StructType(
             [
-                StructField("sourcetype", StringType(), True),
+                StructField("_sourcetype", StringType(), True),
                 StructField("raw", StringType(), True),
                 StructField("maybe_raw_length", IntegerType(), True),
             ]
