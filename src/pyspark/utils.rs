@@ -1,13 +1,13 @@
 #[cfg(test)]
 pub mod test {
     use crate::format_python::format_python_code;
-    use crate::pyspark::{ToSparkQuery, TransformedPipeline};
-    use anyhow::Result;
-    use regex::Regex;
-    use std::ops::Deref;
-
     use crate::pyspark::base::test::test_pyspark_transpile_context;
     use crate::pyspark::base::RuntimeSelection;
+    use crate::pyspark::{ToSparkQuery, TransformedPipeline};
+    use anyhow::Result;
+    use log::debug;
+    use regex::Regex;
+    use std::ops::Deref;
 
     pub fn assert_python_code_eq(
         generated_code: impl ToString,
@@ -66,6 +66,20 @@ pub mod test {
             .expect("Failed to convert SPL query to Spark query")
             .to_spark_query(&ctx)
             .expect("Failed to render Spark query");
+
+        assert_python_code_eq(rendered, spark_query, false);
+    }
+
+    pub fn generates_maybe_runtime(spl_query: &str, spark_query: &str) {
+        let ctx = test_pyspark_transpile_context(RuntimeSelection::Allow);
+        let (_, pipeline_ast) =
+            crate::parser::pipeline(spl_query).expect("Failed to parse SPL query");
+        let rendered = TransformedPipeline::transform(pipeline_ast, ctx.clone())
+            .expect("Failed to convert SPL query to Spark query")
+            .to_spark_query(&ctx)
+            .expect("Failed to render Spark query");
+
+        debug!("Generated code: {}", rendered.to_string());
 
         assert_python_code_eq(rendered, spark_query, false);
     }

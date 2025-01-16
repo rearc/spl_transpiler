@@ -1,6 +1,6 @@
 [package]
 name = "spl_transpiler"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2021"
 
 [lib]
@@ -8,21 +8,19 @@ crate-type = ["cdylib"]
 
 [dependencies]
 nom = "*"
-pyo3 = { version = "*", features = ["extension-module", "auto-initialize", "anyhow"] }
-pyo3-built = "*"
+pyo3 = { version = "*", features = ["anyhow"] }
 float-derive = "*"
 anyhow = "*"
 log = "*"
 regex = "*"
 regex-syntax = "*"
 
-inventory = "*"
 phf = { version = "*", features = ["macros"] }
 paste = "*"
 const-str = "*"
+textwrap = "*"
 
-[build-dependencies]
-built = { version = "*" }
+ruff_python_formatter = { git = "https://github.com/astral-sh/ruff.git" }
 
 [dev-dependencies]
 rstest = "*"

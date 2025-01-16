@@ -22,32 +22,47 @@ impl<T: Into<PyLiteral>> From<Option<T>> for PyLiteral {
     }
 }
 
-impl From<String> for PyLiteral {
-    fn from(value: String) -> PyLiteral {
-        PyLiteral(format!("\"{}\"", value))
-    }
-}
-impl From<&str> for PyLiteral {
-    fn from(value: &str) -> PyLiteral {
-        PyLiteral(format!("\"{}\"", value))
-    }
+macro_rules! py_literal_impl {
+    ($t: ty) => {
+        py_literal_impl!($t, value, value.to_string());
+    };
+    ($t: ty, $name: ident, $exp: expr) => {
+        impl From<$t> for PyLiteral {
+            fn from($name: $t) -> PyLiteral {
+                PyLiteral($exp)
+            }
+        }
+    };
 }
 
-impl From<i64> for PyLiteral {
-    fn from(value: i64) -> PyLiteral {
-        PyLiteral(value.to_string())
-    }
-}
-impl From<f64> for PyLiteral {
-    fn from(value: f64) -> PyLiteral {
-        PyLiteral(value.to_string())
-    }
-}
-impl From<bool> for PyLiteral {
-    fn from(value: bool) -> PyLiteral {
-        PyLiteral(if value { "True".into() } else { "False".into() })
-    }
-}
+py_literal_impl!(String, value, format!("\"{}\"", value));
+py_literal_impl!(&str, value, format!("\"{}\"", value));
+
+py_literal_impl!(i8);
+py_literal_impl!(u8);
+
+py_literal_impl!(i16);
+py_literal_impl!(u16);
+
+py_literal_impl!(i32);
+py_literal_impl!(u32);
+py_literal_impl!(f32);
+
+py_literal_impl!(i64);
+py_literal_impl!(u64);
+py_literal_impl!(f64);
+
+py_literal_impl!(i128);
+py_literal_impl!(u128);
+
+py_literal_impl!(isize);
+py_literal_impl!(usize);
+
+py_literal_impl!(
+    bool,
+    value,
+    if value { "True".into() } else { "False".into() }
+);
 
 impl ToSparkQuery for PyLiteral {
     fn to_spark_query(&self, _ctx: &PysparkTranspileContext) -> Result<PythonCode> {
@@ -384,7 +399,10 @@ macro_rules! py_list {
     () => { PyList(vec![]) };
     ($($value: expr),+ $(,)?) => {
         PyList(vec![$($value.into()),+])
-    }
+    };
+    (*$value: expr) => {
+        PyList($value)
+    };
 }
 
 impl ToSparkQuery for PyList {
@@ -572,62 +590,11 @@ pub enum DataFrame {
         source: Box<DataFrame>,
         name: String,
     },
-    Select {
-        source: Box<DataFrame>,
-        columns: Vec<ColumnLike>,
-    },
-    Where {
-        source: Box<DataFrame>,
-        condition: Expr,
-    },
-    GroupBy {
-        source: Box<DataFrame>,
-        columns: Vec<ColumnOrName>,
-    },
-    Aggregation {
-        source: Box<DataFrame>,
-        columns: Vec<ColumnLike>,
-    },
-    WithColumn {
-        source: Box<DataFrame>,
-        column: ColumnLike,
-        name: String,
-    },
-    WithColumnRenamed {
-        source: Box<DataFrame>,
-        old_name: String,
-        new_name: String,
-    },
-    OrderBy {
-        source: Box<DataFrame>,
-        columns: Vec<ColumnLike>,
-    },
-    UnionByName {
-        source: Box<DataFrame>,
-        other: Box<DataFrame>,
-    },
-    Limit {
-        source: Box<DataFrame>,
-        limit: u64,
-    },
-    Tail {
-        source: Box<DataFrame>,
-        limit: u64,
-    },
-    Join {
-        source: Box<DataFrame>,
-        other: Box<DataFrame>,
-        condition: Expr,
-        join_type: String,
-    },
-    Alias {
-        source: Box<DataFrame>,
-        name: String,
-    },
-    ArbitraryMethod {
+    DataframeMethod {
         source: Box<DataFrame>,
         method: String,
-        params: Vec<Expr>,
+        args: Vec<RuntimeExpr>,
+        kwargs: Vec<(String, RuntimeExpr)>,
     },
 }
 
@@ -650,9 +617,16 @@ impl DataFrame {
         kwargs: Vec<(String, RuntimeExpr)>,
         ctx: &PysparkTranspileContext,
     ) -> Self {
+        let source = match source {
+            Some(df @ DataFrame::Runtime { .. }) => Some(Box::new(df)),
+            Some(df) => Some(Box::new(
+                df.named(Some(Self::generate_unique_name(&ctx.df_num)), ctx),
+            )),
+            None => None,
+        };
         Self::Runtime {
             name: Self::generate_unique_name(&ctx.df_num),
-            source: source.map(Box::new),
+            source,
             runtime_func: runtime_func.to_string(),
             args,
             kwargs,
@@ -670,95 +644,126 @@ impl DataFrame {
         }
     }
     pub fn select(&self, columns: Vec<ColumnLike>) -> DataFrame {
-        Self::Select {
-            source: Box::new(self.clone()),
-            columns,
-        }
+        self.dataframe_method(
+            "select",
+            columns.into_iter().map(Into::into).collect(),
+            vec![],
+        )
     }
-    pub fn where_(&self, condition: impl Into<Expr>) -> DataFrame {
-        Self::Where {
-            source: Box::new(self.clone()),
-            condition: condition.into().unaliased(),
-        }
+    pub fn where_(&self, condition: impl Into<RuntimeExpr>) -> DataFrame {
+        self.dataframe_method("where", vec![condition.into().unaliased()], vec![])
     }
     pub fn group_by(&self, columns: Vec<impl Into<ColumnOrName>>) -> DataFrame {
-        Self::GroupBy {
-            source: Box::new(self.clone()),
-            columns: columns.into_iter().map(Into::into).collect(),
-        }
+        self.dataframe_method(
+            "groupBy",
+            vec![PyList(
+                columns
+                    .into_iter()
+                    .map(|col| match col.into() {
+                        ColumnOrName::Column(col) => col.unaliased().into(),
+                        ColumnOrName::Name(name) => column_like!(py_lit(name)).into(),
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .into()],
+            vec![],
+        )
     }
     pub fn agg(&self, columns: Vec<ColumnLike>) -> DataFrame {
-        Self::Aggregation {
-            source: Box::new(self.clone()),
-            columns,
-        }
+        self.dataframe_method(
+            "agg",
+            columns.into_iter().map(|c| c.into()).collect(),
+            vec![],
+        )
     }
     pub fn with_column(&self, name: impl ToString, column: ColumnLike) -> DataFrame {
-        Self::WithColumn {
-            source: Box::new(self.clone()),
-            column: column.unaliased(),
-            name: name.to_string(),
-        }
+        self.dataframe_method(
+            "withColumn",
+            vec![
+                column_like!(py_lit(name.to_string())).into(),
+                column.unaliased().into(),
+            ],
+            vec![],
+        )
     }
     pub fn with_column_renamed(
         &self,
         old_name: impl ToString,
         new_name: impl ToString,
     ) -> DataFrame {
-        Self::WithColumnRenamed {
-            source: Box::new(self.clone()),
-            old_name: old_name.to_string(),
-            new_name: new_name.to_string(),
-        }
+        self.dataframe_method(
+            "withColumnRenamed",
+            vec![
+                column_like!(py_lit(old_name.to_string())).into(),
+                column_like!(py_lit(new_name.to_string())).into(),
+            ],
+            vec![],
+        )
     }
     pub fn order_by(&self, columns: Vec<ColumnLike>) -> DataFrame {
-        Self::OrderBy {
-            source: Box::new(self.clone()),
-            columns,
-        }
+        self.dataframe_method(
+            "orderBy",
+            columns.into_iter().map(|c| c.unaliased().into()).collect(),
+            vec![],
+        )
     }
     pub fn union_by_name(&self, other: DataFrame) -> DataFrame {
-        Self::UnionByName {
-            source: Box::new(self.clone()),
-            other: Box::new(other),
-        }
+        self.dataframe_method(
+            "unionByName",
+            vec![RuntimeExpr::DataFrame(Box::new(other))],
+            vec![(
+                "allowMissingColumns".into(),
+                column_like!(py_lit(true)).into(),
+            )],
+        )
     }
     pub fn limit(&self, limit: impl Into<u64>) -> DataFrame {
-        Self::Limit {
-            source: Box::new(self.clone()),
-            limit: limit.into(),
-        }
+        self.dataframe_method(
+            "limit",
+            vec![column_like!(py_lit(limit.into())).into()],
+            vec![],
+        )
     }
     pub fn tail(&self, limit: impl Into<u64>) -> DataFrame {
-        Self::Tail {
-            source: Box::new(self.clone()),
-            limit: limit.into(),
-        }
+        self.dataframe_method(
+            "tail",
+            vec![column_like!(py_lit(limit.into())).into()],
+            vec![],
+        )
     }
     pub fn join(
         &self,
         other: DataFrame,
-        condition: impl Into<Expr>,
+        condition: impl Into<RuntimeExpr>,
         join_type: impl ToString,
     ) -> DataFrame {
-        Self::Join {
-            source: Box::new(self.clone()),
-            other: Box::new(other),
-            condition: condition.into().unaliased(),
-            join_type: join_type.to_string(),
-        }
+        self.dataframe_method(
+            "join",
+            vec![RuntimeExpr::DataFrame(Box::new(other)), condition.into()],
+            vec![(
+                "how".into(),
+                column_like!(py_lit(join_type.to_string())).into(),
+            )],
+        )
     }
     pub fn alias(&self, name: impl ToString) -> DataFrame {
-        Self::Alias {
-            source: Box::new(self.clone()),
-            name: name.to_string(),
-        }
+        self.dataframe_method(
+            "alias",
+            vec![RuntimeExpr::from(column_like!(py_lit(name.to_string()))).unaliased()],
+            vec![],
+        )
     }
-    pub fn arbitrary_method(&self, method: impl ToString, params: Vec<Expr>) -> DataFrame {
-        Self::ArbitraryMethod {
+    pub fn dataframe_method(
+        &self,
+        method: impl ToString,
+        args: Vec<RuntimeExpr>,
+        kwargs: Vec<(String, RuntimeExpr)>,
+    ) -> DataFrame {
+        Self::DataframeMethod {
             source: Box::new(self.clone()),
             method: method.to_string(),
-            params,
+            args,
+            kwargs,
         }
     }
 }
@@ -822,127 +827,32 @@ impl ToSparkQuery for DataFrame {
                     Some(source_code),
                 ))
             }
-            DataFrame::Select { source, columns } => {
-                let columns: Result<Vec<String>> = columns
-                    .iter()
-                    .map(|col| col.to_spark_query(ctx).map(|code| code.to_string()))
-                    .collect();
-                Ok(format!(
-                    "{}.select({},)",
-                    source.to_spark_query(ctx)?,
-                    columns?.join(", ")
-                )
-                .into())
-            }
-            DataFrame::Where { source, condition } => Ok(format!(
-                "{}.where({},)",
-                source.to_spark_query(ctx)?,
-                condition.to_spark_query(ctx)?,
-            )
-            .into()),
-            DataFrame::GroupBy { source, columns } => {
-                // Extra trailing comma is intentional
-                let columns: Result<Vec<String>> = columns
-                    .iter()
-                    .map(|s| s.to_spark_query(ctx).map(|s| format!("{}, ", s)))
-                    .collect();
-                Ok(format!(
-                    "{}.groupBy([{}])",
-                    source.to_spark_query(ctx)?,
-                    columns?.join("")
-                )
-                .into())
-            }
-            DataFrame::Aggregation { source, columns } => {
-                let columns: Result<Vec<String>> = columns
-                    .iter()
-                    .map(|col| col.to_spark_query(ctx).map(|code| code.to_string()))
-                    .collect();
-                Ok(format!(
-                    "{}.agg({},)",
-                    source.to_spark_query(ctx)?,
-                    columns?.join(", ")
-                )
-                .into())
-            }
-            DataFrame::WithColumn {
-                source,
-                column,
-                name,
-            } => Ok(format!(
-                "{}.withColumn('{}', {},)",
-                source.to_spark_query(ctx)?,
-                name,
-                column.to_spark_query(ctx)?,
-            )
-            .into()),
-            DataFrame::WithColumnRenamed {
-                source,
-                old_name,
-                new_name,
-            } => Ok(format!(
-                "{}.withColumnRenamed('{}', '{}',)",
-                source.to_spark_query(ctx)?,
-                old_name,
-                new_name,
-            )
-            .into()),
-            DataFrame::OrderBy { source, columns } => {
-                let columns: Result<Vec<String>> = columns
-                    .iter()
-                    .map(|col| col.to_spark_query(ctx).map(|code| code.to_string()))
-                    .collect();
-                Ok(format!(
-                    "{}.orderBy({},)",
-                    source.to_spark_query(ctx)?,
-                    columns?.join(", ")
-                )
-                .into())
-            }
-            DataFrame::UnionByName { source, other } => Ok(format!(
-                "{}.unionByName({}, allowMissingColumns=True,)",
-                source.to_spark_query(ctx)?,
-                other.to_spark_query(ctx)?,
-            )
-            .into()),
-            DataFrame::Limit { source, limit } => {
-                Ok(format!("{}.limit({},)", source.to_spark_query(ctx)?, limit).into())
-            }
-            DataFrame::Tail { source, limit } => {
-                Ok(format!("{}.tail({})", source.to_spark_query(ctx)?, limit).into())
-            }
-            DataFrame::Join {
-                source,
-                other,
-                condition,
-                join_type,
-            } => Ok(format!(
-                "{}.join({}, {}, '{}',)",
-                source.to_spark_query(ctx)?,
-                other.to_spark_query(ctx)?,
-                condition.to_spark_query(ctx)?,
-                join_type
-            )
-            .into()),
-            DataFrame::Alias { source, name } => {
-                Ok(format!("{}.alias('{}',)", source.to_spark_query(ctx)?, name,).into())
-            }
-            DataFrame::ArbitraryMethod {
+            DataFrame::DataframeMethod {
                 source,
                 method,
-                params,
+                args,
+                kwargs,
             } => {
-                let params: Result<Vec<String>> = params
+                let args = args
                     .iter()
                     .map(|col| col.to_spark_query(ctx).map(|code| code.to_string()))
-                    .collect();
-                Ok(format!(
+                    .collect::<Result<Vec<String>>>()?;
+                let kwargs = kwargs
+                    .iter()
+                    .map(|(name, col)| {
+                        let expr = col.to_spark_query(ctx).map(|code| code.to_string())?;
+                        Ok(format!("{}={}", name, expr))
+                    })
+                    .collect::<Result<Vec<String>>>()?;
+                let params: Vec<_> = args.into_iter().chain(kwargs).collect();
+                let source_code = source.to_spark_query(ctx)?;
+                let code = format!(
                     "{}.{}({},)",
-                    source.to_spark_query(ctx)?,
+                    source_code.primary_df_code,
                     method,
-                    params?.join(",")
-                )
-                .into())
+                    params.join(",")
+                );
+                Ok(PythonCode::new(code, vec![], Some(source_code)))
             }
         }
     }
@@ -983,17 +893,6 @@ mod tests {
     use crate::pyspark::base::RuntimeSelection;
     use crate::pyspark::utils::test::assert_python_code_eq;
     use rstest::rstest;
-    // fn generates(spl_query: &str, spark_query: &str) {
-    //     let (_, pipeline_ast) = crate::spl::pipeline(spl_query).expect("Failed to parse SPL query");
-    //     let converted = convert(pipeline_ast).expect("Failed to convert SPL query to Spark query");
-    //     let rendered = converted
-    //         .to_spark_query(ctx)
-    //         .expect("Failed to render Spark query");
-    //     let formatted_rendered = format_python_code(rendered.replace(",)", ")")).expect("Failed to format rendered Spark query");
-    //     let formatted_spark_query =
-    //         format_python_code(spark_query.replace(",)", ")")).expect("Failed to format target Spark query");
-    //     assert_eq!(formatted_rendered, formatted_spark_query);
-    // }
 
     fn generates(ast: impl ToSparkQuery, code: impl ToString) {
         let ctx = test_pyspark_transpile_context(RuntimeSelection::Disallow);

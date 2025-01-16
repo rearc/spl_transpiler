@@ -25,7 +25,7 @@ mod tests {
     fn test_01() {
         generates(
             r#"n>2 | stats count() by valid"#,
-            r#"spark.table("main").where((F.col("n") > F.lit(2))).groupBy(["valid",]).agg(F.count(F.lit(1)).alias("count"))"#,
+            r#"spark.table("main").where((F.col("n") > F.lit(2))).groupBy(["valid"]).agg(F.count(F.lit(1)).alias("count"))"#,
         );
     }
 
@@ -57,7 +57,7 @@ mod tests {
     fn test_03() {
         generates(
             r#"n>2 | stats sum(n) by valid"#,
-            r#"spark.table('main').where((F.col('n') > F.lit(2))).groupBy(['valid',]).agg(F.sum(F.col('n')).alias('sum'))"#,
+            r#"spark.table('main').where((F.col('n') > F.lit(2))).groupBy(['valid']).agg(F.sum(F.col('n')).alias('sum'))"#,
         );
     }
     //
@@ -88,7 +88,7 @@ mod tests {
         generates(
             // r#"eval n=23 | stats sum(*) by valid"#,
             r#"eval n=23 | stats sum(n) by valid"#,
-            r#"spark.table('main').withColumn('n', F.lit(23)).groupBy(['valid',]).agg(F.sum(F.col('n')).alias('sum'))"#,
+            r#"spark.table('main').withColumn('n', F.lit(23)).groupBy(['valid']).agg(F.sum(F.col('n')).alias('sum'))"#,
         );
     }
 
@@ -485,7 +485,7 @@ mod tests {
             r#"addtotals fieldname=num_total num_man num_woman"#,
             r#"spark.table('main').withColumn(
                 'num_total',
-                F.when(
+                (F.when(
                     F.col('num_man').cast('double').isNotNull(),
                     F.col('num_man')
                 ).otherwise(
@@ -495,7 +495,7 @@ mod tests {
                     F.col('num_woman')
                 ).otherwise(
                     F.lit(0.0)
-                )
+                )),
             )"#,
         );
     }
@@ -627,7 +627,7 @@ mod tests {
             r#"eval fsize_quant=memk(fsize)"#,
             r#"spark.table('main').withColumn(
                 'fsize_quant',
-                F.regexp_extract(
+                (F.regexp_extract(
                     F.col('fsize'),
                     '(?i)^(\d*\.?\d+)([kmg])$',
                     1
@@ -668,7 +668,7 @@ mod tests {
                     F.lit(1048576.0)
                 ).otherwise(
                     F.lit(1.0)
-                )
+                ))
             )"#,
         );
     }
@@ -939,7 +939,7 @@ mod tests {
     fn test_top_1() {
         generates(
             r#"index=main | top 5 showperc=false x"#,
-            r#"spark.table('main').groupBy(['x',]).agg(F.count().alias('count')).orderBy(F.col('count').desc()).limit(5)"#,
+            r#"spark.table('main').groupBy(['x']).agg(F.count().alias('count')).orderBy(F.col('count').desc()).limit(5)"#,
         )
     }
 
@@ -947,7 +947,7 @@ mod tests {
     fn test_rare_1() {
         generates(
             r#"index=main | rare 5 showperc=false x"#,
-            r#"spark.table('main').groupBy(['x',]).agg(F.count().alias('count')).orderBy(F.col('count').asc()).limit(5)"#,
+            r#"spark.table('main').groupBy(['x']).agg(F.count().alias('count')).orderBy(F.col('count').asc()).limit(5)"#,
         )
     }
 
@@ -1062,7 +1062,7 @@ mod tests {
             r#"index=alt | eval x=avg(a, b, c)"#,
             r#"spark.table("alt").withColumn(
                 "x",
-                ((F.col("a") + F.col("b")) + F.col("c")) / 3
+                (((F.col("a") + F.col("b")) + F.col("c")) / 3)
             )"#,
         )
     }
@@ -1087,6 +1087,22 @@ mod tests {
         generates(
             r#"search note!=ESCU*"#,
             r#"spark.table("main").where(~F.col("note").like("ESCU%"))"#,
+        )
+    }
+
+    #[rstest]
+    /// This tests an issue where mixing runtime with non-runtime transpilation can result in
+    /// python Syntax errors. This particular test presumes that `rename` doesn't have a
+    /// runtime function, and will probably need to be updated when that changes.
+    fn test_regression_mixed_runtime() {
+        generates_maybe_runtime(
+            r#"index=main | rename foo as bar | stats count by bar"#,
+            r#"
+df_1 = commands.search(None, index="main")
+df_2 = df_1.withColumnRenamed("foo", "bar")
+df_3 = commands.stats(df_2, by=[F.col("bar")], count=functions.stats.count())
+df_3
+            "#,
         )
     }
 }

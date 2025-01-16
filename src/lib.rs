@@ -49,7 +49,7 @@ fn spl_transpiler(m: &Bound<'_, PyModule>) -> PyResult<()> {
             TransformedPipeline::transform(pipeline.clone(), ctx.clone())?;
         let mut code = transformed_pipeline.to_spark_query(&ctx)?.to_string();
         if format_code {
-            code = format_python::safe_format_python_code(code);
+            code = format_python::format_python_code(code)?;
         }
         Ok(code)
     }

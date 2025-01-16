@@ -1,4 +1,4 @@
-use crate::pyspark::ast::{ColumnLike, Expr};
+use crate::pyspark::ast::{ColumnLike, Expr, RuntimeExpr};
 use crate::spl::ast;
 
 pub trait Aliasable: Sized {
@@ -42,6 +42,18 @@ impl Aliasable for Expr {
             Expr::Column(col) => {
                 let (c, name) = col.unaliased_with_name();
                 (c.into(), name)
+            }
+            _ => (self.clone(), None),
+        }
+    }
+}
+
+impl Aliasable for RuntimeExpr {
+    fn unaliased_with_name(&self) -> (Self, Option<String>) {
+        match self {
+            RuntimeExpr::Expr(expr) => {
+                let (expr, name) = expr.unaliased_with_name();
+                (expr.into(), name)
             }
             _ => (self.clone(), None),
         }

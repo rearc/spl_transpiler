@@ -27,9 +27,10 @@ impl PipelineTransformer for FillNullCommand {
     ) -> anyhow::Result<PipelineTransformState> {
         let df = state.df.clone().unwrap_or_default();
 
-        let df = df.arbitrary_method(
+        let df = df.dataframe_method(
             "fillna",
             vec![column_like!(py_lit(self.value.clone())).into()],
+            vec![],
         );
 
         Ok(state.with_df(df))

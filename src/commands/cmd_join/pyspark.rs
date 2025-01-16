@@ -75,7 +75,7 @@ mod tests {
             r#"spark.table('main').alias("LEFT").join(
                 spark.table('main').where(F.col("_raw").ilike("%vendors%")).alias("RIGHT"),
                 (F.col("LEFT.product_id") == F.col("RIGHT.product_id")),
-                "inner"
+                how="inner"
             )"#,
         )
     }
