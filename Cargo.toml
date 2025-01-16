@@ -8,7 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 nom = "*"
-pyo3 = { version = "*", features = ["anyhow"] }
+pyo3 = { version = "*", features = ["extension-module", "abi3", "anyhow"] }
 float-derive = "*"
 anyhow = "*"
 log = "*"
