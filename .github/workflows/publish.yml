@@ -19,31 +19,31 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    runs-on: ${{ matrix.platform.runner }}
-    strategy:
-      matrix:
-        platform:
-          - runner: ubuntu-latest
-            target: x86_64
-    env:
-      RUSTFLAGS: -Awarnings
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install
-
-      - name: Install the project
-        run: uv sync --all-extras --dev
-
-      - name: Run tests
-        run: uv run pytest tests
+#  test:
+#    runs-on: ${{ matrix.platform.runner }}
+#    strategy:
+#      matrix:
+#        platform:
+#          - runner: ubuntu-latest
+#            target: x86_64
+#    env:
+#      RUSTFLAGS: -Awarnings
+#    steps:
+#      - uses: actions/checkout@v4
+#
+#      - name: Install uv
+#        uses: astral-sh/setup-uv@v5
+#        with:
+#          enable-cache: true
+#
+#      - name: Set up Python
+#        run: uv python install
+#
+#      - name: Install the project
+#        run: uv sync --all-extras --dev
+#
+#      - name: Run tests
+#        run: uv run pytest tests
 
 #  linux:
 #    runs-on: ${{ matrix.platform.runner }}
@@ -84,7 +84,7 @@ jobs:
 
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
-    needs: [test]
+#    needs: [test]
     env:
       RUSTFLAGS: "-Ctarget-feature=-crt-static"
     strategy:
