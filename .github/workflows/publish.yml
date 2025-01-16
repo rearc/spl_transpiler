@@ -110,6 +110,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "${{ matrix.platform.runner }}-${{ matrix.platform.target }}"
+
+      - name: Install musl Python dependencies
+        run: apt-get install python3-dev
+
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
