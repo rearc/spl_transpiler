@@ -98,9 +98,15 @@ jobs:
             target: armv7
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: 3.x
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "${{ matrix.platform.runner }}-${{ matrix.platform.target }}"
@@ -129,10 +135,15 @@ jobs:
             target: x86
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: 3.x
-          architecture: ${{ matrix.platform.target }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "${{ matrix.platform.runner }}-${{ matrix.platform.target }}"
@@ -161,9 +172,15 @@ jobs:
             target: aarch64
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: 3.x
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "${{ matrix.platform.runner }}-${{ matrix.platform.target }}"
