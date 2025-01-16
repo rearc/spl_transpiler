@@ -109,13 +109,6 @@ jobs:
       - name: Set up Python
         run: uv python install
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "${{ matrix.platform.runner }}-${{ matrix.platform.target }}"
-
-      - name: Install musl Python dependencies
-        run: sudo apt-get install python3-dev
-
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -123,6 +116,8 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: 'true'
           manylinux: musllinux_1_2
+          before-script-linux: |
+            yum install -y python3-devel
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
