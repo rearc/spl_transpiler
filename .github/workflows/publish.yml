@@ -85,8 +85,6 @@ jobs:
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
     needs: [test]
-    env:
-      RUSTFLAGS: "-Ctarget-feature=-crt-static"
     strategy:
       matrix:
         platform:
