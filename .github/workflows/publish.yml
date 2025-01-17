@@ -45,48 +45,52 @@ jobs:
       - name: Run tests
         run: uv run pytest tests
 
-#  linux:
-#    runs-on: ${{ matrix.platform.runner }}
-#    needs: [test]
-#    strategy:
-#      matrix:
-#        platform:
-#          - runner: ubuntu-latest
-#            target: x86_64
-#          - runner: ubuntu-latest
-#            target: x86
-#          - runner: ubuntu-latest
-#            target: aarch64
-#          - runner: ubuntu-latest
-#            target: armv7
+  linux:
+    runs-on: ${{ matrix.platform.runner }}
+    needs: [test]
+    strategy:
+      matrix:
+        platform:
+          - runner: ubuntu-latest
+            target: x86_64
+          - runner: ubuntu-latest
+            target: x86
+          - runner: ubuntu-latest
+            target: aarch64
+          - runner: ubuntu-latest
+            target: armv7
 #          - runner: ubuntu-latest
 #            target: s390x
 #          - runner: ubuntu-latest
 #            target: ppc64le
-#    steps:
-#      - uses: actions/checkout@v4
-#      - uses: actions/setup-python@v5
-#        with:
-#          python-version: 3.x
-#      - run: pip install -e .[test]
-#      - name: Build wheels
-#        uses: PyO3/maturin-action@v1
-#        with:
-#          target: ${{ matrix.platform.target }}
-#          args: --release --out dist --find-interpreter
-#          sccache: 'true'
-#          manylinux: auto
-#      - name: Upload wheels
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: wheels-linux-${{ matrix.platform.target }}
-#          path: dist
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist --find-interpreter
+          sccache: 'true'
+          manylinux: auto
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-${{ matrix.platform.target }}
+          path: dist
 
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
     needs: [test]
-    env:
-      RUSTFLAGS: "-Ctarget-feature=-crt-static"
     strategy:
       matrix:
         platform:
@@ -116,6 +120,7 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: 'true'
           manylinux: musllinux_1_2
+
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -215,8 +220,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-#    needs: [linux, musllinux, windows, macos, sdist]
-    needs: [musllinux, windows, macos, sdist]
+    needs: [linux, musllinux, windows, macos, sdist]
     permissions:
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
