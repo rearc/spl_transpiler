@@ -220,8 +220,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-#    needs: [linux, musllinux, windows, macos, sdist]
-    needs: [musllinux, windows, macos, sdist]
+    needs: [linux, musllinux, windows, macos, sdist]
     permissions:
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
