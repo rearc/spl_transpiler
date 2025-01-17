@@ -47,7 +47,7 @@ jobs:
 
   linux:
     runs-on: ${{ matrix.platform.runner }}
-#    needs: [test]
+    needs: [test]
     strategy:
       matrix:
         platform:
@@ -90,7 +90,7 @@ jobs:
 
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
-#    needs: [test]
+    needs: [test]
     strategy:
       matrix:
         platform:
